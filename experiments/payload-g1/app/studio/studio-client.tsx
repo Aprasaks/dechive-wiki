@@ -24,6 +24,8 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
   const [body,setBody]=useState('')
   const [status,setStatus]=useState('')
   const [loading,setLoading]=useState(false)
+  const [hydrated,setHydrated]=useState(false)
+  useEffect(()=>setHydrated(true),[])
   const [refreshing,setRefreshing]=useState(true)
   const canRead=role==='editor'||role==='reviewer'
 
@@ -83,7 +85,7 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
   }
 
   return (
-    <div style={{fontFamily:'Arial, sans-serif'}}>
+    <div data-studio-ready={hydrated?'true':'false'} style={{fontFamily:'Arial, sans-serif'}}>
       <nav aria-label="Editorial workspace" style={{display:'flex',justifyContent:'space-between',
         alignItems:'center',gap:16,flexWrap:'wrap',borderBottom:'1px solid #D7D5CD',paddingBottom:24}}>
         <a href="/" style={{fontFamily:'Georgia, serif',fontWeight:700,
@@ -117,7 +119,7 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
                 style={{...ui.field,resize:'vertical'}} required />
             </label>
             <div>
-              <button type="submit" disabled={loading}
+              <button type="submit" disabled={loading||!hydrated}
                 style={{background:'#233D34',color:'#fff',padding:'12px 20px',
                   border:0,cursor:loading?'wait':'pointer'}}>
                 {loading?'Saving privately…':'Save private draft'}
