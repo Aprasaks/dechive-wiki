@@ -91,7 +91,7 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
         <a href="/" style={{fontFamily:'Georgia, serif',fontWeight:700,
           letterSpacing:3,color:'#222',textDecoration:'none'}}>DECHIVE.WIKI</a>
         <span style={{fontSize:13,color:'#565B52'}}>{email} · {role}</span>
-        <button type="button" onClick={logout} style={{padding:'9px 14px',
+        <button type="button" onClick={logout} disabled={!hydrated} style={{padding:'9px 14px',
           background:'transparent',border:'1px solid #8B8A80',cursor:'pointer'}}>Sign out</button>
       </nav>
       <header style={{padding:'42px 0 32px'}}>
