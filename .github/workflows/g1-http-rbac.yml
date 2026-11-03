@@ -67,3 +67,5 @@ jobs:
         run: timeout --signal=SIGTERM --kill-after=10s 240s npm --prefix experiments/payload-g1 run test:http
       - name: Kill publishing/index worker processes and verify atomic recovery
         run: timeout --signal=SIGTERM --kill-after=10s 240s npm --prefix experiments/payload-g1 run test:crash
+      - name: Restore complete KG and Payload database and verify public RBAC
+        run: bash experiments/payload-g1/scripts/restore-drill.sh
