@@ -160,6 +160,13 @@ try {
     if(result.status===200)assert.equal(result.json.docs?.length,0)
     else denied(result)
   })
+  await check('Authenticated reviewer cannot invoke native Payload version restore',async()=>{
+    const v=await payload.findVersions({collection:'editorial-drafts',overrideAccess:true})
+    assert.ok(v.docs.length>0)
+    const restored=await call('/api/editorial-drafts/versions/'+v.docs[0].id,
+      'POST',{},tokens.reviewer)
+    denied(restored)
+  })
   await check('Anonymous REST version restore is denied',async()=>{
     const v=await payload.findVersions({collection:'editorial-drafts',overrideAccess:true})
     assert.ok(v.docs.length>0,'Version fixture absent')
@@ -282,6 +289,43 @@ try {
       assert.ok(!text.includes('PRIVATE NEW DRAFT'))
     })
   }
+  await check('GraphQL native mutation permits editor to update only a private draft',async()=>{
+    const mutation='mutation { updateEditorialDraft(id: '+JSON.stringify(String(document.id))+
+      ', data: { body: "PRIVATE GRAPHQL UPDATE: experimental only" }) { id body } }'
+    const updated=await call('/api/graphql','POST',{query:mutation},tokens.editor)
+    assert.equal(updated.status,200,JSON.stringify(updated.json).slice(0,400))
+    assert.ok(!updated.json.errors?.length,JSON.stringify(updated.json).slice(0,400))
+    assert.equal(updated.json.data?.updateEditorialDraft?.body,'PRIVATE GRAPHQL UPDATE: experimental only')
+    const approved=await admin.query('SELECT body FROM kg.public_entries WHERE entity_id=$1',[entity])
+    assert.equal(approved.rows[0].body,body)
+  })
+  await check('Reviewer JWT cannot mutate editor document through real GraphQL mutation',async()=>{
+    const mutation='mutation { updateEditorialDraft(id: '+JSON.stringify(String(document.id))+
+      ', data: { body: "REVIEWER GRAPHQL ATTACK" }) { id body } }'
+    const response=await call('/api/graphql','POST',{query:mutation},tokens.reviewer)
+    assert.ok(response.status<500)
+    assert.ok(!JSON.stringify(response.json).includes('REVIEWER GRAPHQL ATTACK'))
+    graphqlErrors(response)
+    const draft=await payload.findByID({collection:'editorial-drafts',id:document.id,overrideAccess:true,draft:true})
+    assert.equal(draft.body,'PRIVATE GRAPHQL UPDATE: experimental only')
+  })
+  await check('Native GraphQL publish mutation is rejected and public head cannot change',async()=>{
+    const mutation='mutation { updateEditorialDraft(id: '+JSON.stringify(String(document.id))+
+      ', data: { _status: published }) { id _status } }'
+    const response=await call('/api/graphql','POST',{query:mutation},tokens.editor)
+    assert.ok(response.status<500,JSON.stringify(response.json).slice(0,400))
+    graphqlErrors(response)
+    const published=await admin.query('SELECT version,body FROM kg.public_entries WHERE entity_id=$1',[entity])
+    assert.equal(Number(published.rows[0].version),1)
+    assert.equal(published.rows[0].body,body)
+  })
+  await check('Real Payload logout invalidates publisher JWT for privileged HTTP release',async()=>{
+    const logout=await call('/api/staff/logout','POST',{},tokens.publisher)
+    assert.equal(logout.status,200,JSON.stringify(logout.json).slice(0,300))
+    const replay=await call('/api/g1-publish','POST',
+      {entityId:entity,revisionId:revision,expectedVersion:1},tokens.publisher)
+    denied(replay)
+  })
   console.log('G1_NATIVE_PAYLOAD_HTTP_'+passed+'_CHECKS_SUCCESS')
 } finally {
   await new Promise<void>(resolve=>server.close(()=>resolve()))
