@@ -5,6 +5,8 @@
 **Environment:** ephemeral PostgreSQL 17.6 + Payload CMS v3.92.1 on GitHub Actions
 **Scope:** DECHIVE.WIKI only; synthetic records, no real publication, no AWS compute
 
+> **2026-11-03 extension:** 18 actor-identity permission checks and a 31-table PostgreSQL+Payload restore have since passed. Read [RBAC and Restore Evidence](RBAC_AND_RESTORE_EVIDENCE.md) for the full test matrix and important separate-cluster/real-user limitations.
+
 ## Canonical field and system ownership (v1.1 contract)
 
 | Domain | Owner of record | Publicly accessible? | Rule |
