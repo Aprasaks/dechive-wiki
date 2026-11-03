@@ -1,7 +1,7 @@
 import { APIError, buildConfig, type CollectionConfig } from 'payload'
 import { postgresAdapter } from '@payloadcms/db-postgres'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
-import { g1WorkflowEndpoints } from './http/workflow-endpoints.ts'
+import { g1WorkflowEndpoints } from './http/workflow-endpoints'
 
 // Isolated G1 security test config: separate from the existing P0/G1 fixture.
 // IMPORTANT: never deploy this disposable database-push config to production.
