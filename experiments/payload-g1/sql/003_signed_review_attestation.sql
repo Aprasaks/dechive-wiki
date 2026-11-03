@@ -44,7 +44,8 @@ BEGIN
   IF session_user <> 'kg_g1_reviewer_probe' THEN
     RAISE EXCEPTION 'NOT_REVIEWER_LOGIN' USING ERRCODE='42501';
   END IF;
-  IF p_staff_id IS NULL OR p_staff_id < 1
+  IF p_revision IS NULL OR p_staff_id IS NULL OR p_staff_id < 1
+     OR p_nonce IS NULL OR p_signature IS NULL
      OR p_nonce !~ '^[a-f0-9]{32}$'
      OR p_signature !~ '^[a-f0-9]{64}$' THEN
     RAISE EXCEPTION 'INVALID_REVIEW_ATTESTATION' USING ERRCODE='42501';
@@ -65,7 +66,7 @@ BEGIN
   SELECT k.secret_key INTO STRICT v_key FROM kg.attestation_private_key k WHERE k.id=1;
   v_message := p_revision::text || '|' || p_staff_id::text || '|' ||
     v_checksum || '|' || p_nonce;
-  v_expected := encode(hmac(convert_to(v_message,'UTF8'),v_key,'sha256'),'hex');
+  v_expected := encode(public.hmac(convert_to(v_message,'UTF8'),v_key,'sha256'),'hex');
 
   IF v_expected <> p_signature THEN
     RAISE EXCEPTION 'REVIEW_ATTESTATION_SIGNATURE_INVALID' USING ERRCODE='42501';
