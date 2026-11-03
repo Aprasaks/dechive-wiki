@@ -118,6 +118,20 @@ try{
 
   const tokens:Record<string,string>={}
   const browserCookies:Record<string,string>={}
+  await check('Anonymous studio access redirects to staff login without leaking private content',async()=>{
+    const r=await fetchRaw('/studio')
+    assert.ok([302,303,307,308].includes(r.status),'Anonymous studio status: '+r.status)
+    assert.match(r.headers.get('location')??'',/\/studio\/login/)
+    assert.ok(!r.text.includes('COOKIE SESSION PRIVATE DRAFT'))
+    assert.match(r.headers.get('cache-control')??'',/no-store/)
+  })
+  await check('Staff sign-in is available but has no public registration control',async()=>{
+    const r=await fetchRaw('/studio/login')
+    assert.equal(r.status,200,r.text.slice(0,300))
+    assert.match(r.text,/Editorial Sign In/)
+    assert.match(r.text,/Public registration is disabled/)
+    assert.match(r.headers.get('x-robots-tag')??'',/noindex/)
+  })
   await check('Actual Next.js REST route logs in editor, reviewer and publisher',async()=>{
     for(const a of accounts) {
       const r=await fetchRaw('/api/staff/login','POST',
@@ -157,6 +171,47 @@ try{
       'GET',undefined,tokens.other)
     if(r.status===200)assert.ok(!r.text.includes(original))
     else denied(r)
+  })
+  await check('Editor browser cookie unlocks private studio without exposing reviewer-only state',async()=>{
+    const r=await fetch(BASE+'/studio',{
+      headers:{Cookie:browserCookies.editor},signal:AbortSignal.timeout(12000),
+      redirect:'manual',
+    })
+    const text=await r.text()
+    assert.equal(r.status,200,'Editor studio response: '+r.status+' '+text.slice(0,250))
+    assert.match(text,/Editorial Workspace/)
+    assert.match(text,/New private draft/)
+    assert.match(text,/Save private draft/)
+    assert.match(r.headers.get('cache-control')??'',/no-store/)
+    assert.match(r.headers.get('x-robots-tag')??'',/noindex/)
+  })
+  await check('Reviewer browser cookie grants read-only workspace without editor composer',async()=>{
+    const r=await fetch(BASE+'/studio',{
+      headers:{Cookie:browserCookies.reviewer},signal:AbortSignal.timeout(12000),
+      redirect:'manual',
+    })
+    const text=await r.text()
+    assert.equal(r.status,200,'Reviewer studio response: '+r.status+' '+text.slice(0,250))
+    assert.match(text,/Review queue/)
+    assert.ok(!text.includes('Save private draft'),'Reviewer must not receive editor form')
+  })
+  await check('Publisher browser cookie sees publication desk but not editor composer',async()=>{
+    const r=await fetch(BASE+'/studio',{
+      headers:{Cookie:browserCookies.publisher},signal:AbortSignal.timeout(12000),
+      redirect:'manual',
+    })
+    const text=await r.text()
+    assert.equal(r.status,200,'Publisher studio response: '+r.status+' '+text.slice(0,250))
+    assert.match(text,/Publication desk/)
+    assert.ok(!text.includes('Save private draft'),'Publisher must not receive editor form')
+  })
+  await check('Forged or expired browser cookie cannot render private studio',async()=>{
+    const r=await fetch(BASE+'/studio',{
+      headers:{Cookie:'staff-token=forged; payload-token=forged'},
+      signal:AbortSignal.timeout(12000),redirect:'manual',
+    })
+    assert.ok([302,303,307,308].includes(r.status),'Invalid cookie studio returned '+r.status)
+    assert.match(r.headers.get('location')??'',/\/studio\/login/)
   })
   await check('Signed login cookie is accepted for same-origin staff session',async()=>{
     const r=await fetch(BASE+'/api/staff/me',{

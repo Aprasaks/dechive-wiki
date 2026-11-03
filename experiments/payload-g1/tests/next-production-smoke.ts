@@ -71,6 +71,19 @@ try{
     assert.ok(!r.body.includes(draftText))
     assert.match(r.headers.get('cache-control')??'',/no-store/)
   })
+  await check('Compiled production studio redirects anonymous requests to sign-in',async()=>{
+    const r=await request('/studio')
+    assert.ok([302,303,307,308].includes(r.status),'Anonymous studio HTTP '+r.status)
+    assert.match(r.headers.get('location')??'',/\/studio\/login/)
+    assert.match(r.headers.get('cache-control')??'',/no-store/)
+  })
+  await check('Compiled production staff login page is non-indexable and framed-denied',async()=>{
+    const r=await request('/studio/login')
+    assert.equal(r.status,200,r.body.slice(0,250))
+    assert.match(r.body,/Editorial Sign In/)
+    assert.match(r.headers.get('x-robots-tag')??'',/noindex/)
+    assert.equal(r.headers.get('x-frame-options'),'DENY')
+  })
   await check('Compiled Payload REST collection does not reveal drafts to guests',async()=>{
     const r=await request('/api/editorial-drafts?draft=true&depth=99')
     assert.ok(r.status<500,r.body.slice(0,250))

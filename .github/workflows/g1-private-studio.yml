@@ -1,0 +1,133 @@
+name: G1 Authenticated Private Editorial Studio Gate
+
+on:
+  push:
+    branches:
+      - p0/g1-private-studio-ui
+    paths:
+      - "experiments/payload-g1/**"
+      - "db/**"
+      - ".github/workflows/g1-private-studio.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: g1-private-studio-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  native-payload-security:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-native-payload-ci-only
+          POSTGRES_DB: dechive_native_g1
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d dechive_native_g1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgres://postgres:synthetic-native-payload-ci-only@127.0.0.1:5432/dechive_native_g1
+      PGPASSWORD: synthetic-native-payload-ci-only
+      PAYLOAD_SECRET: synthetic-native-auth-secret-not-for-production-gh-runner-only
+      NODE_ENV: development
+    steps:
+      - name: Checkout the independent G1 HTTP test branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install pinned supported Node version
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.23.4'
+          cache: npm
+          cache-dependency-path: experiments/payload-g1/package-lock.json
+      - name: Install exact Payload v3 + Next runtime from lockfile
+        run: npm ci --prefix experiments/payload-g1 --no-audit --no-fund
+      - name: Apply immutable canonical KG schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in db/00[1-4]_*.sql; do
+            psql -h 127.0.0.1 -U postgres -d dechive_native_g1 \
+              -v ON_ERROR_STOP=1 -q -f "$file"
+          done
+      - name: Prepare restricted public reader with disposable random password
+        shell: bash
+        run: |
+          set -euo pipefail
+          pw="$(openssl rand -hex 24)"
+          echo "::add-mask::$pw"
+          psql -h 127.0.0.1 -U postgres -d dechive_native_g1 \
+            -v ON_ERROR_STOP=1 -v reader_password="$pw" \
+            -q -f experiments/payload-g1/sql/001_http_reader.sql
+          echo "PUBLIC_DATABASE_URL=postgres://kg_public_http:$pw@127.0.0.1:5432/dechive_native_g1" >> "$GITHUB_ENV"
+      - name: Create scoped reviewer and publisher identities for real HTTP workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          editor_pw="$(openssl rand -hex 24)"
+          reviewer_pw="$(openssl rand -hex 24)"
+          publisher_pw="$(openssl rand -hex 24)"
+          echo "::add-mask::$editor_pw"
+          echo "::add-mask::$reviewer_pw"
+          echo "::add-mask::$publisher_pw"
+          psql -h 127.0.0.1 -U postgres -d dechive_native_g1 \
+            -v ON_ERROR_STOP=1 -v editor_password="$editor_pw" \
+            -v reviewer_password="$reviewer_pw" \
+            -v publisher_password="$publisher_pw" \
+            -q -f experiments/payload-g1/sql/002_actor_roles.sql
+          echo "G1_REVIEWER_DATABASE_URL=postgres://kg_g1_reviewer_probe:$reviewer_pw@127.0.0.1:5432/dechive_native_g1" >> "$GITHUB_ENV"
+          echo "G1_PUBLISHER_DATABASE_URL=postgres://kg_g1_publisher_probe:$publisher_pw@127.0.0.1:5432/dechive_native_g1" >> "$GITHUB_ENV"
+          attestation_key="$(openssl rand -hex 32)"
+          echo "::add-mask::$attestation_key"
+          psql -h 127.0.0.1 -U postgres -d dechive_native_g1 \
+            -v ON_ERROR_STOP=1 -v attestation_secret="$attestation_key" \
+            -q -f experiments/payload-g1/sql/003_signed_review_attestation.sql
+          echo "G1_REVIEW_ATTESTATION_SECRET=$attestation_key" >> "$GITHUB_ENV"
+      - name: Verify real Next.js dev server with authenticated edit/review/publish and SSR
+        env:
+          G1_TRUSTED_ORIGIN: http://127.0.0.1:3100
+          G1_COOKIE_SECURE: 'false'
+        run: timeout --signal=SIGTERM --kill-after=10s 300s npm --prefix experiments/payload-g1 run test:next-full
+      - name: Verify production Next.js build and type boundary
+        env:
+          G1_TRUSTED_ORIGIN: http://127.0.0.1:3101
+          G1_COOKIE_SECURE: 'true'
+          NODE_ENV: production
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: timeout --signal=SIGTERM --kill-after=10s 420s npm --prefix experiments/payload-g1 run build:next
+      - name: Smoke-test built Next.js production HTTP, SSR, privacy and API authorization
+        env:
+          G1_TRUSTED_ORIGIN: http://127.0.0.1:3101
+          G1_COOKIE_SECURE: 'true'
+          NODE_ENV: production
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: timeout --signal=SIGTERM --kill-after=10s 180s npm --prefix experiments/payload-g1 run test:next-prod
+      - name: Install pinned Playwright Core for real Chrome E2E, no browser download
+        run: |
+          set -euo pipefail
+          google-chrome --version
+          npm install --prefix experiments/payload-g1 --no-save --package-lock=false \
+            --ignore-scripts --no-audit --no-fund playwright-core@1.57.0
+      - name: Test browser login, editor draft submission, reviewer view and actual malicious form
+        env:
+          G1_TRUSTED_ORIGIN: http://127.0.0.1:3112
+          G1_COOKIE_SECURE: 'false'
+          NODE_ENV: development
+        run: cd experiments/payload-g1 && timeout --signal=SIGTERM --kill-after=10s 240s ./node_modules/.bin/tsx tests/studio-chrome-e2e.ts
+      - name: Preserve synthetic-only editor and reviewer Chrome screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: g1-studio-browser-proof
+          path: experiments/payload-g1/artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
