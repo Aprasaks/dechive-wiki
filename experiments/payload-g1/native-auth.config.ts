@@ -1,4 +1,4 @@
-import { buildConfig, type CollectionConfig } from 'payload'
+import { APIError, buildConfig, type CollectionConfig } from 'payload'
 import { postgresAdapter } from '@payloadcms/db-postgres'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 
@@ -64,7 +64,7 @@ const EditorialDrafts: CollectionConfig = {
     beforeChange: [({ data, req, operation }) => {
       // No role can use a CMS "publish" operation. Publication goes via
       // verified PostgreSQL revision/claim/rights gate and a scoped publisher.
-      if (data?._status === 'published') throw new Error('KG_PUBLICATION_GATE_REQUIRED')
+      if (data?._status === 'published') throw new APIError('KG_PUBLICATION_GATE_REQUIRED', 403)
       if (operation === 'create' && isEditor(req.user)) {
         data.createdBy = actor(req.user)?.id
       } else if (operation === 'update' && data) {
