@@ -55,7 +55,11 @@ Official sources:
 
 - A GitHub OIDC identity provider and a short-lived **P0 identity-probe role** were created. Trust is pinned to the immutable owner and repository IDs plus one specific testing branch. The role has **no attached or inline resource permissions**.
 - A GitHub Actions run actually assumed the temporary role and checked its AWS STS identity without reading or mutating account resources. [OIDC success evidence](https://github.com/Aprasaks/dechive-wiki/actions/runs/41594171644). GitHub stores the role ARN as a repository Actions secret, not as an access key.
-- A non-root IAM human operator was created with a one-time console password stored only in the owner's local macOS login Keychain. **MFA enrollment and first login have not happened yet. No administrator, deployment or resource permissions are attached. No access keys were created.**
+- A non-root IAM human operator was created with a one-time console password stored only in the owner's local macOS login Keychain. **At the time of the original bootstrap, MFA enrollment and first login had not happened (see updated observation below). No administrator, deployment or resource permissions were attached. No access keys were created.**
 - Account-wide IAM password policy now requires at least 16 characters and character-class diversity, enables self-password change and limits password reuse. This applies to IAM user console passwords, not the root account.
 - IAM authorization simulation with MFA absent: changing own password, creating and enabling own MFA **allowed**; creating EC2, attaching IAM policies or assuming another AWS role **explicitly denied**. This is a policy simulation, not a successful human sign-in test.
-- **G0 remains NO-GO for billable AWS workloads or production deployment**. Next: owner completes MFA; review secure, separate administrator permissions and a dedicated, resource-scoped deployment role.
+- **G0 remains NO-GO for billable AWS workloads or production deployment**. Next: verify operator security posture; review separate administrator permissions and a dedicated, resource-scoped deployment role.
+
+## MFA enrollment observed after account owner setup
+
+On 2026-11-03, the account owner's signed-in IAM Security Credentials console showed **one registered virtual MFA device** on the `dechive-wiki-operator` IAM user. This independently validates the operator's first login and MFA device registration at the console view. It does **not** grant or verify any resource-administration permissions. No other AWS IAM policy change was made as part of the G1 test.

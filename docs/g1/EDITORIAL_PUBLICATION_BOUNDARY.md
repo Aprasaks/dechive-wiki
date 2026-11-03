@@ -1,0 +1,63 @@
+# G1 — Payload Editorial Boundary vs. Canonical Public Knowledge
+
+**Date:** 2026-11-03
+**Status:** G1-PARTIAL / production NO-GO
+**Environment:** ephemeral PostgreSQL 17.6 + Payload CMS v3.92.1 on GitHub Actions
+**Scope:** DECHIVE.WIKI only; synthetic records, no real publication, no AWS compute
+
+## Canonical field and system ownership (v1.1 contract)
+
+| Domain | Owner of record | Publicly accessible? | Rule |
+| --- | --- | --- | --- |
+| Editor working copy and autosave | Payload editorial collection | No | Drafts are internal only; even a Payload native `_status=published` cannot be treated as publication |
+| Editorial workflow metadata | Payload (candidate) | No | Draft owner, review task, editor input; not a substitute for trusted editorial approval |
+| Stable entity ID and kind | Knowledge Core / PostgreSQL | Yes, approved representation only | IDs are independent of URL, label, subject domain and locale |
+| Typed relations and taxonomy | Knowledge Core / PostgreSQL | Only approved relations | Type/domain/range and DAG invariants must be enforced server-side |
+| Claim, claim anchor, evidence | Knowledge Core / PostgreSQL | Only approved revision-specific claims | Support, dispute, uncertainty and source pinpoint are stored independently |
+| Explicit publication approval | Knowledge Core / PostgreSQL | Public status only | Requires verified reviewer identity, audit log and non-bypassable role separation in future |
+| Immutable published snapshot and head | Knowledge Core / PostgreSQL | Yes | A single approved head controls public read; no direct CMS preview fallback |
+| Indexing / search projection | Knowledge Core outbox consumer | Yes, derived only | Stale or unapproved events cannot replace approved head |
+| Rights review and media takedown | Rights service / Knowledge Core | Only permitted derivatives | No S3/CDN distribution before separate G3 proof |
+
+## Executed acceptance result (2026-11-03)
+
+**13/13 real Payload Local API + PostgreSQL checks passed in GitHub Actions.**
+
+- [Passing run #41604273680](https://github.com/Aprasaks/dechive-wiki/actions/runs/41604273680) — exact pinned Payload v3.92.1 and PostgreSQL 17.6, Node.js 22.23.4, synthetic fixtures only.
+- The 13 checks include a corrected guest-access assertion, create/update native publish refusal (including `draft:true` and `overrideAccess:true`), unauthorized mutation refusal, failed-approval protection, explicit rollback, approved public head, outbox search projection, and post-publication draft isolation.
+- The first CI run was canceled after the test process did not exit; initialization markers, a bounded watchdog and an explicit clean exit were added, and the subsequent run passed 10 earlier checks. Before final acceptance the guest-access assertion was hardened to avoid accidentally catching its own assertion error, and three additional adversarial checks were added. The final 13-check run passed.
+
+**Disposition: G1-PARTIAL PASS only.** REST/GraphQL and direct database actor separation remain mandatory.
+
+## Actually tested
+
+G1 CI uses exact pinned Payload v3.92.1 and PostgreSQL 17.6, initializes a disposable database containing the same canonical Knowledge Core SQL migration set and a Payload editorial collection.
+
+The experiment tests real Payload Local API and actual SQL transactions. It checks draft creation, guest editor-access checks, direct native publish bypass attempts (including `overrideAccess: true`), revision approval and rollback, outbox projection and isolation from later unapproved drafts.
+
+**Key design choice:** a collection-level `beforeChange` hook rejects `_status=published` regardless of Local API access override. This is a defense at the CMS boundary, but not an immutable protection against direct SQL access or all version API flows. **Public exposure must still be exclusively from the Knowledge Core head and rights-gated public adapter.**
+
+Official API caveat: Payload Local API defaults to `overrideAccess: true`; an access-control-only policy is insufficient. See https://payloadcms.com/docs/local-api/access-control .
+
+## What the result does NOT establish
+
+1. No actual Next.js or public-facing HTTP REST/GraphQL route has been exercised. HTTP requests with `draft=true`, preview sessions, caching, CORS, sitemap and SEO indexation may still leak content unless explicitly tested.
+2. Payload's complete revision publish/restore operations and scheduled job paths have not been adversarially tested; version API or privileged database access might bypass the collection hook.
+3. The test uses a privileged DB connection and fixture-only reviewer identity. DB roles, reviewer MFA identity binding, restrictive execution grants, audit trails and denial of direct table writes are unimplemented.
+4. Database SQL transaction rollback is demonstrated; a hard-killed application and crash-safe outbox relay/replay/recovery **have not** been tested.
+5. No real source authentication, copyright review, external storage or CDN requests were involved.
+6. Payload schema uses disposable dev `push: true`; production requires pinned, reviewed migrations and explicit schema ownership.
+7. No AWS resources or paid APIs were provisioned by this test. Live account MFA is separate from the CMS permission model.
+
+## Mandatory G1 exit gates before production
+
+- [ ] CMS viewer/editor/reviewer roles with a real authenticated HTTP path and direct unprivileged DB role
+- [ ] Bypass attempts across REST, GraphQL, Local API, version restore/publish, scheduled jobs and webhooks
+- [ ] Publication coordinator that commits approved immutable KG revision and outbox atomically; no generic editor permission to write KG heads
+- [ ] Process termination at each publication point and recovery/replay tests including stale messages
+- [ ] Anonymous public endpoints, search, sitemap, RSS, cache and preview leak tests
+- [ ] Reversible migration and data restore drills under actual deployed DB version
+- [ ] Auditability of who approved which revision and why
+- [ ] Clear sign-off to move G1 to GO
+
+**Decision:** The integration contract is supported at the isolated Local API + database boundary only. Do not merge as a deployment release or claim the whole G1 gate is finished.
