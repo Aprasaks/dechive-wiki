@@ -17,7 +17,10 @@ const isReviewer = (user: unknown) =>
 
 const Staff: CollectionConfig = {
   slug: 'staff',
-  auth: { tokenExpiration: 600, maxLoginAttempts: 5 },
+  auth: {
+    tokenExpiration: 600, maxLoginAttempts: 5,
+    cookies: { sameSite: 'Strict', secure: process.env.G1_COOKIE_SECURE === 'true' },
+  },
   admin: { useAsTitle: 'email' },
   access: {
     create: () => false, // No public account creation
@@ -93,7 +96,8 @@ const EditorialDrafts: CollectionConfig = {
 
 export default buildConfig({
   secret: process.env.PAYLOAD_SECRET ?? '',
-  serverURL: 'http://127.0.0.1:3000',
+  serverURL: process.env.G1_TRUSTED_ORIGIN || 'http://127.0.0.1:3100',
+  csrf: [process.env.G1_TRUSTED_ORIGIN || 'http://127.0.0.1:3100'],
   admin: { user: 'staff' },
   editor: lexicalEditor(),
   collections: [Staff, EditorialDrafts],
