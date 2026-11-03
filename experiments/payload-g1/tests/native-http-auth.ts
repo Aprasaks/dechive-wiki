@@ -290,7 +290,7 @@ try {
     })
   }
   await check('GraphQL native mutation permits editor to update only a private draft',async()=>{
-    const mutation='mutation { updateEditorialDraft(id: '+JSON.stringify(String(document.id))+
+    const mutation='mutation { updateEditorialDraft(id: '+String(Number(document.id))+
       ', data: { body: "PRIVATE GRAPHQL UPDATE: experimental only" }) { id body } }'
     const updated=await call('/api/graphql','POST',{query:mutation},tokens.editor)
     assert.equal(updated.status,200,JSON.stringify(updated.json).slice(0,400))
@@ -300,7 +300,7 @@ try {
     assert.equal(approved.rows[0].body,body)
   })
   await check('Reviewer JWT cannot mutate editor document through real GraphQL mutation',async()=>{
-    const mutation='mutation { updateEditorialDraft(id: '+JSON.stringify(String(document.id))+
+    const mutation='mutation { updateEditorialDraft(id: '+String(Number(document.id))+
       ', data: { body: "REVIEWER GRAPHQL ATTACK" }) { id body } }'
     const response=await call('/api/graphql','POST',{query:mutation},tokens.reviewer)
     assert.ok(response.status<500)
@@ -310,7 +310,7 @@ try {
     assert.equal(draft.body,'PRIVATE GRAPHQL UPDATE: experimental only')
   })
   await check('Native GraphQL publish mutation is rejected and public head cannot change',async()=>{
-    const mutation='mutation { updateEditorialDraft(id: '+JSON.stringify(String(document.id))+
+    const mutation='mutation { updateEditorialDraft(id: '+String(Number(document.id))+
       ', data: { _status: published }) { id _status } }'
     const response=await call('/api/graphql','POST',{query:mutation},tokens.editor)
     assert.ok(response.status<500,JSON.stringify(response.json).slice(0,400))
