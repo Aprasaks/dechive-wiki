@@ -1,5 +1,6 @@
 import { APIError, type Endpoint } from 'payload'
 import { Pool } from 'pg'
+import { createHmac, randomBytes } from 'node:crypto'
 
 // G1 disposable integration proof. Each handler verifies the signed Payload
 // session first, then uses one distinct, least-privileged database login.
@@ -42,7 +43,7 @@ const approval: Endpoint = {
     })
     if (!doc) throw new APIError('DRAFT_NOT_FOUND', 404)
     const revision = await reviewerPool.query(
-      'SELECT id,entity_id,body FROM kg.revisions WHERE id=$1::uuid',
+      'SELECT id,entity_id,body,checksum FROM kg.revisions WHERE id=$1::uuid',
       [revisionId],
     )
     const row = revision.rows[0]
@@ -52,10 +53,29 @@ const approval: Endpoint = {
       throw new APIError('REVIEWED_SNAPSHOT_DOES_NOT_MATCH_DRAFT', 409)
     }
 
+    // Never accept a reviewer ID, checksum or signature from the HTTP caller.
+    // The JWT identity has been checked by Payload, and the DB separately
+    // verifies staff role, checksum and a server-only HMAC binding.
+    const actorId = Number(req.user?.id)
+    if (!Number.isSafeInteger(actorId) || actorId < 1) {
+      throw new APIError('INVALID_REVIEWER_SESSION', 403)
+    }
+    const signingSecret = process.env.G1_REVIEW_ATTESTATION_SECRET ?? ''
+    if (!/^[0-9a-f]{64}$/i.test(signingSecret)) {
+      throw new APIError('REVIEW_ATTESTATION_UNAVAILABLE', 503)
+    }
+    const nonce = randomBytes(16).toString('hex')
+    const message = [revisionId, String(actorId), row.checksum, nonce].join('|')
+    const signature = createHmac('sha256', Buffer.from(signingSecret, 'hex'))
+      .update(message, 'utf8').digest('hex')
+
     try {
-      await reviewerPool.query('SELECT kg.approve_revision($1::uuid)', [revisionId])
+      await reviewerPool.query(
+        'SELECT kg.approve_revision_attested($1::uuid,$2::bigint,$3::text,$4::text)',
+        [revisionId, actorId, nonce, signature],
+      )
     } catch {
-      // Never reflect raw SQL/evidence into an HTTP response.
+      // Never reflect raw SQL/evidence or HMAC material into HTTP responses.
       throw new APIError('REVISION_NOT_APPROVABLE', 409)
     }
     return Response.json({ approved: true, revisionId }, { status: 200 })
