@@ -65,5 +65,22 @@ jobs:
             -v ON_ERROR_STOP=1 -v reader_password="$pw" \
             -q -f experiments/payload-g1/sql/001_http_reader.sql
           echo "PUBLIC_DATABASE_URL=postgres://kg_public_http:$pw@127.0.0.1:5432/dechive_native_g1" >> "$GITHUB_ENV"
+      - name: Create scoped reviewer and publisher identities for real HTTP workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          editor_pw="$(openssl rand -hex 24)"
+          reviewer_pw="$(openssl rand -hex 24)"
+          publisher_pw="$(openssl rand -hex 24)"
+          echo "::add-mask::$editor_pw"
+          echo "::add-mask::$reviewer_pw"
+          echo "::add-mask::$publisher_pw"
+          psql -h 127.0.0.1 -U postgres -d dechive_native_g1 \
+            -v ON_ERROR_STOP=1 -v editor_password="$editor_pw" \
+            -v reviewer_password="$reviewer_pw" \
+            -v publisher_password="$publisher_pw" \
+            -q -f experiments/payload-g1/sql/002_actor_roles.sql
+          echo "G1_REVIEWER_DATABASE_URL=postgres://kg_g1_reviewer_probe:$reviewer_pw@127.0.0.1:5432/dechive_native_g1" >> "$GITHUB_ENV"
+          echo "G1_PUBLISHER_DATABASE_URL=postgres://kg_g1_publisher_probe:$publisher_pw@127.0.0.1:5432/dechive_native_g1" >> "$GITHUB_ENV"
       - name: Send real localhost requests to native Payload REST and GraphQL handlers
         run: timeout --signal=SIGTERM --kill-after=10s 240s npm --prefix experiments/payload-g1 run test:native-http
