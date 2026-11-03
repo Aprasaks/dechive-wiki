@@ -1,0 +1,88 @@
+name: G1 Real Next.js 16 App Router and Publication Gate
+
+on:
+  push:
+    branches:
+      - p0/g1-next-full-server-gate
+    paths:
+      - "experiments/payload-g1/**"
+      - "db/**"
+      - ".github/workflows/g1-next-full-server.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-payload-security:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-native-payload-ci-only
+          POSTGRES_DB: dechive_native_g1
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d dechive_native_g1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgres://postgres:synthetic-native-payload-ci-only@127.0.0.1:5432/dechive_native_g1
+      PGPASSWORD: synthetic-native-payload-ci-only
+      PAYLOAD_SECRET: synthetic-native-auth-secret-not-for-production-gh-runner-only
+      NODE_ENV: development
+    steps:
+      - name: Checkout the independent G1 HTTP test branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install pinned supported Node version
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.23.4'
+          cache: npm
+          cache-dependency-path: experiments/payload-g1/package-lock.json
+      - name: Install exact Payload v3 + Next runtime from lockfile
+        run: npm ci --prefix experiments/payload-g1 --no-audit --no-fund
+      - name: Apply immutable canonical KG schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in db/00[1-4]_*.sql; do
+            psql -h 127.0.0.1 -U postgres -d dechive_native_g1 \
+              -v ON_ERROR_STOP=1 -q -f "$file"
+          done
+      - name: Prepare restricted public reader with disposable random password
+        shell: bash
+        run: |
+          set -euo pipefail
+          pw="$(openssl rand -hex 24)"
+          echo "::add-mask::$pw"
+          psql -h 127.0.0.1 -U postgres -d dechive_native_g1 \
+            -v ON_ERROR_STOP=1 -v reader_password="$pw" \
+            -q -f experiments/payload-g1/sql/001_http_reader.sql
+          echo "PUBLIC_DATABASE_URL=postgres://kg_public_http:$pw@127.0.0.1:5432/dechive_native_g1" >> "$GITHUB_ENV"
+      - name: Create scoped reviewer and publisher identities for real HTTP workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          editor_pw="$(openssl rand -hex 24)"
+          reviewer_pw="$(openssl rand -hex 24)"
+          publisher_pw="$(openssl rand -hex 24)"
+          echo "::add-mask::$editor_pw"
+          echo "::add-mask::$reviewer_pw"
+          echo "::add-mask::$publisher_pw"
+          psql -h 127.0.0.1 -U postgres -d dechive_native_g1 \
+            -v ON_ERROR_STOP=1 -v editor_password="$editor_pw" \
+            -v reviewer_password="$reviewer_pw" \
+            -v publisher_password="$publisher_pw" \
+            -q -f experiments/payload-g1/sql/002_actor_roles.sql
+          echo "G1_REVIEWER_DATABASE_URL=postgres://kg_g1_reviewer_probe:$reviewer_pw@127.0.0.1:5432/dechive_native_g1" >> "$GITHUB_ENV"
+          echo "G1_PUBLISHER_DATABASE_URL=postgres://kg_g1_publisher_probe:$publisher_pw@127.0.0.1:5432/dechive_native_g1" >> "$GITHUB_ENV"
+      - name: Verify real Next.js dev server with authenticated edit/review/publish and SSR
+        run: timeout --signal=SIGTERM --kill-after=10s 300s npm --prefix experiments/payload-g1 run test:next-full
+      - name: Verify production Next.js build and type boundary
+        run: timeout --signal=SIGTERM --kill-after=10s 420s npm --prefix experiments/payload-g1 run build:next
