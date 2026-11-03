@@ -8,6 +8,7 @@ import config from '../native-auth.config.ts'
 const BASE = 'http://127.0.0.1:3100'
 const admin = new Pool({ connectionString: process.env.DATABASE_URL })
 const reviewerProbe = new Pool({ connectionString: process.env.G1_REVIEWER_DATABASE_URL })
+const candidateProbe = new Pool({ connectionString: process.env.G1_CANDIDATE_DATABASE_URL })
 const accounts = [
   { key: 'editor', role: 'editor' },
   { key: 'other', role: 'editor' },
@@ -456,6 +457,149 @@ try{
     assert.match(r.headers.get('cache-control')??'',/no-store/)
     assert.equal(r.headers.get('x-frame-options'),'DENY')
   })
+  // Issue #17 milestone 1: editor-supplied citation becomes a PENDING,
+  // immutable KG candidate. It is NEVER considered independently verified.
+  const candidateEntity=randomUUID()
+  const candidateBody='The synthetic test note says the fixture idea was introduced in the lab.'
+  const candidateClaim='the fixture idea was introduced in the lab'
+  let candidateDraft:any
+  await check('Editor submits the source-bound source candidate starting from a private Payload draft',async()=>{
+    const draft=await fetchRaw('/api/editorial-drafts?draft=true','POST',{
+      stableEntityId:candidateEntity,title:'Unverified candidate fixture',
+      body:candidateBody,_status:'draft',
+    },tokens.editor)
+    assert.ok([200,201].includes(draft.status),draft.text.slice(0,350))
+    candidateDraft=draft.json.doc
+    assert.ok(candidateDraft?.id)
+  })
+  const evidenceData={
+    draftId:0,sourceUrl:'https://example.invalid/synthetic-fixture',
+    sourceDescription:'Synthetic CI fixture, not an independently checked source.',
+    claim:candidateClaim,anchor:'paragraph-1',pinpoint:'fixture section 2',
+    licenseDeclaration:'unknown',
+  }
+  evidenceData.draftId=candidateDraft.id
+  await check('Anonymous, reviewer and publisher cannot create editorial candidates',async()=>{
+    for(const jwt of [undefined,tokens.reviewer,tokens.publisher]){
+      const res=await fetchRaw('/api/g1-candidate','POST',evidenceData,jwt)
+      assert.equal(res.status,403,res.text.slice(0,300))
+    }
+  })
+  await check('Second editor cannot submit a candidate for another editor draft',async()=>{
+    const res=await fetchRaw('/api/g1-candidate','POST',evidenceData,tokens.other)
+    denied(res)
+    assert.ok(!res.text.includes(candidateBody),'Private draft body disclosed')
+  })
+  await check('Candidate endpoint rejects missing source, HTTP-only URL and unsupported claim',async()=>{
+    const bad=[
+      {...evidenceData,sourceUrl:'http://example.invalid/not-secure'},
+      {...evidenceData,sourceUrl:''},
+      {...evidenceData,claim:'This is not found anywhere in the draft.'},
+    ]
+    for(const payload of bad){
+      const result=await fetchRaw('/api/g1-candidate','POST',payload,tokens.editor)
+      assert.equal(result.status,400,result.text.slice(0,300))
+    }
+  })
+  await check('Dedicated candidate DB login cannot read draft KG revisions or signing key',async()=>{
+    await assert.rejects(candidateProbe.query('SELECT id FROM kg.revisions LIMIT 1'),/permission denied/i)
+    await assert.rejects(candidateProbe.query('SELECT secret_key FROM kg.candidate_private_key'),/permission denied/i)
+  })
+  await check('Candidate DB login cannot directly approve or publish a revision',async()=>{
+    await assert.rejects(candidateProbe.query(
+      'SELECT kg.approve_revision_attested($1,$2,$3,$4)',
+      [randomUUID(),Number(seededAccounts.reviewer.id),'0'.repeat(32),'0'.repeat(64)]
+    ),/permission denied/i)
+    await assert.rejects(candidateProbe.query(
+      'SELECT kg.publish($1,$2,$3)',[candidateEntity,randomUUID(),0]
+    ),/permission denied/i)
+  })
+  await check('Forged attestation cannot create a KG entity or candidate',async()=>{
+    const forgedRevision=randomUUID(),forgedEntity=randomUUID()
+    await assert.rejects(candidateProbe.query(
+      'SELECT kg.g1_submit_candidate('+
+      '$1::bigint,$2::bigint,$3::uuid,$4::uuid,'+
+      '$5::text,$6::text,$7::text,$8::text,$9::text,'+
+      '$10::text,$11::text,$12::text,$13::text,$14::text)',
+      [Number(seededAccounts.editor.id),candidateDraft.id,
+        forgedEntity,forgedRevision,'Unverified candidate fixture',
+        candidateBody,evidenceData.sourceUrl,evidenceData.sourceDescription,
+        candidateClaim,evidenceData.anchor,evidenceData.pinpoint,
+        'unknown','0'.repeat(32),'0'.repeat(64)],
+    ),/CANDIDATE_SIGNATURE_INVALID/)
+    assert.equal((await admin.query('SELECT count(*)::int n FROM kg.entities WHERE id=$1',
+      [forgedEntity])).rows[0].n,0)
+  })
+  let queuedRevision:string=''
+  await check('Real editor JWT queues signed KG revision, claim, source and rights declaration atomically',async()=>{
+    const response=await fetchRaw('/api/g1-candidate','POST',evidenceData,tokens.editor)
+    assert.equal(response.status,201,response.text.slice(0,450))
+    assert.equal(response.json?.queued,true)
+    assert.equal(response.json?.status,'needs-review')
+    queuedRevision=response.json.revisionId
+    const state=await admin.query(
+      'SELECT c.submitted_by,c.draft_id,c.license_declaration,c.source_review_status,'+
+      'c.rights_review_status,r.body,r.checksum,s.locator,cl.statement,ev.pinpoint '+
+      'FROM kg.g1_candidates c JOIN kg.revisions r ON c.revision_id=r.id '+
+      'JOIN kg.sources s ON s.id=c.source_id '+
+      'JOIN kg.claims cl ON cl.revision_id=c.revision_id '+
+      'JOIN kg.claim_evidence ev ON ev.revision_id=c.revision_id '+
+      'WHERE c.revision_id=$1',[queuedRevision])
+    assert.equal(state.rows.length,1)
+    const r=state.rows[0]
+    assert.equal(Number(r.submitted_by),Number(seededAccounts.editor.id))
+    assert.equal(Number(r.draft_id),Number(candidateDraft.id))
+    assert.equal(r.license_declaration,'unknown')
+    assert.equal(r.source_review_status,'pending')
+    assert.equal(r.rights_review_status,'pending')
+    assert.equal(r.body,candidateBody)
+    assert.equal(r.locator,evidenceData.sourceUrl)
+    assert.equal(r.statement,candidateClaim)
+    assert.equal(r.pinpoint,evidenceData.pinpoint)
+    assert.match(r.checksum,/^[0-9a-f]{64}$/)
+  })
+  await check('A pending source candidate has no public head or sitemap record',async()=>{
+    const knowledge=await fetchRaw('/knowledge/'+candidateEntity+'?draft=true')
+    assert.equal(knowledge.status,404)
+    const sitemap=await fetchRaw('/sitemap.xml')
+    assert.ok(!sitemap.text.includes(candidateEntity))
+    const counters=await admin.query(
+      'SELECT (SELECT count(*) FROM kg.approvals WHERE revision_id=$1)::int approvals,'+
+      '(SELECT count(*) FROM kg.heads WHERE entity_id=$2)::int heads,'+
+      '(SELECT count(*) FROM kg.outbox WHERE entity_id=$2)::int events',
+      [queuedRevision,candidateEntity])
+    assert.deepEqual(counters.rows[0],{approvals:0,heads:0,events:0})
+  })
+  await check('Independent reviewer HTTP approval cannot bypass pending source and rights checks',async()=>{
+    const response=await fetchRaw('/api/g1-approve','POST',{
+      draftId:candidateDraft.id,revisionId:queuedRevision
+    },tokens.reviewer)
+    assert.equal(response.status,409,response.text.slice(0,350))
+  })
+  await check('Even privileged direct SQL cannot approve a pending rights candidate',async()=>{
+    await assert.rejects(admin.query(
+      'INSERT INTO kg.approvals(revision_id,reviewer) VALUES($1,$2)',
+      [queuedRevision,'fixture-forger'],
+    ),/CANDIDATE_REVIEW_AND_RIGHTS_NOT_COMPLETE/)
+  })
+  await check('Publisher cannot expose source candidate with guessed IDs',async()=>{
+    const response=await fetchRaw('/api/g1-publish','POST',{
+      entityId:candidateEntity,revisionId:queuedRevision,expectedVersion:0,
+    },tokens.publisher)
+    assert.equal(response.status,409)
+    assert.equal((await admin.query('SELECT count(*)::int n FROM kg.heads WHERE entity_id=$1',
+      [candidateEntity])).rows[0].n,0)
+  })
+  await check('Duplicate candidate submission is rejected without partial KG writes',async()=>{
+    const before=(await admin.query('SELECT count(*)::int n FROM kg.revisions WHERE entity_id=$1',
+      [candidateEntity])).rows[0].n
+    const retry=await fetchRaw('/api/g1-candidate','POST',evidenceData,tokens.editor)
+    assert.equal(retry.status,409,retry.text.slice(0,300))
+    const after=(await admin.query('SELECT count(*)::int n FROM kg.revisions WHERE entity_id=$1',
+      [candidateEntity])).rows[0].n
+    assert.equal(before,after)
+    assert.equal(after,1)
+  })
   console.log('G1_FULL_NEXT_APP_'+passed+'_CHECKS_SUCCESS')
 }catch(err){
   console.error('G1_NEXT_FAILURE_CONTEXT',nextLog.slice(-5500))
@@ -463,6 +607,7 @@ try{
 }finally{
   await admin.end()
   await reviewerProbe.end()
+  await candidateProbe.end()
   try{process.kill(-next.pid!,'SIGTERM')}catch{next.kill('SIGTERM')}
   await new Promise<void>(resolve=>{
     const timer=setTimeout(()=>{try{process.kill(-next.pid!,'SIGKILL')}catch{};resolve()},4000)

@@ -86,6 +86,24 @@ try{
   await page.getByText(title).waitFor({timeout:15000})
   await page.screenshot({path:'artifacts/studio-editor.png',fullPage:true})
  })
+ await check('Chrome editor attaches a citation and queues immutable unverified candidate',async()=>{
+  await page.getByRole('button',{name:'Attach source & request review'}).first().click()
+  await page.getByRole('form',{name:'Source evidence submission'}).waitFor()
+  await page.getByRole('textbox',{name:'Source URL'}).fill(
+    'https://example.invalid/browser-source-'+randomUUID().slice(0,8))
+  await page.getByRole('textbox',{name:'Source description'}).fill(
+    'Entirely synthetic browser evidence test; no external source is asserted.')
+  await page.getByRole('textbox',{name:'Exact claim from draft'}).fill(
+    'paper introduced a test idea')
+  await page.getByRole('textbox',{name:'Source pinpoint'}).fill('fixture paragraph 1')
+  await page.getByRole('combobox',{name:'Editor license declaration'}).selectOption('unknown')
+  await page.screenshot({path:'artifacts/studio-evidence-form.png',fullPage:true})
+  await page.getByRole('button',{name:'Queue for independent review'}).click()
+  await page.getByText('Evidence submitted for independent review.',{exact:false})
+    .waitFor({timeout:15000})
+  const text=await page.locator('[role="status"]').innerText()
+  assert.match(text,/NOT published/)
+ })
  await check('Draft never appears in the anonymous public knowledge URL',async()=>{
   assert.equal((await ctx.request.get(BASE+'/knowledge/'+entityId)).status(),404)
   assert.ok(!(await (await ctx.request.get(BASE+'/sitemap.xml')).text()).includes(entityId))
