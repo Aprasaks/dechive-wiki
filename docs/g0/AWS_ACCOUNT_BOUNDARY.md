@@ -1,13 +1,13 @@
 # G0 — AWS Account Boundary and Cost Guard (Evidence)
 
 **Date:** 2026-11-03
-**Status:** PARTIAL PASS — account inspected; secure human/deployment identities and spend enforcement remain open.
+**Status:** PARTIAL PASS — account inventoried, no-privilege GitHub OIDC role tested, human MFA enrollment and spending enforcement remain open.
 **Scope:** DECHIVE.WIKI only. This public document intentionally omits account number, credentials, email, secret ARNs and internal URLs.
 
 ## Directly observed
 - AWS account is standalone, not a member of AWS Organizations.
 - Root MFA is enabled; root access keys are absent.
-- IAM users: zero. Identity Center instances: zero in Seoul and N. Virginia.
+- IAM users: zero at original baseline (see same-day bootstrap addendum below). Identity Center instances: zero in Seoul and N. Virginia.
 - Existing account-wide USD 5/month Cost Budget with actual-spend alerts at 50%, 80%, 100%. On 2026-11-03 a second monitoring-only budget named DECHIVE-WIKI-P0-COST-GUARD was actually created at the same USD 5/month threshold with 50%, 80%, and 100% notifications and matching subscriber configurations. Two budgets exist until the new alert delivery is proven; neither enforces a spending ceiling.
 - In Seoul: 0 EC2 reservations, 0 RDS DB instances, 0 DynamoDB tables, 0 Lightsail instances, 0 Lambda functions.
 - Globally: 0 S3 buckets, no CloudFront distributions in the current listing.
@@ -50,3 +50,12 @@ Official sources:
 - [ ] Separate approval for paid AWS compute required by an actual Wikibase Suite benchmark
 
 **Gate decision:** PARTIAL PASS / paid infrastructure NO-GO. Existing AWS budget is an alert, not a hard spending limit.
+
+## Same-day G0 bootstrap addendum (verified)
+
+- A GitHub OIDC identity provider and a short-lived **P0 identity-probe role** were created. Trust is pinned to the immutable owner and repository IDs plus one specific testing branch. The role has **no attached or inline resource permissions**.
+- A GitHub Actions run actually assumed the temporary role and checked its AWS STS identity without reading or mutating account resources. [OIDC success evidence](https://github.com/Aprasaks/dechive-wiki/actions/runs/41594171644). GitHub stores the role ARN as a repository Actions secret, not as an access key.
+- A non-root IAM human operator was created with a one-time console password stored only in the owner's local macOS login Keychain. **MFA enrollment and first login have not happened yet. No administrator, deployment or resource permissions are attached. No access keys were created.**
+- Account-wide IAM password policy now requires at least 16 characters and character-class diversity, enables self-password change and limits password reuse. This applies to IAM user console passwords, not the root account.
+- IAM authorization simulation with MFA absent: changing own password, creating and enabling own MFA **allowed**; creating EC2, attaching IAM policies or assuming another AWS role **explicitly denied**. This is a policy simulation, not a successful human sign-in test.
+- **G0 remains NO-GO for billable AWS workloads or production deployment**. Next: owner completes MFA; review secure, separate administrator permissions and a dedicated, resource-scoped deployment role.

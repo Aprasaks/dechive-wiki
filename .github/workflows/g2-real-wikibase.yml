@@ -1,0 +1,48 @@
+name: G2 Real Wikibase API Spike
+
+on:
+  push:
+    branches:
+      - p0/g0-oidc-wikibase-benchmark
+    paths:
+      - experiments/wikibase/**
+      - tests/g2_wikibase_live_api.py
+      - .github/workflows/g2-real-wikibase.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wikibase-api:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - name: Check out the approved fixture runner
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Generate ephemeral local-only test credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          db_pass="$(openssl rand -hex 24)"
+          admin_pass="$(openssl rand -hex 24)"
+          echo "::add-mask::$db_pass"
+          echo "::add-mask::$admin_pass"
+          echo "WBS_DB_PASS=$db_pass" >> "$GITHUB_ENV"
+          echo "WBS_ADMIN_PASS=$admin_pass" >> "$GITHUB_ENV"
+      - name: Pull pinned official Wikibase and MariaDB images
+        run: docker compose -f experiments/wikibase/compose.yml pull --quiet
+      - name: Start a localhost-bound, temporary Wikibase installation
+        run: docker compose -f experiments/wikibase/compose.yml up -d --wait --wait-timeout 480
+      - name: Inspect running image identity and resource bounds
+        run: |
+          docker compose -f experiments/wikibase/compose.yml ps
+          docker stats --no-stream --format '{{.Name}} {{.MemUsage}}' || true
+      - name: Run real authenticated Q/P edit API smoke test
+        run: python3 tests/g2_wikibase_live_api.py
+      - name: Show limited logs on failure (no passwords or complete config)
+        if: failure()
+        run: docker compose -f experiments/wikibase/compose.yml logs --tail 60 --no-color wikibase database
+      - name: Destroy disposable Wikibase and DB volumes
+        if: always()
+        run: docker compose -f experiments/wikibase/compose.yml down --volumes --remove-orphans

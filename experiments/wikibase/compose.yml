@@ -1,0 +1,50 @@
+name: dechive-wiki-g2-experiment
+
+# Disposable G2 benchmark of the official Wikibase Suite web image and MariaDB.
+# NOT a supported production Wikibase Suite deployment; excludes WDQS, search, jobrunner.
+services:
+  database:
+    image: mariadb@sha256:d769e37960821dfdcf096954f6e7ac89f747e116c1bba98e48edd265dfc7deae
+    environment:
+      MARIADB_DATABASE: wiki_test
+      MARIADB_USER: wiki_test
+      MARIADB_PASSWORD: ${WBS_DB_PASS:?WBS_DB_PASS required}
+      MARIADB_RANDOM_ROOT_PASSWORD: "yes"
+    tmpfs:
+      - /var/lib/mysql:size=1024m
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      retries: 30
+      start_period: 20s
+    restart: "no"
+  wikibase:
+    image: wikibase/wikibase@sha256:9891f67c131d118a541488107d423d14c73cb0cf73d3ba05af9d8a4f80e6c6c4
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      MW_ADMIN_NAME: G2Editor
+      MW_ADMIN_PASS: ${WBS_ADMIN_PASS:?WBS_ADMIN_PASS required}
+      MW_ADMIN_EMAIL: g2-editor@example.invalid
+      MW_WG_SERVER: http://127.0.0.1:8181
+      DB_SERVER: database:3306
+      DB_USER: wiki_test
+      DB_PASS: ${WBS_DB_PASS:?WBS_DB_PASS required}
+      DB_NAME: wiki_test
+      METADATA_CALLBACK: "false"
+    volumes:
+      - wiki_config:/config
+      - wiki_images:/var/www/html/images
+    ports:
+      - "127.0.0.1:8181:80"
+    healthcheck:
+      test: ["CMD-SHELL", "curl --silent --fail http://localhost/wiki/Main_Page >/dev/null"]
+      interval: 10s
+      timeout: 10s
+      retries: 35
+      start_period: 240s
+    restart: "no"
+volumes:
+  wiki_config: {}
+  wiki_images: {}

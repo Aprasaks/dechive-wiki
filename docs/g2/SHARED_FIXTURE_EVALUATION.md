@@ -1,3 +1,5 @@
+> **Historical baseline (superseded 2026-11-03):** This document predates the successful real Wikibase API test. For current execution evidence and findings, see [Live Wikibase Evidence](LIVE_WIKIBASE_EVIDENCE.md).
+
 # G2 — Shared 12-Entity Comparison: Baseline Report
 
 **Date:** 2026-11-03
