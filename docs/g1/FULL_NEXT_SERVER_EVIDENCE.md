@@ -7,6 +7,8 @@
 
 **Release status:** 24/24 real Next.js App Router development HTTP checks, **11/11 compiled production HTTP checks**, and successful Next.js optimized production build with strict TypeScript checks.
 
+> **Security extension (2026-11-03):** A signed reviewer JWT-to-revision checksum attestation and immutable staff-attributed audit have now passed an additional **42/42** combined real Next.js dev/compiled-production checks. See [Signed Review Audit Evidence](SIGNED_REVIEW_AUDIT_EVIDENCE.md). The production key custody and independent-human proof remain release blockers.
+
 ## What actually ran
 
 - Actual **Next.js 16.4.4 App Router development server** under Node.js 22.23.4, with genuine **Payload CMS 3.92.1 REST and GraphQL handlers** and PostgreSQL 17.6.
