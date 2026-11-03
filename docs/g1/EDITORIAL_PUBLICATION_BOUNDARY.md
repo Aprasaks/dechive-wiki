@@ -24,8 +24,8 @@
 **13/13 real Payload Local API + PostgreSQL checks passed in GitHub Actions.**
 
 - [Passing run #41604273680](https://github.com/Aprasaks/dechive-wiki/actions/runs/41604273680) — exact pinned Payload v3.92.1 and PostgreSQL 17.6, Node.js 22.23.4, synthetic fixtures only.
-- The 13 checks include a corrected guest-access assertion, create/update native publish refusal (including \`draft:true\` and \`overrideAccess:true\`), unauthorized mutation refusal, failed-approval protection, explicit rollback, approved public head, outbox search projection, and post-publication draft isolation.
-- An initial run required a forced exit after cleanup because Payload left background resources active; a subsequent run demonstrated all 10 earlier checks. Before final acceptance the guest-access assertion was hardened to avoid accidentally catching its own assertion error, and three additional adversarial checks were added. The final 13-check run passed.
+- The 13 checks include a corrected guest-access assertion, create/update native publish refusal (including `draft:true` and `overrideAccess:true`), unauthorized mutation refusal, failed-approval protection, explicit rollback, approved public head, outbox search projection, and post-publication draft isolation.
+- The first CI run was canceled after the test process did not exit; initialization markers, a bounded watchdog and an explicit clean exit were added, and the subsequent run passed 10 earlier checks. Before final acceptance the guest-access assertion was hardened to avoid accidentally catching its own assertion error, and three additional adversarial checks were added. The final 13-check run passed.
 
 **Disposition: G1-PARTIAL PASS only.** REST/GraphQL and direct database actor separation remain mandatory.
 
