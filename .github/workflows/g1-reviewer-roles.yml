@@ -1,0 +1,90 @@
+name: G1 Reviewer and Publisher Identity Boundary
+
+on:
+  push:
+    branches:
+      - p0/g1-reviewer-role-gate
+    paths:
+      - "experiments/payload-g1/**"
+      - "db/**"
+      - ".github/workflows/g1-reviewer-roles.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  http-read-boundary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-ci-admin-only
+          POSTGRES_DB: dechive_g1
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d dechive_g1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgres://postgres:synthetic-ci-admin-only@127.0.0.1:5432/dechive_g1
+      PGPASSWORD: synthetic-ci-admin-only
+      PAYLOAD_SECRET: synthetic-only-g1-ci-secret-not-for-production
+      NODE_ENV: development
+    steps:
+      - name: Check out G1 HTTP proof
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install supported pinned Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.23.4'
+          cache: npm
+          cache-dependency-path: experiments/payload-g1/package-lock.json
+      - name: Install pinned Payload dependencies
+        run: npm ci --prefix experiments/payload-g1 --no-audit --no-fund
+      - name: Create canonical isolated KG schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in db/00[1-4]_*.sql; do
+            echo "Applying $(basename "$file")"
+            psql -h 127.0.0.1 -U postgres -d dechive_g1 -v ON_ERROR_STOP=1 -q -f "$file"
+          done
+      - name: Create no-write public PostgreSQL login with unique ephemeral password
+        shell: bash
+        run: |
+          set -euo pipefail
+          reader_password="$(openssl rand -hex 24)"
+          echo "::add-mask::$reader_password"
+          psql -h 127.0.0.1 -U postgres -d dechive_g1             -v ON_ERROR_STOP=1 -v reader_password="$reader_password"             -q -f experiments/payload-g1/sql/001_http_reader.sql
+          echo "PUBLIC_DATABASE_URL=postgres://kg_public_http:$reader_password@127.0.0.1:5432/dechive_g1" >> "$GITHUB_ENV"
+      - name: Exercise actual loopback HTTP privacy tests and restricted DB role
+        run: timeout --signal=SIGTERM --kill-after=10s 240s npm --prefix experiments/payload-g1 run test:http
+      - name: Kill publishing/index worker processes and verify atomic recovery
+        run: timeout --signal=SIGTERM --kill-after=10s 240s npm --prefix experiments/payload-g1 run test:crash
+      - name: Create distinct restricted editor, reviewer and publisher logins
+        shell: bash
+        run: |
+          set -euo pipefail
+          editor_pass="$(openssl rand -hex 24)"
+          reviewer_pass="$(openssl rand -hex 24)"
+          publisher_pass="$(openssl rand -hex 24)"
+          echo "::add-mask::$editor_pass"
+          echo "::add-mask::$reviewer_pass"
+          echo "::add-mask::$publisher_pass"
+          psql -h 127.0.0.1 -U postgres -d dechive_g1 -v ON_ERROR_STOP=1 \
+            -v editor_password="$editor_pass" -v reviewer_password="$reviewer_pass" \
+            -v publisher_password="$publisher_pass" \
+            -q -f experiments/payload-g1/sql/002_actor_roles.sql
+          echo "G1_EDITOR_DATABASE_URL=postgres://kg_g1_editor_probe:$editor_pass@127.0.0.1:5432/dechive_g1" >> "$GITHUB_ENV"
+          echo "G1_REVIEWER_DATABASE_URL=postgres://kg_g1_reviewer_probe:$reviewer_pass@127.0.0.1:5432/dechive_g1" >> "$GITHUB_ENV"
+          echo "G1_PUBLISHER_DATABASE_URL=postgres://kg_g1_publisher_probe:$publisher_pass@127.0.0.1:5432/dechive_g1" >> "$GITHUB_ENV"
+      - name: Enforce editor/reviewer/publisher separation against real PostgreSQL
+        run: timeout --signal=SIGTERM --kill-after=10s 180s npm --prefix experiments/payload-g1 run test:actors
+      - name: Restore complete KG and Payload database and verify public RBAC
+        run: bash experiments/payload-g1/scripts/restore-drill.sh
