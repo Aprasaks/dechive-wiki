@@ -15,11 +15,11 @@
 
 ## Automated server verification
 
-The Next.js real development server has passed **44/44** assertions after adding workspace role access and anonymous redirects. A strict typed optimized Next.js production build and a separate compiled \`next start\` server have passed **13/13** privacy and permission tests (total **57/57**). Earlier separate native HTTP and signed-review proof remains stacked in PRs #12–#15.
+The Next.js real development server has passed **44/44** assertions after adding workspace role access and anonymous redirects. A strict typed optimized Next.js production build and a separate compiled \`next start\` server have passed **13/13** privacy and permission tests (total **57/57**). Real Chrome E2E added 9 additional assertions: **66/66 across all three test groups**. Earlier separate native HTTP and signed-review proof remains stacked in PRs #12–#15.
 
-## Real browser E2E (verification in progress)
+## Real Chrome browser E2E (9/9 verified)
 
-The branch also includes a pinned Playwright Core driver that launches the **actual Google Chrome** binary supplied by a GitHub-hosted Ubuntu runner. It exercises:
+The branch includes a pinned Playwright Core driver that launches the **actual Google Chrome** binary supplied by a GitHub-hosted Ubuntu runner. It exercises:
 
 1. Anonymous navigation to \`/studio\` is redirected to login.
 2. Editor login stores the actual HttpOnly SameSite=Strict cookie.
@@ -30,7 +30,9 @@ The branch also includes a pinned Playwright Core driver that launches the **act
 7. A second editor cannot read the first editor's draft; reviewer can read without edit controls; publisher cannot edit or view private drafts.
 8. Synthetic screenshots are uploaded as short-retention GitHub Actions artifacts only after successful captures.
 
-**Do not claim the browser E2E passed until its own CI step completes successfully.** Initial Chrome run found a real hydration timing issue when the automated browser clicked the login button too early; UI and test were changed to explicitly wait for hydration. See the latest GitHub workflow logs for the final pass/fail.
+**Verified real Chrome E2E:** [GitHub Actions run #41655991830](https://github.com/Aprasaks/dechive-wiki/actions/runs/41655991830) completed successfully with **9/9 actual Google Chrome browser assertions**, in addition to **44/44 Next.js dev HTTP checks** and **13/13 compiled Next.js production checks**. The test recorded Chrome version 156.0.8078.79. An archived, synthetic-only `g1-studio-browser-proof` artifact contains editor and reviewer screenshots (7-day retention).
+
+The initial Chrome run found a real hydration timing issue when the browser clicked sign-in too early. Both login and private draft forms were changed to disable their submit actions until client-side React hydration, and the subsequent Chrome run passed. This is independently recorded in the CI logs.
 
 ## Remaining G1 and launch blockers
 
