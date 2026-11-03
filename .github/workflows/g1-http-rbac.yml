@@ -1,0 +1,67 @@
+name: G1 Public HTTP RBAC Leak Tests
+
+on:
+  push:
+    branches:
+      - p0/g1-http-rbac-crash-gate
+    paths:
+      - "experiments/payload-g1/**"
+      - "db/**"
+      - ".github/workflows/g1-http-rbac.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  http-read-boundary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-ci-admin-only
+          POSTGRES_DB: dechive_g1
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d dechive_g1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgres://postgres:synthetic-ci-admin-only@127.0.0.1:5432/dechive_g1
+      PGPASSWORD: synthetic-ci-admin-only
+      PAYLOAD_SECRET: synthetic-only-g1-ci-secret-not-for-production
+      NODE_ENV: development
+    steps:
+      - name: Check out G1 HTTP proof
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install supported pinned Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.23.4'
+          cache: npm
+          cache-dependency-path: experiments/payload-g1/package-lock.json
+      - name: Install pinned Payload dependencies
+        run: npm ci --prefix experiments/payload-g1 --no-audit --no-fund
+      - name: Create canonical isolated KG schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in db/00[1-4]_*.sql; do
+            echo "Applying $(basename "$file")"
+            psql -h 127.0.0.1 -U postgres -d dechive_g1 -v ON_ERROR_STOP=1 -q -f "$file"
+          done
+      - name: Create no-write public PostgreSQL login with unique ephemeral password
+        shell: bash
+        run: |
+          set -euo pipefail
+          reader_password="$(openssl rand -hex 24)"
+          echo "::add-mask::$reader_password"
+          psql -h 127.0.0.1 -U postgres -d dechive_g1             -v ON_ERROR_STOP=1 -v reader_password="$reader_password"             -q -f experiments/payload-g1/sql/001_http_reader.sql
+          echo "PUBLIC_DATABASE_URL=postgres://kg_public_http:$reader_password@127.0.0.1:5432/dechive_g1" >> "$GITHUB_ENV"
+      - name: Exercise actual loopback HTTP privacy tests and restricted DB role
+        run: timeout --signal=SIGTERM --kill-after=10s 240s npm --prefix experiments/payload-g1 run test:http
