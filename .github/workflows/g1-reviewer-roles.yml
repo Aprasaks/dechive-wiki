@@ -7,7 +7,7 @@ on:
     paths:
       - "experiments/payload-g1/**"
       - "db/**"
-      - ".github/workflows/g1-http-rbac.yml"
+      - ".github/workflows/g1-reviewer-roles.yml"
   workflow_dispatch:
 
 permissions:
