@@ -1,0 +1,36 @@
+name: G0 AWS OIDC Identity Probe
+
+on:
+  push:
+    branches:
+      - p0/g0-oidc-wikibase-benchmark
+    paths:
+      - .github/workflows/g0-aws-oidc-probe.yml
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  identity-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Exchange short-lived GitHub OIDC token for an unprivileged AWS session
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
+        with:
+          role-to-assume: ${{ secrets.DECHIVE_WIKI_G0_OIDC_ROLE_ARN }}
+          aws-region: ap-northeast-2
+          role-session-name: dechive-wiki-g0-probe
+      - name: Assert role identity without listing or changing resources
+        shell: bash
+        run: |
+          set -euo pipefail
+          identity="$(aws sts get-caller-identity --query Arn --output text)"
+          case "$identity" in
+            arn:aws:sts::*:assumed-role/dechive-wiki-g0-oidc-probe/*)
+              echo 'PASS: immutable-repo-branch OIDC authentication using a role with no resource permissions';;
+            *) echo 'FAIL: unexpected identity' >&2; exit 1;;
+          esac
+          unset identity
