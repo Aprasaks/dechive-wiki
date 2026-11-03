@@ -12,7 +12,8 @@
     "dev:next": "next dev --webpack",
     "build:next": "next build --webpack",
     "start:next": "next start",
-    "test:next-full": "tsx tests/next-full-app.ts"
+    "test:next-full": "tsx tests/next-full-app.ts",
+    "test:next-prod": "tsx tests/next-production-smoke.ts"
   },
   "dependencies": {
     "@payloadcms/db-postgres": "3.92.1",
