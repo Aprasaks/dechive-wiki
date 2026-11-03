@@ -26,10 +26,15 @@ try {
     assert.equal((await pool.query('select count(*)::int n from kg.public_entries')).rows[0].n,0)
   })
   await check('Anonymous Local API list denied with overrideAccess false',async()=>{
+    let denied=false
     try{
       const results=await payload.find({collection:'editorial-drafts',overrideAccess:false})
-      assert.equal(results.docs.length,0)
-    }catch(e){assert.ok(e instanceof Error)}
+      denied = results.docs.length===0
+    }catch(error){
+      assert.match(String(error),/forbidden|unauthoriz|access|not allowed/i)
+      denied=true
+    }
+    assert.equal(denied,true,'Guest unexpectedly read a private editorial document')
   })
   await check('Local API create-published explicitly refused',async()=>{
     await assert.rejects(payload.create({collection:'editorial-drafts',data:{
@@ -39,6 +44,18 @@ try {
   await check('Local API update-published refused even with overrideAccess true',async()=>{
     await assert.rejects(payload.update({collection:'editorial-drafts',id:doc.id,
       overrideAccess:true,data:{_status:'published'}}),/KG_PUBLICATION_GATE_REQUIRED/)
+  })
+  await check('draft:true cannot bypass native publish block',async()=>{
+    await assert.rejects(payload.update({collection:'editorial-drafts',id:doc.id,
+      draft:true,overrideAccess:true,data:{_status:'published'}}),/KG_PUBLICATION_GATE_REQUIRED/)
+  })
+  await check('Unauthorized draft mutation is rejected with access checks',async()=>{
+    await assert.rejects(payload.update({collection:'editorial-drafts',id:doc.id,
+      overrideAccess:false,data:{body:'unauthorized alteration'}}),/forbidden|unauthoriz|access|not allowed/i)
+  })
+  await check('Rejected publish attempts leave native document in draft state',async()=>{
+    const unchanged=await payload.findByID({collection:'editorial-drafts',id:doc.id})
+    assert.equal(unchanged._status,'draft')
   })
   await pool.query('insert into kg.entities(id,kind,name) values($1,$2,$3)',[entity,'concept','Synthetic G1 topic'])
   await pool.query('insert into kg.sources(id,locator,description) values($1,$2,$3)',[
