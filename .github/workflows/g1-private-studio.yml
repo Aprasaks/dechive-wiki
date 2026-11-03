@@ -107,3 +107,23 @@ jobs:
           NODE_ENV: production
           NEXT_TELEMETRY_DISABLED: '1'
         run: timeout --signal=SIGTERM --kill-after=10s 180s npm --prefix experiments/payload-g1 run test:next-prod
+      - name: Install pinned Playwright Core for real Chrome E2E, no browser download
+        run: |
+          set -euo pipefail
+          google-chrome --version
+          npm install --prefix experiments/payload-g1 --no-save --package-lock=false \
+            --ignore-scripts --no-audit --no-fund playwright-core@1.57.0
+      - name: Test browser login, editor draft submission, reviewer view and actual malicious form
+        env:
+          G1_TRUSTED_ORIGIN: http://127.0.0.1:3112
+          G1_COOKIE_SECURE: 'false'
+          NODE_ENV: development
+        run: timeout --signal=SIGTERM --kill-after=10s 240s ./experiments/payload-g1/node_modules/.bin/tsx experiments/payload-g1/tests/studio-chrome-e2e.ts
+      - name: Preserve synthetic-only editor and reviewer Chrome screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: g1-studio-browser-proof
+          path: experiments/payload-g1/artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
