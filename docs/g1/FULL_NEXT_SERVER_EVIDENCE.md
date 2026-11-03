@@ -5,6 +5,8 @@
 **Experiment:** \`experiments/payload-g1\` on independent stacked branch \`p0/g1-next-full-server-gate\`  
 **No paid AWS resource, DNS change, production data, or external accounts.**
 
+**Release status:** 24/24 real Next.js App Router development HTTP checks, **11/11 compiled production HTTP checks**, and successful Next.js optimized production build with strict TypeScript checks.
+
 ## What actually ran
 
 - Actual **Next.js 16.4.4 App Router development server** under Node.js 22.23.4, with genuine **Payload CMS 3.92.1 REST and GraphQL handlers** and PostgreSQL 17.6.
@@ -18,7 +20,7 @@
 ## Verified CI evidence
 
 - [24/24 real Next.js App Router HTTP checks and successful optimized production build](https://github.com/Aprasaks/dechive-wiki/actions/runs/41648919804). On first compilation, three strict TypeScript checks failed. The optional request JSON method was narrowed correctly, an extensionless ESM import was used, and the build re-ran with \`NODE_ENV=production\`; all passed. Build type checking remains enabled.
-- A further **compiled \`next start\` production smoke test** was introduced to verify the HTML, sitemap, anti-cache, anonymous Payload REST/GraphQL access, and denied reviewer/publisher API routes in production mode. Its result is recorded in the latest workflow run log; do not claim it passed until the latest run's final conclusion is SUCCESS.
+- **11/11 compiled production \`next start\` HTTP smoke checks PASS**, including approved SSR HTML, unapproved 404, draft-query isolation, sitemap projection, anonymous native Payload REST/GraphQL denial, reviewer/publisher API denial, absent admin/preview routes, and noindex robots. The final [combined 35/35 run](https://github.com/Aprasaks/dechive-wiki/actions/runs/41649279464) completed **SUCCESS** with optimized webpack build and strict TypeScript verification.
 
 ### Development-server verified cases
 
