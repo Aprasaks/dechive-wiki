@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 
 export default function LoginPage() {
   const [email,setEmail]=useState('')
   const [password,setPassword]=useState('')
   const [status,setStatus]=useState('')
   const [busy,setBusy]=useState(false)
+  const [hydrated,setHydrated]=useState(false)
+  useEffect(()=>setHydrated(true),[])
 
   async function signIn(event:FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -35,7 +37,8 @@ export default function LoginPage() {
     <p style={{lineHeight:1.6,color:'#4B554B'}}>
       Drafts and evidence reviews remain private until independently approved.
     </p>
-    <form onSubmit={signIn} style={{display:'grid',gap:18,marginTop:32}}>
+    <form onSubmit={signIn} data-login-ready={hydrated?'true':'false'}
+      style={{display:'grid',gap:18,marginTop:32}}>
       <label>Email address
         <input aria-label="Email address" type="email" autoComplete="username" required
           value={email} onChange={e=>setEmail(e.target.value)} style={field}/>
@@ -44,7 +47,7 @@ export default function LoginPage() {
         <input aria-label="Password" type="password" autoComplete="current-password"
           required value={password} onChange={e=>setPassword(e.target.value)} style={field}/>
       </label>
-      <button disabled={busy} type="submit" style={{
+      <button disabled={busy||!hydrated} type="submit" style={{
         padding:14,background:'#233D34',color:'#fff',border:0,
         cursor:busy?'wait':'pointer',fontSize:15}}>
         {busy?'Signing in…':'Sign in'}
