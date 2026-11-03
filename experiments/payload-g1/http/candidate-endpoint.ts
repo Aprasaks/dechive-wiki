@@ -5,7 +5,7 @@ import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto'
 // Test-only candidate creation service. This DB role cannot SELECT KG tables,
 // INSERT approvals, advance public heads or execute the publish coordinator.
 const candidatePool = new Pool({ connectionString: process.env.G1_CANDIDATE_DATABASE_URL })
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const declarations = new Set(['unknown','public-domain','cc-by-4.0','permission-required'])
 function sha256(value: string) {
   return createHash('sha256').update(value,'utf8').digest('hex')
