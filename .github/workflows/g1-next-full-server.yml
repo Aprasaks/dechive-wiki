@@ -85,4 +85,7 @@ jobs:
       - name: Verify real Next.js dev server with authenticated edit/review/publish and SSR
         run: timeout --signal=SIGTERM --kill-after=10s 300s npm --prefix experiments/payload-g1 run test:next-full
       - name: Verify production Next.js build and type boundary
+        env:
+          NODE_ENV: production
+          NEXT_TELEMETRY_DISABLED: '1'
         run: timeout --signal=SIGTERM --kill-after=10s 420s npm --prefix experiments/payload-g1 run build:next
