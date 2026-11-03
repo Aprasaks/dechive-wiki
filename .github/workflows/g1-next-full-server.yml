@@ -89,3 +89,8 @@ jobs:
           NODE_ENV: production
           NEXT_TELEMETRY_DISABLED: '1'
         run: timeout --signal=SIGTERM --kill-after=10s 420s npm --prefix experiments/payload-g1 run build:next
+      - name: Smoke-test built Next.js production HTTP, SSR, privacy and API authorization
+        env:
+          NODE_ENV: production
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: timeout --signal=SIGTERM --kill-after=10s 180s npm --prefix experiments/payload-g1 run test:next-prod
