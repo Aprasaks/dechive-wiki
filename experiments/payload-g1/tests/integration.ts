@@ -4,12 +4,15 @@ import { Pool } from 'pg'
 import { getPayload } from 'payload'
 import config from '../payload.config.ts'
 
+const watchdog = setTimeout(() => { console.error('G1_WATCHDOG_TIMEOUT'); process.exit(124) }, 180000)
+console.log('G1_START: before Payload initialization')
 const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 const entity = randomUUID(), source = randomUUID(), revision = randomUUID()
 const claim = 'paper introduced a test idea'
 const approvedBody = 'Synthetic proof: paper introduced a test idea.'
 const draftBody = 'Unreviewed, unsupported new interpretation.'
 const payload = await getPayload({ config })
+console.log('G1_INIT: Payload initialized')
 let passed=0
 async function check(label: string, fn: () => Promise<void>) {
   await fn(); ++passed; console.log('PASS / '+label)
@@ -89,5 +92,7 @@ try {
   console.log('G1_REAL_PAYLOAD_POSTGRES_'+passed+'_CHECKS_SUCCESS')
 } finally {
   await pool.end()
-  if (payload.db?.destroy) await payload.db.destroy()
+  if (payload.db?.destroy) await Promise.race([payload.db.destroy(), new Promise(resolve => setTimeout(resolve, 5000))])
 }
+clearTimeout(watchdog)
+process.exit(0)

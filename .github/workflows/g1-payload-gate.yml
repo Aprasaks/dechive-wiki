@@ -56,4 +56,4 @@ jobs:
             psql -h 127.0.0.1 -U postgres -d dechive_g1 -v ON_ERROR_STOP=1 -q -f "$file"
           done
       - name: Execute actual Payload Local API and public KG contract tests
-        run: npm --prefix experiments/payload-g1 run test:integration
+        run: timeout --signal=SIGTERM --kill-after=10s 210s npm --prefix experiments/payload-g1 run test:integration
