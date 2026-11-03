@@ -10,6 +10,10 @@ on:
       - ".github/workflows/g1-private-studio.yml"
   workflow_dispatch:
 
+concurrency:
+  group: g1-private-studio-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
