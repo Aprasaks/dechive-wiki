@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "db/**"
+      - "fixtures/**"
       - "tests/**"
       - "scripts/run-p0.sh"
       - ".github/workflows/p0-db.yml"
