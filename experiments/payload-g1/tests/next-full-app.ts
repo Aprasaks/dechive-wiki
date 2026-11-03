@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { randomBytes, randomUUID } from 'node:crypto'
+import { createHmac, randomBytes, randomUUID } from 'node:crypto'
 import { spawn } from 'node:child_process'
 import { Pool } from 'pg'
 import { getPayload } from 'payload'
@@ -7,6 +7,7 @@ import config from '../native-auth.config.ts'
 
 const BASE = 'http://127.0.0.1:3100'
 const admin = new Pool({ connectionString: process.env.DATABASE_URL })
+const reviewerProbe = new Pool({ connectionString: process.env.G1_REVIEWER_DATABASE_URL })
 const accounts = [
   { key: 'editor', role: 'editor' },
   { key: 'other', role: 'editor' },
@@ -59,8 +60,9 @@ async function waitServer(processRef:ReturnType<typeof spawn>) {
 
 const seed = await getPayload({config})
 console.log('G1_NEXT: seeding four separate authenticated accounts, no real credentials')
+const seededAccounts:Record<string,{id:string|number}>={}
 for(const a of accounts){
-  await seed.create({collection:'staff',overrideAccess:true,
+  seededAccounts[a.key]=await seed.create({collection:'staff',overrideAccess:true,
     data:{email:a.email,password:a.password,role:a.role}})
 }
 if(seed.db?.destroy)await Promise.race([
@@ -213,6 +215,32 @@ try{
     denied(await fetchRaw('/api/g1-approve','POST',
       {...approval,role:'reviewer'},tokens.editor))
   })
+  await check('Reviewer service DB role cannot read the HMAC attestation key',async()=>{
+    await assert.rejects(
+      reviewerProbe.query('SELECT secret_key FROM kg.attestation_private_key'),
+      /permission denied/i)
+  })
+  await check('Reviewer DB role cannot bypass individual signature through old approval function',async()=>{
+    await assert.rejects(
+      reviewerProbe.query('SELECT kg.approve_revision($1::uuid)',[revision]),
+      /permission denied/i)
+  })
+  await check('Forged reviewer attestation signature is rejected by PostgreSQL',async()=>{
+    await assert.rejects(
+      reviewerProbe.query(
+        'SELECT kg.approve_revision_attested($1::uuid,$2::bigint,$3::text,$4::text)',
+        [revision,seededAccounts.reviewer.id,'0'.repeat(32),'0'.repeat(64)]),
+      /REVIEW_ATTESTATION_SIGNATURE_INVALID/)
+    assert.equal((await admin.query(
+      'SELECT count(*)::int n FROM kg.approvals WHERE revision_id=$1',[revision])).rows[0].n,0)
+  })
+  await check('Reviewer service cannot attribute approval to an editor identity',async()=>{
+    await assert.rejects(
+      reviewerProbe.query(
+        'SELECT kg.approve_revision_attested($1::uuid,$2::bigint,$3::text,$4::text)',
+        [revision,seededAccounts.editor.id,'1'.repeat(32),'0'.repeat(64)]),
+      /NOT_A_VALID_REVIEWER_STAFF_ACCOUNT/)
+  })
   await check('Actual reviewer JWT approves an exact revision through the restricted DB role',async()=>{
     const r=await fetchRaw('/api/g1-approve','POST',approval,tokens.reviewer)
     assert.equal(r.status,200,r.text.slice(0,450))
@@ -220,6 +248,32 @@ try{
     const a=(await admin.query('SELECT reviewer_login FROM kg.approval_audit WHERE revision_id=$1',
       [revision])).rows[0]
     assert.equal(a.reviewer_login,'kg_g1_reviewer_probe')
+  })
+  await check('Immutable human audit binds signed JWT staff ID and exact revision checksum',async()=>{
+    const record=(await admin.query(
+      'SELECT reviewer_staff_id,revision_checksum,nonce,signature FROM kg.human_review_attestations WHERE revision_id=$1',
+      [revision])).rows[0]
+    assert.ok(record)
+    assert.equal(Number(record.reviewer_staff_id),Number(seededAccounts.reviewer.id))
+    const row=(await admin.query('SELECT checksum FROM kg.revisions WHERE id=$1',[revision])).rows[0]
+    assert.equal(record.revision_checksum,row.checksum)
+    const signed=[revision,String(seededAccounts.reviewer.id),row.checksum,record.nonce].join('|')
+    const secret=process.env.G1_REVIEW_ATTESTATION_SECRET ?? ''
+    const expected=createHmac('sha256',Buffer.from(secret,'hex')).update(signed,'utf8').digest('hex')
+    assert.equal(record.signature,expected)
+  })
+  await check('Approved audit row is immutable even to the test database owner',async()=>{
+    await assert.rejects(admin.query(
+      'UPDATE kg.human_review_attestations SET reviewer_staff_id=$1 WHERE revision_id=$2',
+      [seededAccounts.editor.id,revision]),/IMMUTABLE_REVISION_OR_SNAPSHOT/)
+  })
+  await check('Replaying same authenticated reviewer approval cannot rewrite human identity',async()=>{
+    const r=await fetchRaw('/api/g1-approve','POST',approval,tokens.reviewer)
+    assert.equal(r.status,409,r.text.slice(0,250))
+    const a=(await admin.query(
+      'SELECT reviewer_staff_id FROM kg.human_review_attestations WHERE revision_id=$1',
+      [revision])).rows[0]
+    assert.equal(Number(a.reviewer_staff_id),Number(seededAccounts.reviewer.id))
   })
   await check('Actual publisher JWT publishes only previously approved revision',async()=>{
     const r=await fetchRaw('/api/g1-publish','POST',publication,tokens.publisher)
@@ -267,6 +321,7 @@ try{
   throw err
 }finally{
   await admin.end()
+  await reviewerProbe.end()
   try{process.kill(-next.pid!,'SIGTERM')}catch{next.kill('SIGTERM')}
   await new Promise<void>(resolve=>{
     const timer=setTimeout(()=>{try{process.kill(-next.pid!,'SIGKILL')}catch{};resolve()},4000)
