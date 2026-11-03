@@ -59,3 +59,7 @@ Official sources:
 - Account-wide IAM password policy now requires at least 16 characters and character-class diversity, enables self-password change and limits password reuse. This applies to IAM user console passwords, not the root account.
 - IAM authorization simulation with MFA absent: changing own password, creating and enabling own MFA **allowed**; creating EC2, attaching IAM policies or assuming another AWS role **explicitly denied**. This is a policy simulation, not a successful human sign-in test.
 - **G0 remains NO-GO for billable AWS workloads or production deployment**. Next: owner completes MFA; review secure, separate administrator permissions and a dedicated, resource-scoped deployment role.
+
+## MFA enrollment observed after account owner setup
+
+On 2026-11-03, the account owner's signed-in IAM Security Credentials console showed **one registered virtual MFA device** on the \`dechive-wiki-operator\` IAM user. This independently validates the operator's first login and MFA device registration at the console view. It does **not** grant or verify any resource-administration permissions. No other AWS IAM policy change was made as part of the G1 test.
