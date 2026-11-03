@@ -1,4 +1,3 @@
-import 'server-only'
 import { Pool } from 'pg'
 
 // This pool MUST be backed by the standalone, read-only PostgreSQL role.
