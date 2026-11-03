@@ -4,6 +4,8 @@
 **Status:** G1-PARTIAL / PRODUCTION NO-GO  
 **Scope:** DECHIVE.WIKI only. Synthetic fixtures, disposable GitHub-hosted PostgreSQL 17.6.
 
+> **2026-11-03 extension:** Actual native Payload REST/GraphQL authenticated HTTP routes, JWT-enforced review and publication and draft isolation passed **38/38** additional checks. See [Native HTTP Auth Evidence](NATIVE_HTTP_AUTH_EVIDENCE.md). A complete deployed Next.js topology and durable individual-human approval signatures remain **NO-GO** blockers.
+
 ## Executed evidence
 
 [Passing GitHub Actions run](https://github.com/Aprasaks/dechive-wiki/actions/runs/41624402509).
