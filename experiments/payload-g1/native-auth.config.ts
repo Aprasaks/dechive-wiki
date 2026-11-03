@@ -62,14 +62,16 @@ const EditorialDrafts: CollectionConfig = {
     readVersions: () => false, // Review history is kept in the canonical KG, not native CMS API
   },
   hooks: {
-    beforeChange: [({ data, req, operation }) => {
+    beforeChange: [({ data, req, operation, originalDoc }) => {
       // No role can use a CMS "publish" operation. Publication goes via
       // verified PostgreSQL revision/claim/rights gate and a scoped publisher.
       if (data?._status === 'published') throw new APIError('KG_PUBLICATION_GATE_REQUIRED', 403)
       if (operation === 'create' && isEditor(req.user)) {
         data.createdBy = actor(req.user)?.id
       } else if (operation === 'update' && data) {
-        delete data.createdBy
+        // GraphQL does not automatically carry the immutable relationship
+        // into PATCH data. Use the persisted value, never a client-supplied ID.
+        data.createdBy = originalDoc?.createdBy?.id ?? originalDoc?.createdBy
       }
       return data
     }],
