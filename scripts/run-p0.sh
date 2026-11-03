@@ -4,7 +4,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 NAME="dechive-wiki-p0-db"
 LABEL="dechive.wiki.scope"
 VALUE="p0-isolated"
-# Observed pinned PostgreSQL 17.6 Alpine image (developer machine, ARM64).
+# Pinned PostgreSQL 17.6 Alpine multi-platform OCI index digest.
 IMAGE="postgres@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94"
 command -v docker >/dev/null || { echo "Docker unavailable"; exit 1; }
 command -v python3 >/dev/null || { echo "Python unavailable"; exit 1; }

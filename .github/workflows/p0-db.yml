@@ -1,0 +1,24 @@
+name: P0 PostgreSQL Contract Tests
+
+on:
+  pull_request:
+    paths:
+      - "db/**"
+      - "tests/**"
+      - "scripts/run-p0.sh"
+      - ".github/workflows/p0-db.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  db-contracts:
+    name: Isolated DB integrity verification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out proposed changes
+        uses: actions/checkout@v4
+      - name: Run disposable PostgreSQL contract tests
+        run: bash ./scripts/run-p0.sh
