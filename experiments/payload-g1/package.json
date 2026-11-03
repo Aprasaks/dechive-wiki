@@ -6,7 +6,8 @@
   "scripts": {
     "test:integration": "tsx tests/integration.ts",
     "test:http": "tsx tests/http-boundary.ts",
-    "test:crash": "tsx tests/outbox-crash-recovery.ts"
+    "test:crash": "tsx tests/outbox-crash-recovery.ts",
+    "test:actors": "tsx tests/db-actor-roles.ts"
   },
   "dependencies": {
     "@payloadcms/db-postgres": "3.92.1",
