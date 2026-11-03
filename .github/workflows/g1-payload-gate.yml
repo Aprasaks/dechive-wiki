@@ -1,0 +1,59 @@
+name: G1 Payload and PostgreSQL Publication Boundary
+
+on:
+  push:
+    branches:
+      - p0/g1-cms-publication-gate
+    paths:
+      - "experiments/payload-g1/**"
+      - "db/**"
+      - ".github/workflows/g1-payload-gate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cms-boundary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-ci-only-password
+          POSTGRES_DB: dechive_g1
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d dechive_g1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgres://postgres:synthetic-ci-only-password@127.0.0.1:5432/dechive_g1
+      PGPASSWORD: synthetic-ci-only-password
+      PAYLOAD_SECRET: synthetic-only-g1-ci-secret-not-for-production
+      NODE_ENV: development
+    steps:
+      - name: Check out independent P0 branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install supported Node runtime
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.23.4'
+          cache: npm
+          cache-dependency-path: experiments/payload-g1/package-lock.json
+      - name: Install exact Payload v3 dependencies
+        run: npm ci --prefix experiments/payload-g1 --no-audit --no-fund
+      - name: Apply canonical KG migrations before CMS initialization
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in db/[0-9][0-9][0-9]_*.sql; do
+            echo "Applying isolated KG schema: $(basename "$file")"
+            psql -h 127.0.0.1 -U postgres -d dechive_g1 -v ON_ERROR_STOP=1 -q -f "$file"
+          done
+      - name: Execute actual Payload Local API and public KG contract tests
+        run: npm --prefix experiments/payload-g1 run test:integration
