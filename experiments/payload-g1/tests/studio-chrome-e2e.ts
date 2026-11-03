@@ -56,6 +56,7 @@ try{
   await page.goto(BASE+'/studio',{waitUntil:'domcontentloaded'})
   assert.ok(page.url().endsWith('/studio/login'),page.url())
   await page.getByRole('heading',{name:'Editorial Sign In'}).waitFor()
+  await page.locator('form[data-login-ready="true"]').waitFor({timeout:15000})
  })
  const editor=staff.find(x=>x.kind==='editor')!
  await check('Chrome logs in as editor with a real HttpOnly SameSite Strict cookie',async()=>{
@@ -64,6 +65,7 @@ try{
   await page.getByRole('button',{name:'Sign in'}).click()
   await page.getByRole('heading',{name:'Editorial Workspace'}).waitFor({timeout:15000})
   await page.getByRole('heading',{name:'New private draft'}).waitFor()
+  await page.locator('[data-studio-ready="true"]').waitFor({timeout:15000})
   const cookies=await ctx.cookies()
   const cookie=cookies.find(c=>c.name.includes('token'))
   assert.ok(cookie,'Payload session cookie absent')
@@ -98,6 +100,7 @@ try{
  })
  await check('Chrome sign-out revokes private studio cookie access',async()=>{
   await page.goto(BASE+'/studio',{waitUntil:'domcontentloaded'})
+  await page.locator('[data-studio-ready="true"]').waitFor({timeout:15000})
   await page.getByRole('button',{name:'Sign out'}).click()
   await page.getByRole('heading',{name:'Editorial Sign In'}).waitFor({timeout:15000})
   await page.goto(BASE+'/studio',{waitUntil:'domcontentloaded'})
@@ -109,10 +112,12 @@ try{
   const scope=await browser.newContext({viewport:{width:1440,height:900}})
   const p=await scope.newPage()
   await p.goto(BASE+'/studio/login',{waitUntil:'domcontentloaded'})
+  await p.locator('form[data-login-ready="true"]').waitFor({timeout:15000})
   await p.getByRole('textbox',{name:'Email address'}).fill(a.email)
   await p.getByLabel('Password').fill(a.password)
   await p.getByRole('button',{name:'Sign in'}).click()
   await p.getByRole('heading',{name:'Editorial Workspace'}).waitFor({timeout:15000})
+  await p.locator('[data-studio-ready="true"]').waitFor({timeout:15000})
   if(kind==='other')await check('Second editor cannot see another editor draft in Chrome',async()=>{
     await p.getByText('No drafts available to your role.').waitFor({timeout:15000})
     assert.ok(!(await p.locator('body').innerText()).includes(title))
