@@ -207,12 +207,57 @@ try {
     [revision,'claim-1','p1','paper introduced a test idea'])
   await admin.query('INSERT INTO kg.claim_evidence(revision_id,claim_key,source_id,stance,pinpoint,reviewer) VALUES($1,$2,$3,$4,$5,$6)',
     [revision,'claim-1',source,'supports','synthetic-fixture','CI-fake-reviewer'])
-  await check('Unapproved revision remains unpublished despite editor and reviewer logins',async()=>{
-    await assert.rejects(admin.query('SELECT kg.publish($1,$2,$3)',[entity,revision,0]),/NOT_APPROVED/)
+  const approveRequest={draftId:document.id,revisionId:revision}
+  const publishRequest={entityId:entity,revisionId:revision,expectedVersion:0}
+  await check('Anonymous cannot invoke real reviewer approval endpoint',async()=>{
+    denied(await call('/api/g1-approve','POST',approveRequest))
+  })
+  await check('Editor cannot impersonate reviewer using a forged role field',async()=>{
+    denied(await call('/api/g1-approve','POST',{...approveRequest,role:'reviewer'},tokens.editor))
+  })
+  await check('Publisher account cannot approve a revision over HTTP',async()=>{
+    denied(await call('/api/g1-approve','POST',approveRequest,tokens.publisher))
+  })
+  await check('Reviewer cannot publish from a genuine reviewer JWT',async()=>{
+    denied(await call('/api/g1-publish','POST',publishRequest,tokens.reviewer))
+  })
+  await check('Editor cannot publish from a genuine editor JWT',async()=>{
+    denied(await call('/api/g1-publish','POST',publishRequest,tokens.editor))
+  })
+  await check('Publisher endpoint rejects unapproved revision without exposing KG details',async()=>{
+    const result=await call('/api/g1-publish','POST',publishRequest,tokens.publisher)
+    assert.equal(result.status,409,JSON.stringify(result.json).slice(0,300))
     assert.equal((await admin.query('SELECT count(*)::int n FROM kg.public_entries')).rows[0].n,0)
   })
-  await admin.query('INSERT INTO kg.approvals(revision_id,reviewer) VALUES($1,$2)',[revision,'CI-fake-reviewer'])
-  await admin.query('SELECT kg.publish($1,$2,$3)',[entity,revision,0])
+  await check('Reviewer cannot approve a revision that differs from editor submitted draft',async()=>{
+    const mismatched=randomUUID()
+    await admin.query('INSERT INTO kg.revisions(id,entity_id,locale,body) VALUES($1,$2,$3,$4)',
+      [mismatched,entity,'en','mismatched text'])
+    const result=await call('/api/g1-approve','POST',
+      {draftId:document.id,revisionId:mismatched},tokens.reviewer)
+    assert.equal(result.status,409,JSON.stringify(result.json).slice(0,300))
+  })
+  await check('Valid reviewer JWT approves only the exact revision and evidence bound to the draft',async()=>{
+    const result=await call('/api/g1-approve','POST',approveRequest,tokens.reviewer)
+    assert.equal(result.status,200,JSON.stringify(result.json).slice(0,400))
+    assert.equal(result.json.approved,true)
+    const audit=await admin.query('SELECT reviewer_login FROM kg.approval_audit WHERE revision_id=$1',[revision])
+    assert.equal(audit.rows[0].reviewer_login,'kg_g1_reviewer_probe')
+  })
+  await check('Approval cannot be replayed to rewrite immutable audit',async()=>{
+    const replay=await call('/api/g1-approve','POST',approveRequest,tokens.reviewer)
+    assert.equal(replay.status,409,JSON.stringify(replay.json).slice(0,300))
+  })
+  await check('Actual publisher JWT releases approved KG head via restricted DB role',async()=>{
+    const published=await call('/api/g1-publish','POST',publishRequest,tokens.publisher)
+    assert.equal(published.status,200,JSON.stringify(published.json).slice(0,400))
+    assert.equal(published.json.published,true)
+    assert.equal(published.json.version,1)
+  })
+  await check('Publisher cannot replay stale head version',async()=>{
+    const replay=await call('/api/g1-publish','POST',publishRequest,tokens.publisher)
+    assert.equal(replay.status,409,JSON.stringify(replay.json).slice(0,300))
+  })
   await check('Canonical approved snapshot exactly matches REST-authored draft content',async()=>{
     const result=await admin.query('SELECT revision_id,body FROM kg.public_entries WHERE entity_id=$1',[entity])
     assert.equal(result.rows[0].revision_id,revision)
