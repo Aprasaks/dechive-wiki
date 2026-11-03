@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "test:integration": "tsx tests/integration.ts",
-    "test:http": "tsx tests/http-boundary.ts"
+    "test:http": "tsx tests/http-boundary.ts",
+    "test:crash": "tsx tests/outbox-crash-recovery.ts"
   },
   "dependencies": {
     "@payloadcms/db-postgres": "3.92.1",
