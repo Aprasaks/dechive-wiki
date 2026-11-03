@@ -117,6 +117,7 @@ try{
   })
 
   const tokens:Record<string,string>={}
+  const browserCookies:Record<string,string>={}
   await check('Actual Next.js REST route logs in editor, reviewer and publisher',async()=>{
     for(const a of accounts) {
       const r=await fetchRaw('/api/staff/login','POST',
@@ -124,6 +125,10 @@ try{
       assert.equal(r.status,200,r.text.slice(0,350))
       assert.ok(typeof r.json?.token==='string' && r.json.token.length>30)
       tokens[a.key]=r.json.token
+      const setCookie=r.headers.get('set-cookie') ?? ''
+      assert.ok(setCookie.includes('HttpOnly'),'Payload login must set HttpOnly cookie')
+      assert.ok(/SameSite=Strict/i.test(setCookie),'Cookie must use SameSite Strict')
+      browserCookies[a.key]=setCookie.split(';')[0]
     }
   })
   await check('Anonymous cannot create staff accounts through the Next router',async()=>{
@@ -152,6 +157,87 @@ try{
       'GET',undefined,tokens.other)
     if(r.status===200)assert.ok(!r.text.includes(original))
     else denied(r)
+  })
+  await check('Signed login cookie is accepted for same-origin staff session',async()=>{
+    const r=await fetch(BASE+'/api/staff/me',{
+      headers:{Cookie:browserCookies.editor,Origin:BASE},
+      signal:AbortSignal.timeout(12000),
+    })
+    assert.equal(r.status,200,'Browser-style cookie session rejected')
+    const json:any=await r.json()
+    assert.equal(json.user?.role,'editor')
+  })
+  await check('Same-origin cookie-based editor POST can create a private draft',async()=>{
+    const r=await fetch(BASE+'/api/editorial-drafts?draft=true',{
+      method:'POST',
+      headers:{Cookie:browserCookies.editor,Origin:BASE,'Content-Type':'application/json',
+        'Sec-Fetch-Site':'same-origin'},
+      body:JSON.stringify({
+        stableEntityId:randomUUID(),title:'Cookie session private draft',
+        body:'COOKIE SESSION PRIVATE DRAFT',_status:'draft',
+      }),
+      signal:AbortSignal.timeout(12000),
+    })
+    const text=await r.text()
+    assert.ok([200,201].includes(r.status),'Trusted browser POST failed: '+text.slice(0,350))
+    assert.ok(text.includes('draft'))
+  })
+  await check('Cross-origin cookie POST is denied before reviewer/publisher authorization',async()=>{
+    for(const endpoint of ['/api/g1-approve','/api/g1-publish','/api/editorial-drafts']){
+      const r=await fetch(BASE+endpoint,{
+        method:'POST',headers:{
+          Cookie:browserCookies.reviewer,
+          Origin:'https://malicious.example.invalid',
+          'Content-Type':'application/json',
+          'Sec-Fetch-Site':'cross-site',
+        },
+        body:JSON.stringify({revisionId:randomUUID(),entityId:randomUUID(),expectedVersion:0}),
+        signal:AbortSignal.timeout(12000),
+      })
+      assert.equal(r.status,403,endpoint+' cross-origin returned '+r.status)
+      assert.equal((await r.json() as any).error,'CSRF_ORIGIN_REJECTED')
+    }
+  })
+  await check('Originless cookie-based state changes fail closed, even with signed JWT',async()=>{
+    const r=await fetch(BASE+'/api/editorial-drafts?draft=true',{
+      method:'POST',
+      headers:{Cookie:browserCookies.editor,Authorization:'JWT '+tokens.editor,
+        'Content-Type':'application/json'},
+      body:JSON.stringify({stableEntityId:randomUUID(),title:'Originless',body:'must deny'}),
+      signal:AbortSignal.timeout(12000),
+    })
+    assert.equal(r.status,403)
+  })
+  await check('Null/forged Origin cannot exploit authenticated editor cookies',async()=>{
+    for(const origin of ['null','http://127.0.0.1:3100.attacker.invalid','http://127.0.0.1:3101']){
+      const r=await fetch(BASE+'/api/editorial-drafts?draft=true',{
+        method:'POST',
+        headers:{Cookie:browserCookies.editor,Origin:origin,'Content-Type':'application/json'},
+        body:JSON.stringify({stableEntityId:randomUUID(),title:'Forged Origin',body:'must deny'}),
+        signal:AbortSignal.timeout(12000),
+      })
+      assert.equal(r.status,403,'Invalid Origin unexpectedly passed: '+origin)
+    }
+  })
+  await check('Cross-site Fetch Metadata is denied even with an explicit valid JWT',async()=>{
+    const r=await fetch(BASE+'/api/editorial-drafts?draft=true',{
+      method:'POST',
+      headers:{Authorization:'JWT '+tokens.editor,Origin:BASE,
+        'Sec-Fetch-Site':'cross-site','Content-Type':'application/json'},
+      body:JSON.stringify({stableEntityId:randomUUID(),title:'Fetch-site forgery',body:'must deny'}),
+      signal:AbortSignal.timeout(12000),
+    })
+    assert.equal(r.status,403)
+  })
+  await check('Forged proxy Host headers cannot override the trusted origin allowlist',async()=>{
+    const r=await fetch(BASE+'/api/editorial-drafts?draft=true',{
+      method:'POST',
+      headers:{Cookie:browserCookies.editor,Origin:'https://malicious.example.invalid',
+        'X-Forwarded-Host':'malicious.example.invalid','Content-Type':'application/json'},
+      body:JSON.stringify({stableEntityId:randomUUID(),title:'Host spoof',body:'must deny'}),
+      signal:AbortSignal.timeout(12000),
+    })
+    assert.equal(r.status,403)
   })
   await check('Reviewer can inspect the draft through real Next.js REST',async()=>{
     const r=await fetchRaw('/api/editorial-drafts/'+doc.id+'?draft=true',
