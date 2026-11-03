@@ -1,6 +1,7 @@
 import { APIError, buildConfig, type CollectionConfig } from 'payload'
 import { postgresAdapter } from '@payloadcms/db-postgres'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
+import { g1WorkflowEndpoints } from './http/workflow-endpoints.ts'
 
 // Isolated G1 security test config: separate from the existing P0/G1 fixture.
 // IMPORTANT: never deploy this disposable database-push config to production.
@@ -94,6 +95,7 @@ export default buildConfig({
   admin: { user: 'staff' },
   editor: lexicalEditor(),
   collections: [Staff, EditorialDrafts],
+  endpoints: g1WorkflowEndpoints,
   db: postgresAdapter({
     pool: { connectionString: process.env.DATABASE_URL ?? '' },
     push: true, // ONLY this disposable GitHub-hosted G1 fixture database
