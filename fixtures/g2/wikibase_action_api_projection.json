@@ -1,0 +1,935 @@
+{
+  "source": "offline-projection-not-real-wikibase",
+  "items": {
+    "K001": {
+      "type": "item",
+      "id": "Q1",
+      "labels": {
+        "en": {
+          "language": "en",
+          "value": "Synthetic Artificial Reasoning"
+        }
+      },
+      "claims": {
+        "P110": [
+          {
+            "id": "Q1$00000000-0000-4000-9000-000000000001",
+            "type": "statement",
+            "rank": "normal",
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P110",
+              "datatype": "wikibase-item",
+              "datavalue": {
+                "type": "wikibase-entityid",
+                "value": {
+                  "entity-type": "item",
+                  "numeric-id": 2,
+                  "id": "Q2"
+                }
+              }
+            },
+            "references": [
+              {
+                "hash": "94c4e236a98033c34094e3f73bea5f7e624317ab",
+                "snaks": {
+                  "P991": [
+                    {
+                      "snaktype": "value",
+                      "property": "P991",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "urn:dechive-test:source-1"
+                      }
+                    }
+                  ],
+                  "P992": [
+                    {
+                      "snaktype": "value",
+                      "property": "P992",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "synthetic-fixture-1"
+                      }
+                    }
+                  ],
+                  "P993": [
+                    {
+                      "snaktype": "value",
+                      "property": "P993",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "supports"
+                      }
+                    }
+                  ]
+                },
+                "snaks-order": [
+                  "P991",
+                  "P992",
+                  "P993"
+                ]
+              },
+              {
+                "hash": "e1307b332ad2f434788d854029abbebc045f4689",
+                "snaks": {
+                  "P991": [
+                    {
+                      "snaktype": "value",
+                      "property": "P991",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "urn:dechive-test:source-2"
+                      }
+                    }
+                  ],
+                  "P992": [
+                    {
+                      "snaktype": "value",
+                      "property": "P992",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "synthetic-fixture-2"
+                      }
+                    }
+                  ],
+                  "P993": [
+                    {
+                      "snaktype": "value",
+                      "property": "P993",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "contradicts"
+                      }
+                    }
+                  ]
+                },
+                "snaks-order": [
+                  "P991",
+                  "P992",
+                  "P993"
+                ]
+              }
+            ]
+          }
+        ],
+        "P104": [
+          {
+            "id": "Q1$00000000-0000-4000-9000-000000000006",
+            "type": "statement",
+            "rank": "normal",
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P104",
+              "datatype": "wikibase-item",
+              "datavalue": {
+                "type": "wikibase-entityid",
+                "value": {
+                  "entity-type": "item",
+                  "numeric-id": 3,
+                  "id": "Q3"
+                }
+              }
+            },
+            "references": [
+              {
+                "hash": "94c4e236a98033c34094e3f73bea5f7e624317ab",
+                "snaks": {
+                  "P991": [
+                    {
+                      "snaktype": "value",
+                      "property": "P991",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "urn:dechive-test:source-1"
+                      }
+                    }
+                  ],
+                  "P992": [
+                    {
+                      "snaktype": "value",
+                      "property": "P992",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "synthetic-fixture-1"
+                      }
+                    }
+                  ],
+                  "P993": [
+                    {
+                      "snaktype": "value",
+                      "property": "P993",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "supports"
+                      }
+                    }
+                  ]
+                },
+                "snaks-order": [
+                  "P991",
+                  "P992",
+                  "P993"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "K002": {
+      "type": "item",
+      "id": "Q2",
+      "labels": {
+        "en": {
+          "language": "en",
+          "value": "Synthetic Logic Systems"
+        }
+      },
+      "claims": {}
+    },
+    "K003": {
+      "type": "item",
+      "id": "Q3",
+      "labels": {
+        "en": {
+          "language": "en",
+          "value": "Dr. Example A"
+        }
+      },
+      "claims": {
+        "P101": [
+          {
+            "id": "Q3$00000000-0000-4000-9000-000000000002",
+            "type": "statement",
+            "rank": "normal",
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P101",
+              "datatype": "wikibase-item",
+              "datavalue": {
+                "type": "wikibase-entityid",
+                "value": {
+                  "entity-type": "item",
+                  "numeric-id": 5,
+                  "id": "Q5"
+                }
+              }
+            },
+            "references": [
+              {
+                "hash": "94c4e236a98033c34094e3f73bea5f7e624317ab",
+                "snaks": {
+                  "P991": [
+                    {
+                      "snaktype": "value",
+                      "property": "P991",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "urn:dechive-test:source-1"
+                      }
+                    }
+                  ],
+                  "P992": [
+                    {
+                      "snaktype": "value",
+                      "property": "P992",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "synthetic-fixture-1"
+                      }
+                    }
+                  ],
+                  "P993": [
+                    {
+                      "snaktype": "value",
+                      "property": "P993",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "supports"
+                      }
+                    }
+                  ]
+                },
+                "snaks-order": [
+                  "P991",
+                  "P992",
+                  "P993"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "K004": {
+      "type": "item",
+      "id": "Q4",
+      "labels": {
+        "en": {
+          "language": "en",
+          "value": "Dr. Example B"
+        }
+      },
+      "claims": {
+        "P101": [
+          {
+            "id": "Q4$00000000-0000-4000-9000-000000000003",
+            "type": "statement",
+            "rank": "normal",
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P101",
+              "datatype": "wikibase-item",
+              "datavalue": {
+                "type": "wikibase-entityid",
+                "value": {
+                  "entity-type": "item",
+                  "numeric-id": 7,
+                  "id": "Q7"
+                }
+              }
+            },
+            "references": [
+              {
+                "hash": "94c4e236a98033c34094e3f73bea5f7e624317ab",
+                "snaks": {
+                  "P991": [
+                    {
+                      "snaktype": "value",
+                      "property": "P991",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "urn:dechive-test:source-1"
+                      }
+                    }
+                  ],
+                  "P992": [
+                    {
+                      "snaktype": "value",
+                      "property": "P992",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "synthetic-fixture-1"
+                      }
+                    }
+                  ],
+                  "P993": [
+                    {
+                      "snaktype": "value",
+                      "property": "P993",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "supports"
+                      }
+                    }
+                  ]
+                },
+                "snaks-order": [
+                  "P991",
+                  "P992",
+                  "P993"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "K005": {
+      "type": "item",
+      "id": "Q5",
+      "labels": {
+        "en": {
+          "language": "en",
+          "value": "Synthetic Paper Alpha"
+        }
+      },
+      "claims": {
+        "P102": [
+          {
+            "id": "Q5$00000000-0000-4000-9000-000000000004",
+            "type": "statement",
+            "rank": "normal",
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P102",
+              "datatype": "wikibase-item",
+              "datavalue": {
+                "type": "wikibase-entityid",
+                "value": {
+                  "entity-type": "item",
+                  "numeric-id": 6,
+                  "id": "Q6"
+                }
+              }
+            },
+            "references": [
+              {
+                "hash": "94c4e236a98033c34094e3f73bea5f7e624317ab",
+                "snaks": {
+                  "P991": [
+                    {
+                      "snaktype": "value",
+                      "property": "P991",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "urn:dechive-test:source-1"
+                      }
+                    }
+                  ],
+                  "P992": [
+                    {
+                      "snaktype": "value",
+                      "property": "P992",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "synthetic-fixture-1"
+                      }
+                    }
+                  ],
+                  "P993": [
+                    {
+                      "snaktype": "value",
+                      "property": "P993",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "supports"
+                      }
+                    }
+                  ]
+                },
+                "snaks-order": [
+                  "P991",
+                  "P992",
+                  "P993"
+                ]
+              }
+            ]
+          }
+        ],
+        "P109": [
+          {
+            "id": "Q5$00000000-0000-4000-9000-000000000005",
+            "type": "statement",
+            "rank": "normal",
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P109",
+              "datatype": "wikibase-item",
+              "datavalue": {
+                "type": "wikibase-entityid",
+                "value": {
+                  "entity-type": "item",
+                  "numeric-id": 11,
+                  "id": "Q11"
+                }
+              }
+            },
+            "references": [
+              {
+                "hash": "94c4e236a98033c34094e3f73bea5f7e624317ab",
+                "snaks": {
+                  "P991": [
+                    {
+                      "snaktype": "value",
+                      "property": "P991",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "urn:dechive-test:source-1"
+                      }
+                    }
+                  ],
+                  "P992": [
+                    {
+                      "snaktype": "value",
+                      "property": "P992",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "synthetic-fixture-1"
+                      }
+                    }
+                  ],
+                  "P993": [
+                    {
+                      "snaktype": "value",
+                      "property": "P993",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "supports"
+                      }
+                    }
+                  ]
+                },
+                "snaks-order": [
+                  "P991",
+                  "P992",
+                  "P993"
+                ]
+              }
+            ]
+          }
+        ],
+        "P107": [
+          {
+            "id": "Q5$00000000-0000-4000-9000-000000000011",
+            "type": "statement",
+            "rank": "normal",
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P107",
+              "datatype": "wikibase-item",
+              "datavalue": {
+                "type": "wikibase-entityid",
+                "value": {
+                  "entity-type": "item",
+                  "numeric-id": 1,
+                  "id": "Q1"
+                }
+              }
+            },
+            "references": [
+              {
+                "hash": "94c4e236a98033c34094e3f73bea5f7e624317ab",
+                "snaks": {
+                  "P991": [
+                    {
+                      "snaktype": "value",
+                      "property": "P991",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "urn:dechive-test:source-1"
+                      }
+                    }
+                  ],
+                  "P992": [
+                    {
+                      "snaktype": "value",
+                      "property": "P992",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "synthetic-fixture-1"
+                      }
+                    }
+                  ],
+                  "P993": [
+                    {
+                      "snaktype": "value",
+                      "property": "P993",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "supports"
+                      }
+                    }
+                  ]
+                },
+                "snaks-order": [
+                  "P991",
+                  "P992",
+                  "P993"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "K006": {
+      "type": "item",
+      "id": "Q6",
+      "labels": {
+        "en": {
+          "language": "en",
+          "value": "Synthetic Paper Beta"
+        }
+      },
+      "claims": {}
+    },
+    "K007": {
+      "type": "item",
+      "id": "Q7",
+      "labels": {
+        "en": {
+          "language": "en",
+          "value": "Synthetic Book of Ideas"
+        }
+      },
+      "claims": {}
+    },
+    "K008": {
+      "type": "item",
+      "id": "Q8",
+      "labels": {
+        "en": {
+          "language": "en",
+          "value": "Synthetic Book of Ideas \u2014 First Edition"
+        }
+      },
+      "claims": {
+        "P106": [
+          {
+            "id": "Q8$00000000-0000-4000-9000-000000000007",
+            "type": "statement",
+            "rank": "normal",
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P106",
+              "datatype": "wikibase-item",
+              "datavalue": {
+                "type": "wikibase-entityid",
+                "value": {
+                  "entity-type": "item",
+                  "numeric-id": 7,
+                  "id": "Q7"
+                }
+              }
+            },
+            "references": [
+              {
+                "hash": "94c4e236a98033c34094e3f73bea5f7e624317ab",
+                "snaks": {
+                  "P991": [
+                    {
+                      "snaktype": "value",
+                      "property": "P991",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "urn:dechive-test:source-1"
+                      }
+                    }
+                  ],
+                  "P992": [
+                    {
+                      "snaktype": "value",
+                      "property": "P992",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "synthetic-fixture-1"
+                      }
+                    }
+                  ],
+                  "P993": [
+                    {
+                      "snaktype": "value",
+                      "property": "P993",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "supports"
+                      }
+                    }
+                  ]
+                },
+                "snaks-order": [
+                  "P991",
+                  "P992",
+                  "P993"
+                ]
+              }
+            ],
+            "qualifiers": {
+              "P901": [
+                {
+                  "snaktype": "value",
+                  "property": "P901",
+                  "datatype": "string",
+                  "datavalue": {
+                    "type": "string",
+                    "value": "1"
+                  }
+                }
+              ]
+            },
+            "qualifiers-order": [
+              "P901"
+            ]
+          }
+        ]
+      }
+    },
+    "K009": {
+      "type": "item",
+      "id": "Q9",
+      "labels": {
+        "en": {
+          "language": "en",
+          "value": "Synthetic Quarterly Review"
+        }
+      },
+      "claims": {
+        "P108": [
+          {
+            "id": "Q9$00000000-0000-4000-9000-000000000008",
+            "type": "statement",
+            "rank": "normal",
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P108",
+              "datatype": "wikibase-item",
+              "datavalue": {
+                "type": "wikibase-entityid",
+                "value": {
+                  "entity-type": "item",
+                  "numeric-id": 10,
+                  "id": "Q10"
+                }
+              }
+            },
+            "references": [
+              {
+                "hash": "94c4e236a98033c34094e3f73bea5f7e624317ab",
+                "snaks": {
+                  "P991": [
+                    {
+                      "snaktype": "value",
+                      "property": "P991",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "urn:dechive-test:source-1"
+                      }
+                    }
+                  ],
+                  "P992": [
+                    {
+                      "snaktype": "value",
+                      "property": "P992",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "synthetic-fixture-1"
+                      }
+                    }
+                  ],
+                  "P993": [
+                    {
+                      "snaktype": "value",
+                      "property": "P993",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "supports"
+                      }
+                    }
+                  ]
+                },
+                "snaks-order": [
+                  "P991",
+                  "P992",
+                  "P993"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "K010": {
+      "type": "item",
+      "id": "Q10",
+      "labels": {
+        "en": {
+          "language": "en",
+          "value": "Synthetic Quarterly Review \u2014 Issue 1"
+        }
+      },
+      "claims": {
+        "P103": [
+          {
+            "id": "Q10$00000000-0000-4000-9000-000000000009",
+            "type": "statement",
+            "rank": "normal",
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P103",
+              "datatype": "wikibase-item",
+              "datavalue": {
+                "type": "wikibase-entityid",
+                "value": {
+                  "entity-type": "item",
+                  "numeric-id": 11,
+                  "id": "Q11"
+                }
+              }
+            },
+            "references": [
+              {
+                "hash": "94c4e236a98033c34094e3f73bea5f7e624317ab",
+                "snaks": {
+                  "P991": [
+                    {
+                      "snaktype": "value",
+                      "property": "P991",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "urn:dechive-test:source-1"
+                      }
+                    }
+                  ],
+                  "P992": [
+                    {
+                      "snaktype": "value",
+                      "property": "P992",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "synthetic-fixture-1"
+                      }
+                    }
+                  ],
+                  "P993": [
+                    {
+                      "snaktype": "value",
+                      "property": "P993",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "supports"
+                      }
+                    }
+                  ]
+                },
+                "snaks-order": [
+                  "P991",
+                  "P992",
+                  "P993"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "K011": {
+      "type": "item",
+      "id": "Q11",
+      "labels": {
+        "en": {
+          "language": "en",
+          "value": "Synthetic Article on Ideas"
+        }
+      },
+      "claims": {}
+    },
+    "K012": {
+      "type": "item",
+      "id": "Q12",
+      "labels": {
+        "en": {
+          "language": "en",
+          "value": "Synthetic Knowledge Symposium"
+        }
+      },
+      "claims": {
+        "P105": [
+          {
+            "id": "Q12$00000000-0000-4000-9000-000000000010",
+            "type": "statement",
+            "rank": "normal",
+            "mainsnak": {
+              "snaktype": "value",
+              "property": "P105",
+              "datatype": "wikibase-item",
+              "datavalue": {
+                "type": "wikibase-entityid",
+                "value": {
+                  "entity-type": "item",
+                  "numeric-id": 1,
+                  "id": "Q1"
+                }
+              }
+            },
+            "references": [
+              {
+                "hash": "94c4e236a98033c34094e3f73bea5f7e624317ab",
+                "snaks": {
+                  "P991": [
+                    {
+                      "snaktype": "value",
+                      "property": "P991",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "urn:dechive-test:source-1"
+                      }
+                    }
+                  ],
+                  "P992": [
+                    {
+                      "snaktype": "value",
+                      "property": "P992",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "synthetic-fixture-1"
+                      }
+                    }
+                  ],
+                  "P993": [
+                    {
+                      "snaktype": "value",
+                      "property": "P993",
+                      "datatype": "string",
+                      "datavalue": {
+                        "type": "string",
+                        "value": "supports"
+                      }
+                    }
+                  ]
+                },
+                "snaks-order": [
+                  "P991",
+                  "P992",
+                  "P993"
+                ]
+              }
+            ],
+            "qualifiers": {
+              "P902": [
+                {
+                  "snaktype": "value",
+                  "property": "P902",
+                  "datatype": "string",
+                  "datavalue": {
+                    "type": "string",
+                    "value": "illustrative event"
+                  }
+                }
+              ]
+            },
+            "qualifiers-order": [
+              "P902"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

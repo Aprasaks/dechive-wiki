@@ -1,0 +1,287 @@
+{
+  "fixture_set": "g2-synthetic-12-v1",
+  "status": "fabricated-test-data-not-facts",
+  "locale": "en",
+  "entities": [
+    {
+      "key": "K001",
+      "id": "00000000-0000-4000-8000-000000000001",
+      "type": "concept",
+      "label_en": "Synthetic Artificial Reasoning",
+      "domain": "technology"
+    },
+    {
+      "key": "K002",
+      "id": "00000000-0000-4000-8000-000000000002",
+      "type": "concept",
+      "label_en": "Synthetic Logic Systems",
+      "domain": "philosophy"
+    },
+    {
+      "key": "K003",
+      "id": "00000000-0000-4000-8000-000000000003",
+      "type": "person",
+      "label_en": "Dr. Example A",
+      "domain": "people"
+    },
+    {
+      "key": "K004",
+      "id": "00000000-0000-4000-8000-000000000004",
+      "type": "person",
+      "label_en": "Dr. Example B",
+      "domain": "people"
+    },
+    {
+      "key": "K005",
+      "id": "00000000-0000-4000-8000-000000000005",
+      "type": "research_paper",
+      "label_en": "Synthetic Paper Alpha",
+      "domain": "science"
+    },
+    {
+      "key": "K006",
+      "id": "00000000-0000-4000-8000-000000000006",
+      "type": "research_paper",
+      "label_en": "Synthetic Paper Beta",
+      "domain": "science"
+    },
+    {
+      "key": "K007",
+      "id": "00000000-0000-4000-8000-000000000007",
+      "type": "book_work",
+      "label_en": "Synthetic Book of Ideas",
+      "domain": "humanities"
+    },
+    {
+      "key": "K008",
+      "id": "00000000-0000-4000-8000-000000000008",
+      "type": "edition",
+      "label_en": "Synthetic Book of Ideas — First Edition",
+      "domain": "humanities"
+    },
+    {
+      "key": "K009",
+      "id": "00000000-0000-4000-8000-000000000009",
+      "type": "periodical",
+      "label_en": "Synthetic Quarterly Review",
+      "domain": "arts_culture"
+    },
+    {
+      "key": "K010",
+      "id": "00000000-0000-4000-8000-000000000010",
+      "type": "issue",
+      "label_en": "Synthetic Quarterly Review — Issue 1",
+      "domain": "arts_culture"
+    },
+    {
+      "key": "K011",
+      "id": "00000000-0000-4000-8000-000000000011",
+      "type": "periodical_article",
+      "label_en": "Synthetic Article on Ideas",
+      "domain": "humanities"
+    },
+    {
+      "key": "K012",
+      "id": "00000000-0000-4000-8000-000000000012",
+      "type": "event",
+      "label_en": "Synthetic Knowledge Symposium",
+      "domain": "history"
+    }
+  ],
+  "relations": [
+    {
+      "key": "R01",
+      "id": "00000000-0000-4000-9000-000000000001",
+      "kind": "related_to",
+      "subject": "K001",
+      "object": "K002",
+      "qualifiers": [],
+      "references": [
+        {
+          "source": "S1",
+          "stance": "supports",
+          "pinpoint": "synthetic-fixture-1"
+        },
+        {
+          "source": "S2",
+          "stance": "contradicts",
+          "pinpoint": "synthetic-fixture-2"
+        }
+      ]
+    },
+    {
+      "key": "R02",
+      "id": "00000000-0000-4000-9000-000000000002",
+      "kind": "authored",
+      "subject": "K003",
+      "object": "K005",
+      "qualifiers": [],
+      "references": [
+        {
+          "source": "S1",
+          "stance": "supports",
+          "pinpoint": "synthetic-fixture-1"
+        }
+      ]
+    },
+    {
+      "key": "R03",
+      "id": "00000000-0000-4000-9000-000000000003",
+      "kind": "authored",
+      "subject": "K004",
+      "object": "K007",
+      "qualifiers": [],
+      "references": [
+        {
+          "source": "S1",
+          "stance": "supports",
+          "pinpoint": "synthetic-fixture-1"
+        }
+      ]
+    },
+    {
+      "key": "R04",
+      "id": "00000000-0000-4000-9000-000000000004",
+      "kind": "cites",
+      "subject": "K005",
+      "object": "K006",
+      "qualifiers": [],
+      "references": [
+        {
+          "source": "S1",
+          "stance": "supports",
+          "pinpoint": "synthetic-fixture-1"
+        }
+      ]
+    },
+    {
+      "key": "R05",
+      "id": "00000000-0000-4000-9000-000000000005",
+      "kind": "published_as",
+      "subject": "K005",
+      "object": "K011",
+      "qualifiers": [],
+      "references": [
+        {
+          "source": "S1",
+          "stance": "supports",
+          "pinpoint": "synthetic-fixture-1"
+        }
+      ]
+    },
+    {
+      "key": "R06",
+      "id": "00000000-0000-4000-9000-000000000006",
+      "kind": "developed_by",
+      "subject": "K001",
+      "object": "K003",
+      "qualifiers": [],
+      "references": [
+        {
+          "source": "S1",
+          "stance": "supports",
+          "pinpoint": "synthetic-fixture-1"
+        }
+      ]
+    },
+    {
+      "key": "R07",
+      "id": "00000000-0000-4000-9000-000000000007",
+      "kind": "edition_of",
+      "subject": "K008",
+      "object": "K007",
+      "qualifiers": [
+        {
+          "property": "edition_number",
+          "value": "1"
+        }
+      ],
+      "references": [
+        {
+          "source": "S1",
+          "stance": "supports",
+          "pinpoint": "synthetic-fixture-1"
+        }
+      ]
+    },
+    {
+      "key": "R08",
+      "id": "00000000-0000-4000-9000-000000000008",
+      "kind": "has_issue",
+      "subject": "K009",
+      "object": "K010",
+      "qualifiers": [],
+      "references": [
+        {
+          "source": "S1",
+          "stance": "supports",
+          "pinpoint": "synthetic-fixture-1"
+        }
+      ]
+    },
+    {
+      "key": "R09",
+      "id": "00000000-0000-4000-9000-000000000009",
+      "kind": "contains_article",
+      "subject": "K010",
+      "object": "K011",
+      "qualifiers": [],
+      "references": [
+        {
+          "source": "S1",
+          "stance": "supports",
+          "pinpoint": "synthetic-fixture-1"
+        }
+      ]
+    },
+    {
+      "key": "R10",
+      "id": "00000000-0000-4000-9000-000000000010",
+      "kind": "discusses",
+      "subject": "K012",
+      "object": "K001",
+      "qualifiers": [
+        {
+          "property": "context",
+          "value": "illustrative event"
+        }
+      ],
+      "references": [
+        {
+          "source": "S1",
+          "stance": "supports",
+          "pinpoint": "synthetic-fixture-1"
+        }
+      ]
+    },
+    {
+      "key": "R11",
+      "id": "00000000-0000-4000-9000-000000000011",
+      "kind": "focuses_on",
+      "subject": "K005",
+      "object": "K001",
+      "qualifiers": [],
+      "references": [
+        {
+          "source": "S1",
+          "stance": "supports",
+          "pinpoint": "synthetic-fixture-1"
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "key": "S1",
+      "id": "00000000-0000-4000-a000-000000000001",
+      "locator": "urn:dechive-test:source-1",
+      "description": "Synthetic support source"
+    },
+    {
+      "key": "S2",
+      "id": "00000000-0000-4000-a000-000000000002",
+      "locator": "urn:dechive-test:source-2",
+      "description": "Synthetic contradicting source"
+    }
+  ]
+}
