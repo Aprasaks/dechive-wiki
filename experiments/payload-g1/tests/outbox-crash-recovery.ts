@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { Pool } from 'pg'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const TSX = path.join(ROOT, 'node_modules', '.bin', 'tsx')
+// Spawn Node directly: a TSX CLI wrapper can leave descendant stdio open after SIGKILL.
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 5000 })
 const entity = randomUUID()
 const source = randomUUID()
@@ -39,7 +39,7 @@ async function addRevision(id: string, body: string) {
     [id, 'fixture-only'])
 }
 function start(operation: string, args: string[], mode: string) {
-  return spawn(TSX, ['tests/outbox-worker.ts', operation, ...args, mode], {
+  return spawn(process.execPath, ['--import', 'tsx', 'tests/outbox-worker.ts', operation, ...args, mode], {
     cwd: ROOT, env: process.env, stdio: ['ignore', 'pipe', 'pipe'],
   })
 }
@@ -49,7 +49,7 @@ async function killAt(operation: string, args: string[], phase: 'before'|'after'
   let stdout = '', stderr = ''
   let timer: ReturnType<typeof setTimeout> | undefined
   const closed = new Promise<{ code: number|null; signal: NodeJS.Signals|null }>(resolve =>
-    child.once('close', (code, signal) => resolve({code, signal})))
+    child.once('exit', (code, signal) => resolve({code, signal})))
   try {
     await new Promise<void>((resolve, reject) => {
       timer = setTimeout(() => reject(new Error('Worker marker timeout: '+stdout+' '+stderr)), 20000)
@@ -59,7 +59,7 @@ async function killAt(operation: string, args: string[], phase: 'before'|'after'
       })
       child.stderr.on('data', (part: Buffer) => { stderr += part.toString() })
       child.once('error', reject)
-      child.once('close', () => {
+      child.once('exit', () => {
         if (!stdout.includes(desired)) reject(new Error('Worker exited before marker: '+stdout+' '+stderr))
       })
     })
@@ -77,7 +77,7 @@ async function commit(operation: string, args: string[]) {
   child.stdout.on('data', (part: Buffer) => { stdout += part.toString() })
   child.stderr.on('data', (part: Buffer) => { stderr += part.toString() })
   const result = await new Promise<{code:number|null;signal:NodeJS.Signals|null}>(resolve =>
-    child.once('close', (code,signal) => resolve({code,signal})))
+    child.once('exit', (code,signal) => resolve({code,signal})))
   assert.equal(result.code, 0, 'Worker failed: '+stdout+' '+stderr)
   assert.match(stdout, /WORKER_COMMIT_OK/)
 }
