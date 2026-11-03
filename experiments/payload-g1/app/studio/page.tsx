@@ -14,7 +14,14 @@ export const metadata: Metadata = {
 
 export default async function StudioPage() {
   const payload = await getPayload({ config })
-  const { user } = await payload.auth({ headers: await headers() })
+  const incomingHeaders = new Headers(await headers())
+  // A browser navigation GET does not necessarily include Origin. This
+  // server-side component is the trusted first-party renderer; provide its
+  // configured origin for Payload's cookie-CSRF whitelist (never from Host).
+  const trustedOrigin = process.env.G1_TRUSTED_ORIGIN
+  if (!trustedOrigin) redirect('/studio/login')
+  incomingHeaders.set('Origin', trustedOrigin)
+  const { user } = await payload.auth({ headers: incomingHeaders })
   if (!user || user.collection !== 'staff' || !['editor','reviewer','publisher'].includes(String(user.role))) {
     redirect('/studio/login')
   }
