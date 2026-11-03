@@ -29,6 +29,30 @@
 
 **Disposition: G1-PARTIAL PASS only.** REST/GraphQL and direct database actor separation remain mandatory.
 
+## G1 HTTP and restricted database evidence (2026-11-03)
+
+**17/17 additional tests PASS in an isolated Linux GitHub runner.** [Workflow evidence](https://github.com/Aprasaks/dechive-wiki/actions/runs/41607356561).
+
+- A purpose-built public read adapter was reached through actual loopback HTTP requests. It exposes only approved knowledge, an approved-search projection, and an approved sitemap; the Payload editorial REST, GraphQL, preview, and admin routes are **not mounted on that public listener**.
+- Its database session authenticated as a distinct `kg_public_http` role. Access to revision, claim evidence, approval insertions and publication/outbox functions was denied by PostgreSQL privileges, including when object identifiers were known.
+- Query parameters such as `draft=true` could not expose private drafts. Approved HTTP results remained unchanged after editing the CMS draft.
+- The SQL public-search view matches the active public head, exact revision and body. A deliberately poisoned stale search projection was hidden until repaired from the canonical outbox.
+- Test-only database passwords were generated per workflow run; the role has no write rights or AWS access.
+
+**Scope limit:** This is a deliberately minimal *public-only* HTTP adapter, **not** a deployed Next.js site or a security test of Payload's full native REST/GraphQL surface. Future G1 validation must use the actual application routing topology, sessions, role permissions and recovery behavior.
+
+## G1 process-kill and outbox recovery evidence (2026-11-03)
+
+**8/8 process-fault integration checks PASS, using genuine OS `SIGKILL` on a separate Node process in a real PostgreSQL 17.6 GitHub runner.** [Combined HTTP + crash run](https://github.com/Aprasaks/dechive-wiki/actions/runs/41609414714) also reran the 17 HTTP/RBAC checks (25 checks successful in that run).
+
+- The test created an evidence-bound, explicitly approved synthetic revision and killed the publisher **after SQL publication but before transaction COMMIT**. No public head, immutable snapshot or outbox event survived.
+- Retrying the publication committed one correct head and outbox event.
+- Killing the search/outbox worker **after its SQL write but before COMMIT** left no partial projection or processed flag.
+- Killing it **after COMMIT but before a client acknowledgement** preserved the index and processed marker. A redelivery was idempotent.
+- Publishing the next approved revision immediately hid the previous stale search projection; replaying the older event afterward could not regress the approved search result.
+
+**Limit:** This demonstrates PostgreSQL transactional durability under a killed worker and matching code paths. It is not a simulated power loss, database server restart, backup restore, real queue crash, or browser-to-production recovery test. The workers still use a test administrator DB connection. Production writer privileges and complete publication failure points remain open.
+
 ## Actually tested
 
 G1 CI uses exact pinned Payload v3.92.1 and PostgreSQL 17.6, initializes a disposable database containing the same canonical Knowledge Core SQL migration set and a Payload editorial collection.
@@ -41,10 +65,10 @@ Official API caveat: Payload Local API defaults to `overrideAccess: true`; an ac
 
 ## What the result does NOT establish
 
-1. No actual Next.js or public-facing HTTP REST/GraphQL route has been exercised. HTTP requests with `draft=true`, preview sessions, caching, CORS, sitemap and SEO indexation may still leak content unless explicitly tested.
+1. A loopback public read adapter has been exercised, but no actual Next.js or native Payload REST/GraphQL route has been exercised. HTTP requests with `draft=true`, preview sessions, caching, CORS, sitemap and SEO indexation may still leak content unless explicitly tested.
 2. Payload's complete revision publish/restore operations and scheduled job paths have not been adversarially tested; version API or privileged database access might bypass the collection hook.
 3. The test uses a privileged DB connection and fixture-only reviewer identity. DB roles, reviewer MFA identity binding, restrictive execution grants, audit trails and denial of direct table writes are unimplemented.
-4. Database SQL transaction rollback is demonstrated; a hard-killed application and crash-safe outbox relay/replay/recovery **have not** been tested.
+4. Isolated publisher/outbox worker processes were terminated with SIGKILL before/after COMMIT, and recovery/replay succeeded. Full application/server/DB instance termination, durable external queue relay, and restore from backup **have not** been tested.
 5. No real source authentication, copyright review, external storage or CDN requests were involved.
 6. Payload schema uses disposable dev `push: true`; production requires pinned, reviewed migrations and explicit schema ownership.
 7. No AWS resources or paid APIs were provisioned by this test. Live account MFA is separate from the CMS permission model.
