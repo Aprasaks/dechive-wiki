@@ -12,10 +12,12 @@ test "$(psql_admin "$SRC" "SELECT count(*) FROM kg.heads")" -ge 2
 BACKUP="$(mktemp -t dechive-g1-restore-XXXXXX.dump)"
 trap 'rm -f "$BACKUP"' EXIT
 echo "[G1 restore] pg_dump --format=custom from synthetic source"
-pg_dump -h 127.0.0.1 -U postgres -d "$SRC" -Fc --file="$BACKUP"
+PG17_IMAGE="postgres@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94"
+# Use the same PostgreSQL 17 image as the server so backup tooling has a compatible major version.
+docker run --rm --network host -e PGPASSWORD "$PG17_IMAGE" pg_dump -h 127.0.0.1 -U postgres -d "$SRC" -Fc > "$BACKUP"
 test -s "$BACKUP"
-createdb -h 127.0.0.1 -U postgres "$RESTORED"
-pg_restore -h 127.0.0.1 -U postgres -d "$RESTORED" --no-owner --exit-on-error "$BACKUP"
+psql_admin postgres "CREATE DATABASE $RESTORED" >/dev/null
+docker run --rm --network host -i -e PGPASSWORD "$PG17_IMAGE" pg_restore -h 127.0.0.1 -U postgres -d "$RESTORED" --no-owner --exit-on-error < "$BACKUP"
 TABLES_SQL="SELECT format('%I.%I',schemaname,tablename) FROM pg_tables WHERE schemaname IN ('kg','public') ORDER BY schemaname,tablename"
 source_tables="$(psql_admin "$SRC" "$TABLES_SQL")"
 restored_tables="$(psql_admin "$RESTORED" "$TABLES_SQL")"
