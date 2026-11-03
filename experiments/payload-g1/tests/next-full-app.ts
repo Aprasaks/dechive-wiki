@@ -1,0 +1,277 @@
+import assert from 'node:assert/strict'
+import { randomBytes, randomUUID } from 'node:crypto'
+import { spawn } from 'node:child_process'
+import { Pool } from 'pg'
+import { getPayload } from 'payload'
+import config from '../native-auth.config.ts'
+
+const BASE = 'http://127.0.0.1:3100'
+const admin = new Pool({ connectionString: process.env.DATABASE_URL })
+const accounts = [
+  { key: 'editor', role: 'editor' },
+  { key: 'other', role: 'editor' },
+  { key: 'reviewer', role: 'reviewer' },
+  { key: 'publisher', role: 'publisher' },
+].map(x=>({...x, email:x.key+'-'+randomUUID().slice(0,8)+'@example.invalid',
+    password:randomBytes(24).toString('hex')}))
+let passed=0
+let nextLog=''
+const watchdog=setTimeout(()=>{
+  console.error('FULL_NEXT_TEST_TIMEOUT')
+  process.exit(124)
+}, 270000)
+
+async function check(label:string, task:()=>Promise<void>) {
+  await task()
+  passed++
+  console.log('PASS / '+label)
+}
+async function fetchRaw(path:string, method='GET', data?:unknown, token?:string) {
+  const response=await fetch(BASE+path,{
+    method, redirect:'manual', signal:AbortSignal.timeout(12000),
+    headers:{
+      ...(data===undefined?{}:{'Content-Type':'application/json'}),
+      ...(token?{'Authorization':'JWT '+token}:{})
+    },
+    ...(data===undefined?{}:{body:JSON.stringify(data)}),
+  })
+  const text=await response.text()
+  let json:any
+  try{json=JSON.parse(text)}catch{json=null}
+  return {status:response.status,text,json,headers:response.headers}
+}
+function denied(x:{status:number,text:string}) {
+  assert.ok([400,401,403,404,405,409,422].includes(x.status),
+    'Expected deny status, got '+x.status+' '+x.text.slice(0,300))
+}
+async function waitServer(processRef:ReturnType<typeof spawn>) {
+  const deadline=Date.now()+110000
+  while(Date.now()<deadline){
+    if(processRef.exitCode!==null)throw new Error('Next exited during startup: '+nextLog.slice(-3000))
+    try {
+      const res=await fetch(BASE+'/',{signal:AbortSignal.timeout(1500)})
+      if(res.status===200)return
+    }catch{}
+    await new Promise(r=>setTimeout(r,1000))
+  }
+  throw new Error('Next.js HTTP listener did not become healthy: '+nextLog.slice(-4000))
+}
+
+const seed = await getPayload({config})
+console.log('G1_NEXT: seeding four separate authenticated accounts, no real credentials')
+for(const a of accounts){
+  await seed.create({collection:'staff',overrideAccess:true,
+    data:{email:a.email,password:a.password,role:a.role}})
+}
+if(seed.db?.destroy)await Promise.race([
+  seed.db.destroy(),new Promise(resolve=>setTimeout(resolve,4000))
+])
+
+const next=spawn(process.execPath,[
+  './node_modules/next/dist/bin/next','dev','--webpack',
+  '--hostname','127.0.0.1','--port','3100',
+],{
+  cwd:process.cwd(), env:{...process.env, NEXT_TELEMETRY_DISABLED:'1', NODE_ENV:'development'},
+  stdio:['ignore','pipe','pipe'],detached:true,
+})
+next.stdout.on('data',(part:Buffer)=>{nextLog=(nextLog+part.toString()).slice(-12000)})
+next.stderr.on('data',(part:Buffer)=>{nextLog=(nextLog+part.toString()).slice(-12000)})
+
+try{
+  await waitServer(next)
+  console.log('G1_NEXT: Next.js App Router is answering TCP requests on 127.0.0.1:3100')
+  await check('Actual Next.js 16 renders English archive homepage',async()=>{
+    const r=await fetchRaw('/')
+    assert.equal(r.status,200)
+    assert.match(r.text,/The Living Knowledge Archive/)
+    assert.ok(!r.text.includes('PRIVATE UNSCREENED MATERIAL'))
+  })
+  await check('Preview app robots policy blocks all search engine indexing',async()=>{
+    const r=await fetchRaw('/robots.txt')
+    assert.equal(r.status,200)
+    assert.match(r.text,/Disallow: \//)
+  })
+  await check('Next.js sitemap contains no unapproved knowledge',async()=>{
+    const r=await fetchRaw('/sitemap.xml')
+    assert.equal(r.status,200)
+    assert.match(r.text,/<urlset/)
+    assert.ok(!r.text.includes('<url><loc>'))
+    assert.match(r.headers.get('cache-control')??'',/no-store/)
+  })
+
+  const entity=randomUUID(),revision=randomUUID(),source=randomUUID()
+  const original='The synthetic research paper introduced a test idea.'
+  await check('Unapproved knowledge HTML is 404 rather than draft preview',async()=>{
+    const r=await fetchRaw('/knowledge/'+entity+'?draft=true&preview=true')
+    assert.equal(r.status,404)
+    assert.ok(!r.text.includes(original))
+    assert.match(r.headers.get('cache-control')??'',/no-store/)
+  })
+  await check('Public app does not mount admin or preview bypass routes',async()=>{
+    for(const path of ['/admin','/preview?draft=true','/knowledge/'+entity+'/draft']){
+      const r=await fetchRaw(path)
+      assert.equal(r.status,404,path+': '+r.status)
+    }
+  })
+
+  const tokens:Record<string,string>={}
+  await check('Actual Next.js REST route logs in editor, reviewer and publisher',async()=>{
+    for(const a of accounts) {
+      const r=await fetchRaw('/api/staff/login','POST',
+        {email:a.email,password:a.password})
+      assert.equal(r.status,200,r.text.slice(0,350))
+      assert.ok(typeof r.json?.token==='string' && r.json.token.length>30)
+      tokens[a.key]=r.json.token
+    }
+  })
+  await check('Anonymous cannot create staff accounts through the Next router',async()=>{
+    denied(await fetchRaw('/api/staff','POST',{
+      email:'rogue-'+randomUUID().slice(0,8)+'@example.invalid',
+      password:'synthetic-forbidden',role:'publisher'}))
+  })
+
+  let doc:any
+  await check('Editor JWT creates a real Payload draft via deployed Next route',async()=>{
+    const r=await fetchRaw('/api/editorial-drafts?draft=true','POST',{
+      stableEntityId:entity,title:'Synthetic Next article',
+      body:original,_status:'draft'
+    },tokens.editor)
+    assert.ok([200,201].includes(r.status),r.text.slice(0,450))
+    assert.equal(r.json?.doc?._status,'draft')
+    doc=r.json.doc
+  })
+  await check('Anonymous cannot see the Next Payload editorial draft ID',async()=>{
+    const r=await fetchRaw('/api/editorial-drafts/'+doc.id+'?draft=true')
+    if(r.status===200)assert.ok(!r.text.includes(original))
+    else denied(r)
+  })
+  await check('Other editor is isolated by authenticated document ownership',async()=>{
+    const r=await fetchRaw('/api/editorial-drafts/'+doc.id+'?draft=true',
+      'GET',undefined,tokens.other)
+    if(r.status===200)assert.ok(!r.text.includes(original))
+    else denied(r)
+  })
+  await check('Reviewer can inspect the draft through real Next.js REST',async()=>{
+    const r=await fetchRaw('/api/editorial-drafts/'+doc.id+'?draft=true',
+      'GET',undefined,tokens.reviewer)
+    assert.equal(r.status,200,r.text.slice(0,250))
+    assert.equal(r.json?.body,original)
+  })
+  await check('Forced Payload direct publish is rejected through real Next.js',async()=>{
+    const r=await fetchRaw('/api/editorial-drafts/'+doc.id,'PATCH',
+      {_status:'published'},tokens.editor)
+    assert.equal(r.status,403,r.text.slice(0,350))
+  })
+  await check('Next.js authenticated GraphQL reviewer reads the actual draft',async()=>{
+    const r=await fetchRaw('/api/graphql','POST',{
+      query:'{ EditorialDrafts { docs { id title body } } }'
+    },tokens.reviewer)
+    assert.equal(r.status,200,r.text.slice(0,400))
+    assert.ok(!r.json?.errors?.length,r.text.slice(0,400))
+    assert.ok(r.json.data.EditorialDrafts.docs.some((d:any)=>d.body===original))
+  })
+  await check('Next.js anonymous GraphQL cannot expose private content',async()=>{
+    const r=await fetchRaw('/api/graphql','POST',{
+      query:'{ EditorialDrafts { docs { id title body } } }'
+    })
+    assert.ok(r.status<500,r.text.slice(0,250))
+    assert.ok(!r.text.includes(original))
+  })
+  await check('Next.js rejects remote-origin CORS access to private REST',async()=>{
+    const r=await fetch(BASE+'/api/editorial-drafts',{
+      method:'OPTIONS',headers:{
+        Origin:'https://malicious.example.invalid',
+        'Access-Control-Request-Method':'GET',
+        'Access-Control-Request-Headers':'Authorization'
+      },redirect:'manual',signal:AbortSignal.timeout(12000)
+    })
+    assert.notEqual(r.headers.get('access-control-allow-origin'),'*')
+    assert.notEqual(r.headers.get('access-control-allow-origin'),'https://malicious.example.invalid')
+  })
+
+  // Synthetic KG fixture data are inserted by an isolated test owner.
+  // Editorial approval and release below must occur through the real Next HTTP JWT path.
+  await admin.query('INSERT INTO kg.entities(id,kind,name) VALUES($1,$2,$3)',
+    [entity,'concept','Next SSR synthetic knowledge'])
+  await admin.query('INSERT INTO kg.sources(id,locator,description) VALUES($1,$2,$3)',
+    [source,'urn:synthetic:next:'+source,'Not real-world evidence'])
+  await admin.query('INSERT INTO kg.revisions(id,entity_id,locale,body) VALUES($1,$2,$3,$4)',
+    [revision,entity,'en',original])
+  await admin.query('INSERT INTO kg.claims(revision_id,claim_key,anchor,statement) VALUES($1,$2,$3,$4)',
+    [revision,'claim-1','p-1','paper introduced a test idea'])
+  await admin.query(
+    'INSERT INTO kg.claim_evidence(revision_id,claim_key,source_id,stance,pinpoint,reviewer) VALUES($1,$2,$3,$4,$5,$6)',
+    [revision,'claim-1',source,'supports','synthetic-fixture','CI-test-only'])
+  const approval={draftId:doc.id,revisionId:revision}
+  const publication={entityId:entity,revisionId:revision,expectedVersion:0}
+  await check('Publisher cannot release unapproved draft in full Next.js runtime',async()=>{
+    const r=await fetchRaw('/api/g1-publish','POST',publication,tokens.publisher)
+    assert.equal(r.status,409,r.text.slice(0,350))
+    assert.equal((await admin.query('SELECT count(*)::int n FROM kg.public_entries')).rows[0].n,0)
+  })
+  await check('Forged editor role cannot approve over Next.js HTTP',async()=>{
+    denied(await fetchRaw('/api/g1-approve','POST',
+      {...approval,role:'reviewer'},tokens.editor))
+  })
+  await check('Actual reviewer JWT approves an exact revision through the restricted DB role',async()=>{
+    const r=await fetchRaw('/api/g1-approve','POST',approval,tokens.reviewer)
+    assert.equal(r.status,200,r.text.slice(0,450))
+    assert.equal(r.json?.approved,true)
+    const a=(await admin.query('SELECT reviewer_login FROM kg.approval_audit WHERE revision_id=$1',
+      [revision])).rows[0]
+    assert.equal(a.reviewer_login,'kg_g1_reviewer_probe')
+  })
+  await check('Actual publisher JWT publishes only previously approved revision',async()=>{
+    const r=await fetchRaw('/api/g1-publish','POST',publication,tokens.publisher)
+    assert.equal(r.status,200,r.text.slice(0,450))
+    assert.equal(Number(r.json?.version),1)
+  })
+  await check('Next.js HTML SSR exposes exactly the approved immutable body',async()=>{
+    const r=await fetchRaw('/knowledge/'+entity)
+    assert.equal(r.status,200,r.text.slice(0,650))
+    assert.ok(r.text.includes(original))
+    assert.ok(r.text.includes('VERIFIED KNOWLEDGE'))
+    assert.match(r.headers.get('cache-control')??'',/no-store/)
+  })
+  await check('Next.js sitemap includes only approved knowledge after publish',async()=>{
+    const r=await fetchRaw('/sitemap.xml?draft=true')
+    assert.equal(r.status,200)
+    assert.ok(r.text.includes(entity))
+    assert.ok(!r.text.includes('PRIVATE UNSCREENED MATERIAL'))
+  })
+  await check('Private draft edits never change an approved SSR page',async()=>{
+    const r=await fetchRaw('/api/editorial-drafts/'+doc.id+'?draft=true',
+      'PATCH',{body:'PRIVATE UNSCREENED MATERIAL'},tokens.editor)
+    assert.equal(r.status,200,r.text.slice(0,450))
+    const page=await fetchRaw('/knowledge/'+entity+'?draft=true')
+    assert.equal(page.status,200)
+    assert.ok(page.text.includes(original))
+    assert.ok(!page.text.includes('PRIVATE UNSCREENED MATERIAL'))
+    const xml=await fetchRaw('/sitemap.xml')
+    assert.ok(!xml.text.includes('PRIVATE UNSCREENED MATERIAL'))
+  })
+  await check('Publisher cannot replay stale version through real HTTP server',async()=>{
+    const r=await fetchRaw('/api/g1-publish','POST',publication,tokens.publisher)
+    assert.equal(r.status,409)
+  })
+  await check('Next.js API security headers disable indexing and caching',async()=>{
+    const r=await fetchRaw('/api/staff/me','GET',undefined,tokens.editor)
+    assert.equal(r.status,200)
+    assert.match(r.headers.get('x-robots-tag')??'',/noindex/)
+    assert.match(r.headers.get('cache-control')??'',/no-store/)
+    assert.equal(r.headers.get('x-frame-options'),'DENY')
+  })
+  console.log('G1_FULL_NEXT_APP_'+passed+'_CHECKS_SUCCESS')
+}catch(err){
+  console.error('G1_NEXT_FAILURE_CONTEXT',nextLog.slice(-5500))
+  throw err
+}finally{
+  await admin.end()
+  try{process.kill(-next.pid!,'SIGTERM')}catch{next.kill('SIGTERM')}
+  await new Promise<void>(resolve=>{
+    const timer=setTimeout(()=>{try{process.kill(-next.pid!,'SIGKILL')}catch{};resolve()},4000)
+    next.once('exit',()=>{clearTimeout(timer);resolve()})
+  })
+  clearTimeout(watchdog)
+}
+process.exit(0)
