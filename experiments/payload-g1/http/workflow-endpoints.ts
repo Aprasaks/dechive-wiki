@@ -28,6 +28,7 @@ const approval: Endpoint = {
   method: 'post',
   handler: async (req) => {
     requireRole(req, 'reviewer')
+    if (typeof req.json !== 'function') throw new APIError('INVALID_REQUEST_BODY', 400)
     const data = await req.json().catch(() => { throw new APIError('INVALID_REQUEST_BODY', 400) })
     const revisionId = safeUuid(data?.revisionId)
     const draftId = data?.draftId
@@ -66,6 +67,7 @@ const publication: Endpoint = {
   method: 'post',
   handler: async (req) => {
     requireRole(req, 'publisher')
+    if (typeof req.json !== 'function') throw new APIError('INVALID_REQUEST_BODY', 400)
     const data = await req.json().catch(() => { throw new APIError('INVALID_REQUEST_BODY', 400) })
     const entityId = safeUuid(data?.entityId)
     const revisionId = safeUuid(data?.revisionId)
