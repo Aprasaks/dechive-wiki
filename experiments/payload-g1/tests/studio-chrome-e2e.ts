@@ -58,7 +58,13 @@ try{
     assert.equal(response?.status(),200)
     await home.getByRole('heading',{name:'The Living Knowledge Archive'}).waitFor()
     await home.getByRole('heading',{name:'Recently verified'}).waitFor()
-    assert.equal(await home.getByText('Nothing is published without review.').count(),1)
+    // Previous integration tests deliberately publish synthetic approved fixtures.
+    // The homepage must render either those public records or the empty state.
+    const noRecords=await home.getByText('Nothing is published without review.').count()
+    const reviewedRecords=await home.locator('article.dh-record').count()
+    assert.ok(noRecords===1 || reviewedRecords>0,
+      'Expected approved public records or a verified empty state')
+    assert.ok(!(await home.locator('body').innerText()).includes('PRIVATE CHROME FIXTURE'))
     assert.equal(await home.getByRole('link',{name:'The Library'}).count(),1)
     await home.screenshot({path:'artifacts/homepage-desktop-1440.png',fullPage:true})
   }finally{await context.close()}
