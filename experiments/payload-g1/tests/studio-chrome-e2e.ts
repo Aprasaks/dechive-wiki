@@ -74,6 +74,7 @@ try{
  })
  const title='Chrome proof '+randomUUID().slice(0,8)
  let entityId=''
+ let chromeRevisionId=''
  await check('Chrome saves a draft through editor form and updates private list',async()=>{
   await page.getByRole('textbox',{name:'Working title'}).fill(title)
   await page.getByRole('textbox',{name:'Article content'}).fill(
@@ -103,6 +104,9 @@ try{
     .waitFor({timeout:15000})
   const text=await page.locator('[role="status"]').innerText()
   assert.match(text,/NOT published/)
+  const id=text.match(/Candidate: ([0-9a-f-]{36})/i)
+  assert.ok(id,'No candidate identifier returned by UI')
+  chromeRevisionId=id[1]
  })
  await check('Draft never appears in the anonymous public knowledge URL',async()=>{
   assert.equal((await ctx.request.get(BASE+'/knowledge/'+entityId)).status(),404)
@@ -140,12 +144,27 @@ try{
     await p.getByText('No drafts available to your role.').waitFor({timeout:15000})
     assert.ok(!(await p.locator('body').innerText()).includes(title))
   })
-  if(kind==='reviewer')await check('Reviewer reads draft but has no editor form in Chrome',async()=>{
-    await p.getByRole('heading',{name:'Review queue'}).waitFor()
-    await p.getByText(title).waitFor({timeout:15000})
-    assert.equal(await p.getByRole('button',{name:'Save private draft'}).count(),0)
-    await p.screenshot({path:'artifacts/studio-reviewer.png',fullPage:true})
-  })
+  if(kind==='reviewer'){
+    await check('Reviewer reads draft but has no editor composer in Chrome',async()=>{
+      await p.getByRole('heading',{name:'Independent evidence review'}).waitFor()
+      await p.getByText(title).waitFor({timeout:15000})
+      assert.equal(await p.getByRole('button',{name:'Save private draft'}).count(),0)
+      await p.screenshot({path:'artifacts/studio-reviewer.png',fullPage:true})
+    })
+    await check('Real Chrome reviewer can inspect and reject the pending source candidate',async()=>{
+      const candidate=p.locator('li').filter({hasText:'Candidate '+chromeRevisionId.slice(0,8)}).first()
+      await candidate.getByRole('button',{name:'Evaluate this candidate'}).waitFor({timeout:15000})
+      await candidate.getByRole('button',{name:'Evaluate this candidate'}).click()
+      const note='The source is a synthetic browser fixture and its origin and reuse rights are unverified.'
+      await candidate.getByRole('textbox',{name:'Reasoned review note'}).fill(note)
+      assert.equal(await candidate.getByRole('button',{name:'Record independent acceptance'}).isDisabled(),true)
+      await p.screenshot({path:'artifacts/studio-review-decision-form.png',fullPage:true})
+      await candidate.getByRole('button',{name:'Reject candidate'}).click()
+      await p.getByText('Candidate rejected.',{exact:false}).waitFor({timeout:15000})
+      await candidate.getByText('Decision:').waitFor({timeout:15000})
+      assert.match(await candidate.innerText(),/rejected/)
+    })
+  }
   if(kind==='publisher')await check('Publisher cannot browse drafts or create content in Chrome',async()=>{
     await p.getByRole('heading',{name:'Publication desk'}).waitFor()
     assert.equal(await p.getByRole('button',{name:'Save private draft'}).count(),0)
