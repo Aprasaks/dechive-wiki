@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer } from 'node:http'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import { chromium } from 'playwright-core'
 import { getPayload } from 'payload'
@@ -111,6 +111,58 @@ try{
      assert.equal(await p.locator('.ref-domain').count(),12)
      await p.screenshot({path:'artifacts/reference-home-mobile-390.png',fullPage:true})
    }finally{await context.close()}
+ })
+
+ await check('Real Chrome visual review across laptop, tablet and compact phone',async()=>{
+  const views=[
+   {name:'laptop-1440',width:1440,height:900},
+   {name:'tablet-768',width:768,height:1024},
+   {name:'compact-mobile-320',width:320,height:720},
+  ] as const
+  for(const view of views){
+   const context=await browser!.newContext({
+    viewport:{width:view.width,height:view.height},deviceScaleFactor:1,
+    isMobile:view.width<=390,hasTouch:view.width<=390
+   })
+   try{
+    const p=await context.newPage()
+    assert.equal((await p.goto(BASE+'/',{waitUntil:'networkidle'}))?.status(),200)
+    await p.getByRole('heading',{name:'DECHIVE.WIKI',level:1}).waitFor()
+    assert.equal(await p.locator('.ref-domain').count(),12)
+    const size=await p.evaluate(()=>({actual:document.documentElement.scrollWidth,viewport:innerWidth}))
+    assert.ok(size.actual<=size.viewport+2,view.name+': '+JSON.stringify(size))
+    await p.screenshot({path:'artifacts/reference-home-'+view.name+'.png',fullPage:true})
+   }finally{await context.close()}
+  }
+  // Offline-only proof gallery. No external assets or executable JS; no deployment.
+  const screenshots=[
+   ['Desktop · 1672px','reference-home-desktop-1672.png'],
+   ['Laptop · 1440px','reference-home-laptop-1440.png'],
+   ['Tablet · 768px','reference-home-tablet-768.png'],
+   ['Mobile · 390px','reference-home-mobile-390.png'],
+   ['Compact Mobile · 320px','reference-home-compact-mobile-320.png']
+  ]
+  const gallery=screenshots.map(([label,file])=>
+   '<figure><a href="'+file+'" target="_blank" rel="noopener">'+
+   '<img src="'+file+'" alt="'+label+' screenshot" loading="lazy"></a>'+
+   '<figcaption>'+label+' · click to view full size</figcaption></figure>'
+  ).join('')
+  const html='<!doctype html><html lang="en"><head><meta charset="utf-8">'+
+   '<meta name="viewport" content="width=device-width,initial-scale=1">'+
+   '<title>DECHIVE.WIKI — Screen Review</title><style>'+
+   'body{margin:0;background:#f7f8f5;color:#193026;font:15px/1.5 system-ui,sans-serif}'+
+   'header{padding:24px max(20px,calc((100vw - 1200px)/2));background:#fff;border-bottom:1px solid #dce2da}'+
+   'h1{font:600 32px Georgia,serif;margin:0 0 5px}p{margin:4px 0;color:#516052}'+
+   'main{max-width:1200px;margin:auto;padding:24px 18px 60px}'+
+   '.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:23px}'+
+   'figure{min-width:0;margin:0;background:white;padding:12px;border:1px solid #dfe6dc;border-radius:10px}'+
+   'figure a{display:block;max-height:650px;overflow:auto;background:#e8ece5;border-radius:6px}'+
+   'figure img{display:block;width:100%;height:auto}figcaption{padding:10px 2px 0;color:#526454}'+
+   '</style></head><body><header><h1>DECHIVE.WIKI / Screen Review</h1>'+
+   '<p>Real browser snapshots of the reference-based homepage · five screen sizes.</p>'+
+   '<p>Isolated CI fixture only. Not deployed or populated with real reviewed knowledge.</p>'+
+   '</header><main><div class="grid">'+gallery+'</div></main></body></html>'
+  await writeFile('artifacts/index.html',html,'utf8')
  })
  const ctx=await browser.newContext({viewport:{width:1440,height:900}})
  const page=await ctx.newPage()
