@@ -50,6 +50,8 @@ export default async function Home() {
     "SELECT entity_id,body,version FROM kg.public_entries WHERE locale='en' ORDER BY entity_id DESC LIMIT 6"
   )
   const approved=res.rows as Record[]
+  // Random choice only among independently approved public entries.
+  const randomApproved=approved.length ? approved[Math.floor(Math.random()*approved.length)] : null
   const date=new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric',
     timeZone:'UTC'}).format(new Date())
 
@@ -100,11 +102,11 @@ export default async function Home() {
         <ArchiveIcon name="arrow" size={17}/>
       </div>
       <div className="ref-domains-scroll">
-        {domains.map(d=><a key={d.name} className="ref-domain" href="#journeys"
-          aria-label={'View featured knowledge journeys related to '+d.name}>
+        {domains.map(d=><span key={d.name} className="ref-domain" aria-disabled="true"
+          title="Domain pages are not yet available in this design preview">
           <ArchiveIcon name={d.icon} size={31}/>
           <span>{d.name}</span>
-        </a>)}
+        </span>)}
       </div>
     </section>
 
@@ -167,7 +169,7 @@ export default async function Home() {
         <section className="ref-verified ref-panel" id="verified" aria-labelledby="verified-title">
           <div className="ref-panel-head">
             <h2 id="verified-title"><ArchiveIcon name="verify" size={23}/>New &amp; Verified</h2>
-            <span className="ref-panel-note">Recently verified</span>
+            <span className="ref-panel-note">Approved public records</span>
           </div>
           <div className="ref-verified-list">
             {approved.length ? approved.slice(0,3).map((r,i)=>
@@ -197,10 +199,10 @@ export default async function Home() {
           <div className="ref-random-landscape" role="img"
             aria-label="Illustrative landscape photograph of ancient temple ruins"/>
           <div className="ref-random-content">
-            {approved.length? <>
-              <h3>{approved[0].body.slice(0,80)}{approved[0].body.length>80?'…':''}</h3>
-              <p>A published record selected from the current public archive.</p>
-              <a href={'/knowledge/'+approved[0].entity_id}
+            {randomApproved? <>
+              <h3>{randomApproved.body.slice(0,80)}{randomApproved.body.length>80?'…':''}</h3>
+              <p>A randomly selected approved record from the current preview.</p>
+              <a href={'/knowledge/'+randomApproved.entity_id}
                 aria-label="Read this approved record"><ArchiveIcon name="arrow" size={18}/></a>
             </> : <>
               <h3>Discover the unexpected.</h3>
