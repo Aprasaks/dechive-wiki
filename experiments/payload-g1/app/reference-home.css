@@ -387,3 +387,23 @@ body > main:has(> .reference-home) {
   .r-suggestions{max-height:none;overflow:visible;row-gap:5px;padding-top:7px}
   .r-suggestions button{padding:5px 8px;font-size:10px}
 }
+
+/* HEADER_LAYOUT_FIX_START — keep navigation inside its own track. */
+.ref-header {flex-shrink:0}
+.ref-brand,.ref-tools {flex-shrink:0}
+.ref-nav {overflow-x:auto;scrollbar-width:none}
+.ref-nav::-webkit-scrollbar {display:none}
+.ref-nav>* {flex:none}
+.ref-header-split-right {margin-left:0}
+@media(min-width:831px){
+  .ref-header {display:grid;grid-template-columns:auto 1px minmax(0,1fr) 1px auto}
+  .ref-header-split {margin-left:0}
+}
+@media(min-width:831px) and (max-width:1680px){
+  .ref-header {gap:12px;padding:0 24px}
+  .ref-brand {font-size:22px;gap:6px}
+  .ref-nav {gap:2px;font-size:12px}
+  .ref-nav>* {gap:5px;padding:7px 5px}
+  .ref-tools {gap:12px}
+}
+/* HEADER_LAYOUT_FIX_END */
