@@ -289,9 +289,11 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
                   {item.body}
                 </p>
                 <p><strong>Editor-reported claim:</strong> {item.claim}</p>
-                <p><strong>Original source URL:</strong>{' '}
-                  <span style={{overflowWrap:'anywhere'}}>{item.locator}</span></p>
+                <p><strong>Editor-submitted source (unverified):</strong>{' '}
+                  <a href={item.locator} target="_blank" rel="noopener noreferrer nofollow"
+                    style={{overflowWrap:'anywhere',color:'#244C3D'}}>{item.locator}</a></p>
                 <p><strong>Reported source description:</strong> {item.sourceDescription}</p>
+                <p><strong>Claim anchor:</strong> {item.anchor}</p>
                 <p><strong>Pinpoint:</strong> {item.pinpoint}</p>
                 {item.status==='needs-review'?(
                   <div>
