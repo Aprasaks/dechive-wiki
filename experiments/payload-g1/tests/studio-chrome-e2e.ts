@@ -171,7 +171,8 @@ try{
    'figure img{display:block;width:100%;height:auto}figcaption{padding:10px 2px 0;color:#526454}'+
    '</style></head><body><header><h1>DECHIVE.WIKI / Screen Review</h1>'+
    '<p>Real browser snapshots of the reference-based homepage · five screen sizes.</p>'+
-   '<p>Isolated CI fixture only. Not deployed or populated with real reviewed knowledge.</p>'+\n   '<p><a href="offline-preview/index.html">Open clickable offline homepage review</a></p>'+
+   '<p>Isolated CI fixture only. Not deployed or populated with real reviewed knowledge.</p>'+
+   '<p><a href="offline-preview/index.html">Open clickable offline homepage review</a></p>'+
    '</header><main><div class="grid">'+gallery+'</div></main></body></html>'
   await writeFile('artifacts/index.html',html,'utf8')
  })
