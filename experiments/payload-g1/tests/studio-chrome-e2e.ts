@@ -84,6 +84,7 @@ try{
    try{
      const p=await context.newPage()
      await p.goto(BASE+'/',{waitUntil:'domcontentloaded'})
+     await p.locator('form[data-search-ready="true"]').waitFor({timeout:15000})
      await p.getByPlaceholder('Search anything in the archive...').fill('xyz-missing-archive-record-2026')
      await p.getByRole('button',{name:'Search',exact:true}).click()
      await p.getByText(/No approved records matching/).waitFor({timeout:12000})
