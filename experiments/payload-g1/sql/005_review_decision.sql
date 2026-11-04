@@ -52,7 +52,7 @@ BEGIN
          AND d.source_verdict='verified' AND d.rights_verdict='cleared'
          AND d.revision_checksum=r.checksum
      ) THEN
-    RAISE EXCEPTION 'CANDIDATE_INDEPENDENT_REVIEW_REQUIRED' USING ERRCODE='23514';
+    RAISE EXCEPTION 'CANDIDATE_REVIEW_AND_RIGHTS_NOT_COMPLETE' USING ERRCODE='23514';
   END IF;
   RETURN NEW;
 END $$;
