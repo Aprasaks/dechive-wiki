@@ -200,8 +200,11 @@ body > main:has(> .reference-home) {
 .ref-random-landscape{height:77px;margin-top:7px;border-radius:8px;
   background:url('/reference/maya.webp') center/cover}
 .ref-random-content{padding-top:9px;position:relative}
-.ref-random-content h3{font-size:14px;font-weight:600;line-height:1.2;margin:0 25px 5px 0}
-.ref-random-content p{font:11px/1.3 Arial,sans-serif;color:#4e5b52;margin:0 17px 0 0}
+.ref-random-content h3{font-size:14px;font-weight:600;line-height:1.2;
+  margin:0 25px 5px 0;display:-webkit-box;-webkit-line-clamp:2;
+  -webkit-box-orient:vertical;overflow:hidden}
+.ref-random-content p{font:11px/1.3 Arial,sans-serif;color:#4e5b52;
+  margin:0 17px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ref-random-content a{position:absolute;right:2px;top:12px;padding:5px;
   border:1px solid #dae2dc;border-radius:50%}
 /* Bottom secondary journeys */
