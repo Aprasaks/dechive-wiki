@@ -51,10 +51,10 @@ body > main:has(> .reference-home) {
 .ref-hero-landscape{position:absolute;inset:0;
   background-image:url('/reference/hero.webp');
   background-size:cover;background-position:center;
-  -webkit-mask-image:linear-gradient(90deg,#000 0%,#000 21%,transparent 43%,
-    transparent 62%,#000 84%,#000 100%);
-  mask-image:linear-gradient(90deg,#000 0%,#000 21%,transparent 43%,
-    transparent 62%,#000 84%,#000 100%);
+  -webkit-mask-image:linear-gradient(90deg,#000 0%,#000 18%,transparent 25%,
+    transparent 75%,#000 82%,#000 100%);
+  mask-image:linear-gradient(90deg,#000 0%,#000 18%,transparent 25%,
+    transparent 75%,#000 82%,#000 100%);
   pointer-events:none;z-index:-1}
 .ref-hero-content{max-width:970px;margin:0 auto;padding:12px 18px 0;position:relative}
 .ref-hero h1{font-size:clamp(51px,5vw,80px);font-weight:600;
@@ -118,8 +118,8 @@ body > main:has(> .reference-home) {
 .ref-knowledge-trail{height:254px;border-radius:9px;overflow:hidden;
   background:#0c2b26;position:relative;color:white}
 .ref-trail-image{position:absolute;inset:0;background-image:
-  linear-gradient(90deg,rgba(11,39,32,.97) 0%,rgba(11,39,32,.85) 30%,
-   rgba(11,39,32,.08) 63%),url('/reference/trail.webp');
+  linear-gradient(90deg,#0b2720 0%,#0b2720 43%,
+   rgba(11,39,32,.95) 47%,rgba(11,39,32,.08) 66%),url('/reference/trail.webp');
   background-position:center;background-size:cover}
 .ref-trail-content{position:relative;max-width:480px;padding:26px 30px;height:100%;z-index:1}
 .ref-trail-kicker{font:11px Arial,Helvetica,sans-serif;letter-spacing:1.7px}
@@ -165,8 +165,9 @@ body > main:has(> .reference-home) {
 .ref-journey{position:relative;border-radius:9px;overflow:hidden;height:152px;
   background:#0c2424;color:white}
 .ref-journey-photo{position:absolute;inset:0;background-size:cover;background-position:center}
-.ref-journey:after{content:"";position:absolute;inset:40% 0 0;
-  background:linear-gradient(180deg,transparent,rgba(0,0,0,.94));pointer-events:none}
+.ref-journey:after{content:"";position:absolute;inset:0;
+  background:linear-gradient(180deg,transparent 15%,rgba(0,0,0,.2) 38%,
+    rgba(0,0,0,.98) 89%);pointer-events:none}
 .ref-journey.ref-journey-ai .ref-journey-photo{background-image:url('/reference/journey-ai.webp')}
 .ref-journey.ref-journey-civilization .ref-journey-photo{background-image:url('/reference/journey-civilization.webp')}
 .ref-journey.ref-journey-life .ref-journey-photo{background-image:url('/reference/journey-life.webp')}
