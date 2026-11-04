@@ -46,7 +46,7 @@ try{
  await admin.query('INSERT INTO kg.revisions(id,entity_id,locale,body) VALUES($1,$2,$3,$4)',[conflictRevision,conflictId,'en','Synthetic source disagreement case'])
  await admin.query('INSERT INTO kg.claims VALUES($1,$2,$3,$4)',[conflictRevision,'claim-conflict','section-1','Synthetic source disagreement case'])
  for(const [source,url,description,stance] of [
-  [unsafeSource,'javascript:alert(1)','<img src=x onerror=alert(1)>','supports'],
+  [unsafeSource,'javascript:alert('+JSON.stringify(unsafeSource)+')','<img src=x onerror=alert(1)>','supports'],
   [dispute,'https://example.invalid/'+dispute,'Synthetic dissenting reference','contradicts']
  ]){
   await admin.query('INSERT INTO kg.sources(id,locator,description) VALUES($1,$2,$3)',[source,url,description])
@@ -88,9 +88,12 @@ try{
   assert.equal(safeSourceUrl('https://user:password@example.org/'),null)
  })
  await check('A stale or tampered search projection is hidden',async()=>{
+  const body='SYNTHETIC TEST ONLY '+tag+' published fixture 0'
+  assert.equal((await searchApproved(reader,body)).results.length,1)
   await admin.query('UPDATE kg.search_projection SET body=$1 WHERE entity_id=$2',['STALE '+tag,ids[0]])
-  assert.ok(!(await searchApproved(reader,tag)).results.some(x=>x.entity_id===ids[0]))
+  assert.equal((await searchApproved(reader,body)).results.length,0)
   await admin.query('SELECT kg.project_event(id) FROM kg.outbox WHERE entity_id=$1',[ids[0]])
+  assert.equal((await searchApproved(reader,body)).results.length,1)
  })
  server=spawn(process.execPath,['./node_modules/next/dist/bin/next',mode,...(mode==='dev'?['--webpack']:[]),'--hostname','127.0.0.1','--port','3120'],{cwd:process.cwd(),env:{...process.env,NODE_ENV:mode==='dev'?'development':'production',NEXT_TELEMETRY_DISABLED:'1'},stdio:['ignore','pipe','pipe'],detached:true})
  server.stdout?.on('data',d=>{log=(log+d.toString()).slice(-12000)})
