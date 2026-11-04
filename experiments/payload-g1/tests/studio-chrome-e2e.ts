@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer } from 'node:http'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import { chromium } from 'playwright-core'
 import { getPayload } from 'payload'
+import { pathToFileURL } from 'node:url'
+import { resolve } from 'node:path'
+import { exportOfflinePreview } from './export-offline-preview.ts'
 import config from '../native-auth.config.ts'
 
 const BASE='http://127.0.0.1:3112', EVIL='http://127.0.0.1:3113'
@@ -50,6 +53,190 @@ try{
    headless:true,args:['--no-sandbox','--disable-dev-shm-usage']})
  console.log('CHROME_VERSION '+browser.version())
  await mkdir('artifacts',{recursive:true})
+ await check('Reference desktop homepage matches the supplied encyclopedic layout sections', async()=>{
+  const context=await browser!.newContext({viewport:{width:1672,height:941}})
+  try{
+    const p=await context.newPage()
+    const r=await p.goto(BASE+'/',{waitUntil:'networkidle'})
+    assert.equal(r?.status(),200)
+    await p.getByRole('heading',{name:'DECHIVE.WIKI',level:1}).waitFor()
+    assert.equal(await p.locator('input#archive-search').count(),1)
+    for(const title of ['The Web of Knowledge','Today in the Archive',
+      'Featured Knowledge Journeys','New & Verified','Random Discovery',
+      'From AI to History to Philosophy']){
+      assert.equal(await p.getByRole('heading',{name:title}).count(),1,title)
+    }
+    assert.equal(await p.locator('.ref-domain').count(),12)
+    assert.equal(await p.locator('.ref-domain[aria-disabled="true"]').count(),12)
+    assert.equal(await p.locator('.ref-domains-scroll a').count(),0,
+      'Unbuilt category pages must not masquerade as working links')
+    assert.equal(await p.locator('.ref-journey').count(),3)
+    assert.equal(await p.locator('.ref-nav > *').count(),9)
+    await p.locator('form[data-search-ready="true"]').waitFor({timeout:15000})
+    await p.locator('#archive-search').blur()
+    await p.keyboard.press('Meta+k')
+    assert.equal(await p.evaluate(()=>document.activeElement?.id),'archive-search',
+      'Visible keyboard shortcut must actually focus search')
+    const wide=await p.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:innerWidth}))
+    assert.ok(wide.scroll <= wide.viewport + 2,JSON.stringify(wide))
+    await p.screenshot({path:'artifacts/reference-home-desktop-1672.png',fullPage:true})
+  }finally{await context.close()}
+ })
+ await check('Reference images are local optimized WebP assets, with no third-party request dependencies',async()=>{
+   for(const name of ['hero','trail','journey-ai','journey-civilization','journey-life','colosseum','maya']){
+     const res=await fetch(BASE+'/reference/'+name+'.webp',{signal:AbortSignal.timeout(8000)})
+     assert.equal(res.status,200,name+': '+res.status)
+     assert.match(res.headers.get('content-type')??'',/image\/webp/)
+     assert.ok(Number(res.headers.get('content-length')??0)>3000,name)
+   }
+ })
+ await check('Reference homepage search only returns loaded approved public entries',async()=>{
+   const context=await browser!.newContext({viewport:{width:1672,height:941}})
+   try{
+     const p=await context.newPage()
+     await p.goto(BASE+'/',{waitUntil:'domcontentloaded'})
+     await p.locator('form[data-search-ready="true"]').waitFor({timeout:15000})
+     await p.getByPlaceholder('Search anything in the archive...').fill('xyz-missing-archive-record-2026')
+     await p.getByRole('button',{name:'Search',exact:true}).click()
+     await p.getByText(/No approved records matching/).waitFor({timeout:12000})
+     assert.ok(!(await p.locator('body').innerText()).includes('PRIVATE CHROME FIXTURE'))
+   }finally{await context.close()}
+ })
+ await check('390px mobile reference homepage preserves all sections with no horizontal overflow',async()=>{
+   const context=await browser!.newContext({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true})
+   try{
+     const p=await context.newPage()
+     const r=await p.goto(BASE+'/',{waitUntil:'networkidle'})
+     assert.equal(r?.status(),200)
+     await p.getByRole('heading',{name:'DECHIVE.WIKI',level:1}).waitFor()
+     const wide=await p.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:innerWidth}))
+     assert.ok(wide.scroll <= wide.viewport + 2,JSON.stringify(wide))
+     assert.equal(await p.locator('.ref-domain').count(),12)
+     await p.screenshot({path:'artifacts/reference-home-mobile-390.png',fullPage:true})
+   }finally{await context.close()}
+ })
+
+ await check('Real Chrome visual review across laptop, tablet and compact phone',async()=>{
+  const views=[
+   {name:'laptop-1440',width:1440,height:900},
+   {name:'tablet-768',width:768,height:1024},
+   {name:'compact-mobile-320',width:320,height:720},
+  ] as const
+  for(const view of views){
+   const context=await browser!.newContext({
+    viewport:{width:view.width,height:view.height},deviceScaleFactor:1,
+    isMobile:view.width<=390,hasTouch:view.width<=390
+   })
+   try{
+    const p=await context.newPage()
+    assert.equal((await p.goto(BASE+'/',{waitUntil:'networkidle'}))?.status(),200)
+    await p.getByRole('heading',{name:'DECHIVE.WIKI',level:1}).waitFor()
+    assert.equal(await p.locator('.ref-domain').count(),12)
+    const size=await p.evaluate(()=>({actual:document.documentElement.scrollWidth,viewport:innerWidth}))
+    assert.ok(size.actual<=size.viewport+2,view.name+': '+JSON.stringify(size))
+    if(view.width===320){
+      const chipsFit=await p.getByRole('button',{name:'Space Exploration'}).evaluate(el=>{
+        const item=el.getBoundingClientRect()
+        const container=el.parentElement?.getBoundingClientRect()
+        return Boolean(container && item.bottom<=container.bottom+1 && item.right<=container.right+1)
+      })
+      assert.ok(chipsFit,'Smallest phone must show all six example topic chips, without crop')
+    }
+    await p.screenshot({path:'artifacts/reference-home-'+view.name+'.png',fullPage:true})
+   }finally{await context.close()}
+  }
+  // Offline-only proof gallery. No external assets or executable JS; no deployment.
+  const screenshots=[
+   ['Desktop · 1672px','reference-home-desktop-1672.png'],
+   ['Laptop · 1440px','reference-home-laptop-1440.png'],
+   ['Tablet · 768px','reference-home-tablet-768.png'],
+   ['Mobile · 390px','reference-home-mobile-390.png'],
+   ['Compact Mobile · 320px','reference-home-compact-mobile-320.png']
+  ]
+  const gallery=screenshots.map(([label,file])=>
+   '<figure><a href="'+file+'" target="_blank" rel="noopener">'+
+   '<img src="'+file+'" alt="'+label+' screenshot" loading="lazy"></a>'+
+   '<figcaption>'+label+' · click to view full size</figcaption></figure>'
+  ).join('')
+  const html='<!doctype html><html lang="en"><head><meta charset="utf-8">'+
+   '<meta name="viewport" content="width=device-width,initial-scale=1">'+
+   '<title>DECHIVE.WIKI — Screen Review</title><style>'+
+   'body{margin:0;background:#f7f8f5;color:#193026;font:15px/1.5 system-ui,sans-serif}'+
+   'header{padding:24px max(20px,calc((100vw - 1200px)/2));background:#fff;border-bottom:1px solid #dce2da}'+
+   'h1{font:600 32px Georgia,serif;margin:0 0 5px}p{margin:4px 0;color:#516052}'+
+   'main{max-width:1200px;margin:auto;padding:24px 18px 60px}'+
+   '.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:23px}'+
+   'figure{min-width:0;margin:0;background:white;padding:12px;border:1px solid #dfe6dc;border-radius:10px}'+
+   'figure a{display:block;max-height:650px;overflow:auto;background:#e8ece5;border-radius:6px}'+
+   'figure img{display:block;width:100%;height:auto}figcaption{padding:10px 2px 0;color:#526454}'+
+   '</style></head><body><header><h1>DECHIVE.WIKI / Screen Review</h1>'+
+   '<p>Real browser snapshots of the reference-based homepage · five screen sizes.</p>'+
+   '<p>Isolated CI fixture only. Not deployed or populated with real reviewed knowledge.</p>'+
+   '<p><a href="offline-preview/index.html">Open clickable offline homepage review</a></p>'+
+   '</header><main><div class="grid">'+gallery+'</div></main></body></html>'
+  await writeFile('artifacts/index.html',html,'utf8')
+ })
+ await check('Export same rendered homepage as standalone offline clickable preview with zero network requests',async()=>{
+  const output=resolve('artifacts/offline-preview')
+  await exportOfflinePreview(browser!,BASE,output)
+  const context=await browser!.newContext({viewport:{width:1440,height:900}})
+  const page=await context.newPage()
+  const remoteRequests:string[]=[]
+  page.on('request',request=>{
+    if(/^https?:/i.test(request.url())) remoteRequests.push(request.url())
+  })
+  try{
+    const url=pathToFileURL(resolve(output,'index.html')).href
+    const response=await page.goto(url,{waitUntil:'load'})
+    assert.equal(response?.status(),200)
+    await page.getByRole('heading',{name:'DECHIVE.WIKI',level:1}).waitFor()
+    assert.equal(await page.locator('.ref-domain').count(),12)
+    const img=await page.locator('.ref-trail-image').evaluate(el=>getComputedStyle(el).backgroundImage)
+    assert.match(img,/reference\/trail\.webp/,'Real local WebP scenic asset was not loaded')
+    const input=page.getByPlaceholder('Search anything in the archive...')
+    await input.fill('Consciousness')
+    await page.getByRole('button',{name:'Search',exact:true}).click()
+    await page.getByText('Offline design preview',{exact:true}).waitFor()
+    await page.getByRole('button',{name:'Close search results'}).click()
+    await page.keyboard.press('Control+k')
+    assert.equal(await page.evaluate(()=>document.activeElement?.id),'archive-search')
+    await page.getByRole('button',{name:'Space Exploration'}).click()
+    await page.getByText(/Search interface test for/).waitFor()
+    assert.ok(!(await page.locator('body').innerText()).includes('PRIVATE CHROME FIXTURE'))
+    assert.deepEqual(remoteRequests,[],'Preview unexpectedly reached the network')
+    await page.screenshot({path:'artifacts/offline-preview-desktop.png',fullPage:true})
+  }finally{await context.close()}
+  const mobile=await browser!.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true})
+  try{
+    const page=await mobile.newPage()
+    await page.goto(pathToFileURL(resolve(output,'index.html')).href,{waitUntil:'load'})
+    const width=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:innerWidth}))
+    assert.ok(width.scroll<=width.viewport+2,JSON.stringify(width))
+    assert.equal(await page.locator('.ref-domain').count(),12)
+    await page.screenshot({path:'artifacts/offline-preview-mobile.png',fullPage:true})
+  }finally{await mobile.close()}
+ })
+ await check('Random refresh cycles through approved records without exposing private data',async()=>{
+  const context=await browser!.newContext({viewport:{width:1440,height:900}})
+  try{
+   const p=await context.newPage()
+   assert.equal((await p.goto(BASE+'/',{waitUntil:'networkidle'}))?.status(),200)
+   const button=p.getByRole('button',{name:'Show another approved record'})
+   const links=await p.locator('.ref-verified-row').evaluateAll(elements=>
+    elements.map(el=>el.getAttribute('href')).filter(Boolean))
+   if(links.length>=2){
+    assert.equal(await button.isEnabled(),true)
+    const before=await p.locator('.ref-random-content a').getAttribute('href')
+    await button.click()
+    const after=await p.locator('.ref-random-content a').getAttribute('href')
+    assert.notEqual(after,before,'refresh should choose a different approved record')
+    assert.ok(links.includes(after),'refresh target must be an approved public record')
+   }else{
+    assert.equal(await button.isDisabled(),true)
+   }
+   assert.ok(!(await p.locator('body').innerText()).includes('PRIVATE CHROME FIXTURE'))
+  }finally{await context.close()}
+ })
  const ctx=await browser.newContext({viewport:{width:1440,height:900}})
  const page=await ctx.newPage()
  await check('Chrome guest is redirected from private studio to login',async()=>{

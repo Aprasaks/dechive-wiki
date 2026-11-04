@@ -2,6 +2,7 @@ import { withPayload } from '@payloadcms/next/withPayload'
 
 const config = {
   reactStrictMode: true,
+  devIndicators: false,
   poweredByHeader: false,
   async headers() {
     return [
