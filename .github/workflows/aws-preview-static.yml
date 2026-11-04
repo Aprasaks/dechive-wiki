@@ -1,0 +1,134 @@
+name: DECHIVE.WIKI AWS Preview - validate and gated upload
+
+on:
+  push:
+    branches:
+      - p0/aws-preview-static-hosting
+    paths:
+      - 'infra/preview/**'
+      - '.github/workflows/aws-preview-static.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: wiki-preview-static-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate-preview-stack:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Checkout isolated AWS preview plan
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install pinned local lint packages (no AWS credentials)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m venv /tmp/wiki-preview-lint
+          /tmp/wiki-preview-lint/bin/python -m pip install --disable-pip-version-check --no-cache-dir \
+            cfn-lint==1.59.0 PyYAML==6.0.2
+      - name: CloudFormation schema check, without creating resources
+        run: /tmp/wiki-preview-lint/bin/cfn-lint -t infra/preview/template.yaml --non-zero-exit-code error
+      - name: Enforce nonpublic preview resource allowlist
+        run: /tmp/wiki-preview-lint/bin/python infra/preview/validate.py
+      - name: State deployment boundary explicitly
+        run: echo 'Validation only. No AWS change has occurred.'
+
+  # SKIPPED until owner configures a separate protected environment,
+  # limited uploader role and deliberately enables the repo variable.
+  upload-reviewed-ui-only:
+    needs: validate-preview-stack
+    if: >-
+      github.repository == 'Aprasaks/dechive-wiki' &&
+      github.ref == 'refs/heads/p0/aws-preview-static-hosting' &&
+      vars.WIKI_PREVIEW_UPLOAD_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: wiki-preview
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    env:
+      SOURCE_RUN_ID: '41775623620'
+      SOURCE_COMMIT: '62d3a011a3fcabc9414980f16e229cfdbbf4fc0a'
+      AWS_EXPECTED_ACCOUNT_ID: ${{ vars.WIKI_PREVIEW_AWS_ACCOUNT_ID }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout upload-only tooling
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Fail closed if account or uploader role is absent
+        env:
+          AWS_ROLE: ${{ secrets.DECHIVE_WIKI_PREVIEW_UPLOAD_ROLE_ARN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$AWS_EXPECTED_ACCOUNT_ID" =~ ^[0-9]{12}$ ]] || { echo 'AWS account ID not approved'; exit 1; }
+          [[ "$AWS_ROLE" =~ ^arn:aws:iam::[0-9]{12}:role/ ]] || { echo 'AWS preview role missing'; exit 1; }
+          [[ "$AWS_ROLE" == *':role/dechive-wiki-preview-uploader' ]] || { echo 'Unexpected role'; exit 1; }
+      - name: Assume distinct short-lived AWS upload-only role
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
+        with:
+          role-to-assume: ${{ secrets.DECHIVE_WIKI_PREVIEW_UPLOAD_ROLE_ARN }}
+          aws-region: ap-northeast-2
+          role-session-name: dechive-wiki-ui-preview-upload
+      - name: Verify AWS account and exact preview stack outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(aws sts get-caller-identity --query Account --output text)"
+          [[ "$actual" == "$AWS_EXPECTED_ACCOUNT_ID" ]] || { echo 'Wrong AWS account'; exit 1; }
+          stack=dechive-wiki-ui-preview
+          bucket="$(aws cloudformation describe-stacks --stack-name "$stack" \
+            --query "Stacks[0].Outputs[?OutputKey=='PreviewBucketName'].OutputValue" --output text)"
+          distribution="$(aws cloudformation describe-stacks --stack-name "$stack" \
+            --query "Stacks[0].Outputs[?OutputKey=='PreviewDistributionId'].OutputValue" --output text)"
+          url="$(aws cloudformation describe-stacks --stack-name "$stack" \
+            --query "Stacks[0].Outputs[?OutputKey=='PreviewUrl'].OutputValue" --output text)"
+          [[ "$bucket" == "dechive-wiki-ui-preview-$actual-ap-northeast-2" ]] || { echo 'Unexpected S3 target'; exit 1; }
+          [[ "$distribution" =~ ^[A-Z0-9]{10,18}$ ]] || { echo 'Unexpected CDN ID'; exit 1; }
+          [[ "$url" =~ ^https://[a-z0-9-]+[.]cloudfront[.]net$ ]] || { echo 'Unexpected URL'; exit 1; }
+          echo "PREVIEW_BUCKET=$bucket" >> "$GITHUB_ENV"
+          echo "PREVIEW_DISTRIBUTION=$distribution" >> "$GITHUB_ENV"
+          echo "PREVIEW_URL=$url" >> "$GITHUB_ENV"
+      - name: Retrieve only the pinned, successful, real Chrome proof bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          head="$(gh run view "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --json headSha --jq '.headSha')"
+          result="$(gh run view "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --json conclusion --jq '.conclusion')"
+          [[ "$head" == "$SOURCE_COMMIT" && "$result" == success ]] || {
+            echo 'Pinned UI verification changed or is not successful'; exit 1;
+          }
+          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --name ui-reference-homepage-2026-11-04-proof --dir "$RUNNER_TEMP/wiki-ui-source"
+      - name: Verify nine static files, no private data or network APIs
+        run: python3 infra/preview/validate_bundle.py "$RUNNER_TEMP/wiki-ui-source/offline-preview"
+      - name: Upload ONLY HTML, JS and seven WebP images to private review bucket
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/wiki-ui-source/offline-preview"
+          aws s3 cp "$dir/index.html" "s3://$PREVIEW_BUCKET/index.html" \
+            --content-type 'text/html; charset=utf-8' --cache-control 'no-store' --no-progress
+          aws s3 cp "$dir/preview.js" "s3://$PREVIEW_BUCKET/preview.js" \
+            --content-type 'application/javascript; charset=utf-8' --cache-control 'no-store' --no-progress
+          for name in hero trail journey-ai journey-civilization journey-life colosseum maya; do
+            aws s3 cp "$dir/reference/$name.webp" "s3://$PREVIEW_BUCKET/reference/$name.webp" \
+              --content-type image/webp --cache-control 'no-store' --no-progress
+          done
+      - name: Invalidate only preview CDN; report HTTPS URL without credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws cloudfront create-invalidation --distribution-id "$PREVIEW_DISTRIBUTION" \
+            --paths '/*' --query Invalidation.Id --output text >/dev/null
+          {
+            echo '## DECHIVE.WIKI private homepage preview'
+            echo "HTTPS URL: $PREVIEW_URL"
+            echo 'Temporary viewer-request Basic password is required.'
+            echo 'No IAM, CloudFormation, DNS, database or production asset changed by the upload.'
+          } >> "$GITHUB_STEP_SUMMARY"
