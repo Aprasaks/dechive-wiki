@@ -10,6 +10,25 @@ type Draft = {
   _status?: string
   stableEntityId?: string
 }
+type ReviewRecord = {
+  revisionId: string
+  draftId: number
+  submittedBy: number
+  entityId: string
+  body: string
+  revisionChecksum: string
+  locator: string
+  sourceDescription: string
+  claim: string
+  anchor: string
+  pinpoint: string
+  licenseDeclaration: string
+  status: 'needs-review'|'accepted'|'rejected'
+  sourceVerdict: string
+  rightsVerdict: string
+  reviewNote: string|null
+  reviewerStaffId: number|null
+}
 const ui = {
   border:'1px solid #D7D5CD',
   background:'#fff',
@@ -31,6 +50,13 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
   const [pinpoint,setPinpoint]=useState('')
   const [licenseDeclaration,setLicenseDeclaration]=useState('unknown')
   const [evidenceBusy,setEvidenceBusy]=useState(false)
+  const [reviewItems,setReviewItems]=useState<ReviewRecord[]>([])
+  const [reviewLoading,setReviewLoading]=useState(false)
+  const [activeReview,setActiveReview]=useState<string|null>(null)
+  const [reviewNote,setReviewNote]=useState('')
+  const [sourceVerified,setSourceVerified]=useState(false)
+  const [rightsCleared,setRightsCleared]=useState(false)
+  const [decisionBusy,setDecisionBusy]=useState(false)
   const [hydrated,setHydrated]=useState(false)
   useEffect(()=>setHydrated(true),[])
   const [refreshing,setRefreshing]=useState(true)
@@ -50,6 +76,22 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
     finally{setRefreshing(false)}
   },[canRead])
   useEffect(()=>{void refresh()},[refresh])
+  const refreshReviewQueue=useCallback(async()=>{
+    if(role!=='reviewer')return
+    setReviewLoading(true)
+    try{
+      const response=await fetch('/api/g1-review-queue',{
+        credentials:'same-origin',cache:'no-store',
+      })
+      if(!response.ok)throw new Error('Unable to load pending evidence queue')
+      const json=await response.json()
+      setReviewItems(Array.isArray(json.records)?json.records:[])
+    }catch{
+      setStatus('Could not load the private evidence review queue.')
+    }finally{setReviewLoading(false)}
+  },[role])
+  useEffect(()=>{void refreshReviewQueue()},[refreshReviewQueue])
+
 
   async function save(e:FormEvent<HTMLFormElement>){
     e.preventDefault()
@@ -111,6 +153,59 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
     }finally{setEvidenceBusy(false)}
   }
 
+  async function recordReview(item:ReviewRecord,decision:'accepted'|'rejected'){
+    if(role!=='reviewer'||!hydrated||decisionBusy)return
+    if(reviewNote.trim().length<20){
+      setStatus('Document your reason in at least 20 characters.')
+      return
+    }
+    if(decision==='accepted' && (!sourceVerified||!rightsCleared)){
+      setStatus('Source verification and reuse rights must both be checked.')
+      return
+    }
+    setDecisionBusy(true);setStatus('')
+    try{
+      const response=await fetch('/api/g1-review-decision',{
+        method:'POST',credentials:'same-origin',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          revisionId:item.revisionId,decision,
+          sourceVerdict:decision==='accepted'?'verified':'disputed',
+          rightsVerdict:decision==='accepted'?'cleared':'not-cleared',
+          note:reviewNote.trim(),
+        }),
+      })
+      if(!response.ok)throw new Error('Reviewer decision denied')
+      const json=await response.json()
+      if(!json.decided)throw new Error('Decision not recorded')
+      setStatus(decision==='accepted'
+        ?'Independent review recorded. A separate approval is still needed; nothing is public.'
+        :'Candidate rejected. This decision is permanently recorded and cannot publish.')
+      setActiveReview(null);setReviewNote('');setSourceVerified(false);setRightsCleared(false)
+      await refreshReviewQueue()
+    }catch{
+      setStatus('Decision was not recorded. Confirm the source, rights and immutable state.')
+    }finally{setDecisionBusy(false)}
+  }
+
+  async function approveReviewedRevision(item:ReviewRecord){
+    if(role!=='reviewer'||item.status!=='accepted'||decisionBusy)return
+    setDecisionBusy(true);setStatus('')
+    try{
+      const response=await fetch('/api/g1-approve',{
+        method:'POST',credentials:'same-origin',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({draftId:item.draftId,revisionId:item.revisionId}),
+      })
+      if(!response.ok)throw new Error('Approval requires matching immutable evidence')
+      const json=await response.json()
+      if(json.approved!==true)throw new Error('Approval not recorded')
+      setStatus('Revision approved. Publication is still restricted to a separate publisher.')
+    }catch{
+      setStatus('Revision approval refused, or it was already approved.')
+    }finally{setDecisionBusy(false)}
+  }
+
   async function logout(){
     setStatus('')
     try {
@@ -168,10 +263,99 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
         </section>
       )}
       {role==='reviewer'&&(
-        <section style={{borderLeft:'3px solid #536D5F',paddingLeft:20,marginBottom:32}}>
-          <h2 style={{fontFamily:'Georgia, serif',fontWeight:400}}>Review queue</h2>
-          <p>Read submitted drafts below. An approval requires an exact immutable revision
-            and verified claim evidence in the Knowledge Core.</p>
+        <section aria-labelledby="review-queue-heading"
+          style={{borderLeft:'3px solid #536D5F',paddingLeft:20,marginBottom:32}}>
+          <h2 id="review-queue-heading" style={{fontFamily:'Georgia, serif',fontWeight:400}}>
+            Independent evidence review
+          </h2>
+          <p>Examine the original source, exact statement, cited location and reuse rights.
+            Editor-supplied citations are assertions, not proof. Recording a decision is not publication.</p>
+          <button type="button" onClick={()=>void refreshReviewQueue()} disabled={!hydrated||reviewLoading}
+            style={{padding:'8px 12px',border:'1px solid #AAA',background:'#fff'}}>
+            Refresh evidence queue
+          </button>
+          {reviewLoading?<p>Loading submitted sources…</p>
+            :reviewItems.length===0?<p>No candidate sources submitted.</p>
+            :<ul style={{listStyle:'none',padding:0}}>
+              {reviewItems.map(item=><li key={item.revisionId}
+                style={{border:ui.border,background:'#fff',padding:20,margin:'20px 0'}}>
+                <strong style={{fontFamily:'Georgia, serif',fontSize:20}}>
+                  Candidate {item.revisionId.slice(0,8)}
+                </strong>
+                <p style={{fontSize:13}}>Status: <strong>{item.status}</strong>
+                  {' · '}Editor license claim: {item.licenseDeclaration}
+                </p>
+                <p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere',fontSize:14}}>
+                  {item.body}
+                </p>
+                <p><strong>Editor-reported claim:</strong> {item.claim}</p>
+                <p><strong>Editor-submitted source (unverified):</strong>{' '}
+                  <a href={item.locator} target="_blank" rel="noopener noreferrer nofollow"
+                    style={{overflowWrap:'anywhere',color:'#244C3D'}}>{item.locator}</a></p>
+                <p><strong>Reported source description:</strong> {item.sourceDescription}</p>
+                <p><strong>Claim anchor:</strong> {item.anchor}</p>
+                <p><strong>Pinpoint:</strong> {item.pinpoint}</p>
+                {item.status==='needs-review'?(
+                  <div>
+                    <button type="button" disabled={!hydrated} onClick={()=>{
+                      setActiveReview(activeReview===item.revisionId?null:item.revisionId)
+                      setReviewNote('');setSourceVerified(false);setRightsCleared(false)
+                    }} style={{padding:'8px 12px',border:'1px solid #7E8B7D',background:'#F6F7F3'}}>
+                      {activeReview===item.revisionId?'Close review':'Evaluate this candidate'}
+                    </button>
+                    {activeReview===item.revisionId&&(
+                      <form aria-label="Independent source and rights decision"
+                        onSubmit={e=>e.preventDefault()} style={{display:'grid',gap:12,marginTop:14}}>
+                        <label>
+                          <input type="checkbox" checked={sourceVerified}
+                            onChange={e=>setSourceVerified(e.target.checked)}/>
+                          {' '}I independently inspected the source and verified exact claim support
+                        </label>
+                        <label>
+                          <input type="checkbox" checked={rightsCleared}
+                            onChange={e=>setRightsCleared(e.target.checked)}/>
+                          {' '}I independently confirmed reuse rights and attribution requirements
+                        </label>
+                        <label>Reasoned review note (required)
+                          <textarea aria-label="Reasoned review note"
+                            minLength={20} maxLength={2000} required rows={4}
+                            value={reviewNote} onChange={e=>setReviewNote(e.target.value)}
+                            style={{...ui.field,resize:'vertical'}}/>
+                        </label>
+                        <p style={{fontSize:13,color:'#5D5E56',margin:0}}>
+                          You cannot accept unknown rights or permission-required sources.
+                          Rejection is permanent for this revision; corrections require a new candidate.
+                        </p>
+                        <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
+                          <button type="button" disabled={!hydrated||decisionBusy||!sourceVerified||!rightsCleared||
+                            !['public-domain','cc-by-4.0'].includes(item.licenseDeclaration)||
+                            reviewNote.trim().length<20}
+                            onClick={()=>void recordReview(item,'accepted')}
+                            style={{padding:'11px 16px',border:0,background:'#233D34',color:'#fff'}}>
+                            Record independent acceptance
+                          </button>
+                          <button type="button" disabled={!hydrated||decisionBusy||reviewNote.trim().length<20}
+                            onClick={()=>void recordReview(item,'rejected')}
+                            style={{padding:'11px 16px',border:'1px solid #9E5148',background:'#fff'}}>
+                            Reject candidate
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                  </div>
+                ):<div>
+                  <p><strong>Decision:</strong> {item.status}</p>
+                  {item.reviewNote&&<p><strong>Signed note:</strong> {item.reviewNote}</p>}
+                  {item.status==='accepted'&&(
+                    <button type="button" disabled={!hydrated||decisionBusy}
+                      onClick={()=>void approveReviewedRevision(item)}
+                      style={{padding:'10px 14px',border:0,color:'#fff',background:'#233D34'}}>
+                      Separately approve reviewed revision
+                    </button>
+                  )}
+                </div>}
+              </li>)}
+            </ul>}
         </section>
       )}
       {role==='publisher'&&(

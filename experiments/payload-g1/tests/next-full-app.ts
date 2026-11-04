@@ -193,7 +193,7 @@ try{
     })
     const text=await r.text()
     assert.equal(r.status,200,'Reviewer studio response: '+r.status+' '+text.slice(0,250))
-    assert.match(text,/Review queue/)
+    assert.match(text,/Independent evidence review/)
     assert.ok(!text.includes('Save private draft'),'Reviewer must not receive editor form')
   })
   await check('Publisher browser cookie sees publication desk but not editor composer',async()=>{
@@ -599,6 +599,171 @@ try{
       [candidateEntity])).rows[0].n
     assert.equal(before,after)
     assert.equal(after,1)
+  })
+  // G1 reviewer decisions never take the editor's source claims as proof.
+  // A reviewer must separately attest source support and reuse rights.
+  await check('Only authenticated reviewer can open private candidate evidence queue',async()=>{
+    const guest=await fetchRaw('/api/g1-review-queue')
+    assert.equal(guest.status,403)
+    for(const token of [tokens.editor,tokens.publisher]){
+      const blocked=await fetchRaw('/api/g1-review-queue','GET',undefined,token)
+      assert.equal(blocked.status,403)
+    }
+    const queue=await fetchRaw('/api/g1-review-queue','GET',undefined,tokens.reviewer)
+    assert.equal(queue.status,200,queue.text.slice(0,300))
+    const candidate=queue.json.records.find((r:any)=>r.revisionId===queuedRevision)
+    assert.ok(candidate)
+    assert.equal(candidate.status,'needs-review')
+    assert.equal(candidate.sourceVerdict,'pending')
+    assert.equal(candidate.rightsVerdict,'pending')
+    assert.equal(candidate.locator,evidenceData.sourceUrl)
+    assert.equal(candidate.claim,candidateClaim)
+  })
+  const unknownReview={
+    revisionId:queuedRevision,decision:'accepted',sourceVerdict:'verified',
+    rightsVerdict:'cleared',note:'Independent review of synthetic test evidence and reuse rights is claimed only for CI.',
+  }
+  await check('Editor, publisher and anonymous callers cannot record reviewer decisions',async()=>{
+    for(const jwt of [undefined,tokens.editor,tokens.publisher]){
+      const result=await fetchRaw('/api/g1-review-decision','POST',unknownReview,jwt)
+      assert.equal(result.status,403,result.text.slice(0,200))
+    }
+  })
+  await check('Accept decision fails when source is not verified or rights are not cleared',async()=>{
+    for(const malformed of [
+      {...unknownReview,sourceVerdict:'unverified'},
+      {...unknownReview,rightsVerdict:'not-cleared'},
+      {...unknownReview,note:'short'},
+    ]){
+      const result=await fetchRaw('/api/g1-review-decision','POST',malformed,tokens.reviewer)
+      assert.equal(result.status,400,result.text.slice(0,250))
+    }
+  })
+  await check('Reviewer cannot clear unknown editor license by simply checking verified rights',async()=>{
+    const result=await fetchRaw('/api/g1-review-decision','POST',unknownReview,tokens.reviewer)
+    assert.equal(result.status,409,result.text.slice(0,250))
+    const num=(await admin.query('SELECT count(*)::int n FROM kg.g1_review_decisions WHERE revision_id=$1',
+      [queuedRevision])).rows[0].n
+    assert.equal(num,0)
+  })
+  await check('Reviewer DB cannot forge signed rejection with guessed nonce and signature',async()=>{
+    await assert.rejects(reviewerProbe.query(
+      'SELECT kg.g1_record_review_decision($1::uuid,$2::bigint,$3::text,$4::text,$5::text,$6::text,$7::text,$8::text)',
+      [queuedRevision,Number(seededAccounts.reviewer.id),
+        'rejected','disputed','not-cleared',
+        'The synthetic source is not checked and evidence remains unverified.',
+        '0'.repeat(32),'0'.repeat(64)],
+    ),/REVIEW_DECISION_SIGNATURE_INVALID/)
+  })
+  const rejection={
+    revisionId:queuedRevision,decision:'rejected',
+    sourceVerdict:'disputed',rightsVerdict:'not-cleared',
+    note:'This CI fixture does not independently establish source authenticity or content rights.',
+  }
+  await check('Actual reviewer JWT records signed and immutable source/rights rejection',async()=>{
+    const result=await fetchRaw('/api/g1-review-decision','POST',rejection,tokens.reviewer)
+    assert.equal(result.status,200,result.text.slice(0,350))
+    assert.equal(result.json.status,'rejected')
+    const d=(await admin.query(
+      'SELECT reviewer_staff_id,decision,source_verdict,rights_verdict,revision_checksum,signature '+
+      'FROM kg.g1_review_decisions WHERE revision_id=$1',[queuedRevision])).rows[0]
+    assert.equal(Number(d.reviewer_staff_id),Number(seededAccounts.reviewer.id))
+    assert.equal(d.decision,'rejected')
+    assert.equal(d.source_verdict,'disputed')
+    assert.equal(d.rights_verdict,'not-cleared')
+    assert.match(d.signature,/^[a-f0-9]{64}$/)
+    const checksum=(await admin.query('SELECT checksum FROM kg.revisions WHERE id=$1',
+      [queuedRevision])).rows[0].checksum
+    assert.equal(d.revision_checksum,checksum)
+  })
+  await check('Rejected decision is append-only and cannot be replayed or changed',async()=>{
+    await assert.rejects(admin.query(
+      'UPDATE kg.g1_review_decisions SET decision=$1 WHERE revision_id=$2',
+      ['accepted',queuedRevision]),/IMMUTABLE_REVISION_OR_SNAPSHOT/)
+    const replay=await fetchRaw('/api/g1-review-decision','POST',rejection,tokens.reviewer)
+    assert.equal(replay.status,409)
+  })
+  await check('Editor-asserted claim evidence cannot be rewritten after candidate submission',async()=>{
+    await assert.rejects(admin.query(
+      'UPDATE kg.claim_evidence SET stance=$1 WHERE revision_id=$2',
+      ['uncertain',queuedRevision]),/CANDIDATE_CLAIM_EVIDENCE_IMMUTABLE/)
+  })
+  await check('Rejected candidate cannot be approved or released, even with a reviewer JWT',async()=>{
+    const approval=await fetchRaw('/api/g1-approve','POST',{
+      draftId:candidateDraft.id,revisionId:queuedRevision
+    },tokens.reviewer)
+    assert.equal(approval.status,409)
+    const publish=await fetchRaw('/api/g1-publish','POST',{
+      entityId:candidateEntity,revisionId:queuedRevision,expectedVersion:0
+    },tokens.publisher)
+    assert.equal(publish.status,409)
+    assert.equal((await fetchRaw('/knowledge/'+candidateEntity)).status,404)
+  })
+
+  const acceptedEntity=randomUUID()
+  const acceptedBody='Synthetic knowledge article: a laboratory proposal documented a simulated procedure.'
+  const acceptedClaim='a laboratory proposal documented a simulated procedure'
+  const newDraft=await fetchRaw('/api/editorial-drafts?draft=true','POST',{
+    stableEntityId:acceptedEntity,title:'Simulated rights-reviewed fixture',
+    body:acceptedBody,_status:'draft'
+  },tokens.editor)
+  assert.ok([200,201].includes(newDraft.status),newDraft.text.slice(0,250))
+  const acceptedDraftId=newDraft.json.doc.id
+  const eligibleEvidence={
+    draftId:acceptedDraftId,
+    sourceUrl:'https://example.org/synthetic-ci-only-review',
+    sourceDescription:'Synthetic reviewer decision fixture, no factual evidence outside the isolated test.',
+    claim:acceptedClaim,anchor:'paragraph-1',pinpoint:'CI fixture paragraph 1',
+    licenseDeclaration:'public-domain'
+  }
+  let acceptedRevision=''
+  await check('An editor-declared eligible license still remains unapproved before independent review',async()=>{
+    const queued=await fetchRaw('/api/g1-candidate','POST',eligibleEvidence,tokens.editor)
+    assert.equal(queued.status,201,queued.text.slice(0,250))
+    acceptedRevision=queued.json.revisionId
+    const premature=await fetchRaw('/api/g1-approve','POST',{
+      draftId:acceptedDraftId,revisionId:acceptedRevision
+    },tokens.reviewer)
+    assert.equal(premature.status,409)
+    assert.equal((await fetchRaw('/knowledge/'+acceptedEntity)).status,404)
+  })
+  await check('Reviewer requires a deliberate signed source-verdict and rights-verdict to accept',async()=>{
+    const result=await fetchRaw('/api/g1-review-decision','POST',{
+      revisionId:acceptedRevision,decision:'accepted',
+      sourceVerdict:'verified',rightsVerdict:'cleared',
+      note:'Synthetic-only reviewer attests a hypothetical source and license for this disposable CI case.'
+    },tokens.reviewer)
+    assert.equal(result.status,200,result.text.slice(0,350))
+    assert.equal(result.json.status,'ready-for-separate-approval')
+    const row=(await admin.query('SELECT reviewer_staff_id,decision,rights_verdict FROM kg.g1_review_decisions WHERE revision_id=$1',
+      [acceptedRevision])).rows[0]
+    assert.equal(row.decision,'accepted')
+    assert.equal(row.rights_verdict,'cleared')
+    assert.equal(Number(row.reviewer_staff_id),Number(seededAccounts.reviewer.id))
+  })
+  await check('Accepted decision alone cannot publish without distinct approval and publisher identity',async()=>{
+    const premature=await fetchRaw('/api/g1-publish','POST',{
+      entityId:acceptedEntity,revisionId:acceptedRevision,expectedVersion:0
+    },tokens.publisher)
+    assert.equal(premature.status,409)
+    assert.equal((await fetchRaw('/knowledge/'+acceptedEntity)).status,404)
+  })
+  await check('Separate reviewer approval and publisher action release the exact accepted revision',async()=>{
+    const approval=await fetchRaw('/api/g1-approve','POST',{
+      draftId:acceptedDraftId,revisionId:acceptedRevision
+    },tokens.reviewer)
+    assert.equal(approval.status,200,approval.text.slice(0,300))
+    const publisher=await fetchRaw('/api/g1-publish','POST',{
+      entityId:acceptedEntity,revisionId:acceptedRevision,expectedVersion:0
+    },tokens.publisher)
+    assert.equal(publisher.status,200,publisher.text.slice(0,300))
+    assert.equal(publisher.json.version,1)
+    const publicPage=await fetchRaw('/knowledge/'+acceptedEntity)
+    assert.equal(publicPage.status,200)
+    assert.ok(publicPage.text.includes(acceptedBody))
+    const sitemap=await fetchRaw('/sitemap.xml')
+    assert.ok(sitemap.text.includes(acceptedEntity))
+    assert.ok(!sitemap.text.includes(candidateEntity))
   })
   console.log('G1_FULL_NEXT_APP_'+passed+'_CHECKS_SUCCESS')
 }catch(err){
