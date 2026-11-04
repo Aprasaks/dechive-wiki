@@ -193,7 +193,7 @@ try{
     })
     const text=await r.text()
     assert.equal(r.status,200,'Reviewer studio response: '+r.status+' '+text.slice(0,250))
-    assert.match(text,/Review queue/)
+    assert.match(text,/Independent evidence review/)
     assert.ok(!text.includes('Save private draft'),'Reviewer must not receive editor form')
   })
   await check('Publisher browser cookie sees publication desk but not editor composer',async()=>{
