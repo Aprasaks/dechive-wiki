@@ -15,6 +15,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   validate-preview-stack:
@@ -34,6 +35,23 @@ jobs:
         run: /tmp/wiki-preview-lint/bin/cfn-lint -t infra/preview/template.yaml --non-zero-exit-code error
       - name: Enforce nonpublic preview resource allowlist
         run: /tmp/wiki-preview-lint/bin/python infra/preview/validate.py
+      - name: Validate exact verified UI artifact without AWS access
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: '41775623620'
+          SOURCE_COMMIT: '62d3a011a3fcabc9414980f16e229cfdbbf4fc0a'
+        shell: bash
+        run: |
+          set -euo pipefail
+          head="$(gh run view "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --json headSha --jq '.headSha')"
+          conclusion="$(gh run view "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --json conclusion --jq '.conclusion')"
+          [[ "$head" == "$SOURCE_COMMIT" && "$conclusion" == 'success' ]] || {
+            echo 'Pinned UI verification no longer satisfies acceptance gate' >&2; exit 1;
+          }
+          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --name ui-reference-homepage-2026-11-04-proof \
+            --dir "$RUNNER_TEMP/wiki-ui-source"
+          python3 infra/preview/validate_bundle.py "$RUNNER_TEMP/wiki-ui-source/offline-preview"
       - name: State deployment boundary explicitly
         run: echo 'Validation only. No AWS change has occurred.'
 
