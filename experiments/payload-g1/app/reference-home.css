@@ -407,3 +407,12 @@ body > main:has(> .reference-home) {
   .ref-tools {gap:12px}
 }
 /* HEADER_LAYOUT_FIX_END */
+
+/* HERO_GHOST_FIX_START — keep raster text outside the visible landscape. */
+@media(min-width:541px){
+  .ref-hero-landscape{
+    -webkit-mask-image:linear-gradient(90deg,#000 0%,#000 12%,transparent 18%,transparent 82%,#000 88%,#000 100%);
+    mask-image:linear-gradient(90deg,#000 0%,#000 12%,transparent 18%,transparent 82%,#000 88%,#000 100%);
+  }
+}
+/* HERO_GHOST_FIX_END */
