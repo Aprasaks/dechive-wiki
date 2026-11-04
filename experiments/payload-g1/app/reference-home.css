@@ -111,7 +111,8 @@ body > main:has(> .reference-home) {
 .ref-domain{min-width:0;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:4px;height:72px;font-size:13px;white-space:nowrap}
 .ref-domain svg{color:#17382d}
-.ref-domain:hover{background:#f0f4ef}
+.ref-domain[href]:hover{background:#f0f4ef}
+.ref-domain[aria-disabled="true"]{cursor:default}
 .ref-main{padding:8px 31px 0}
 .ref-feature-grid{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(410px,1fr);
   gap:18px;align-items:stretch}
