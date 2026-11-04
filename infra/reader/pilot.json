@@ -1,0 +1,55 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "DECHIVE.WIKI disposable private reader pilot. No public inbound access. Stops after 24 hours.",
+  "Parameters": {
+    "VpcId": {"Type": "AWS::EC2::VPC::Id"},
+    "SubnetId": {"Type": "AWS::EC2::Subnet::Id", "Description": "Public subnet in the selected VPC with outbound internet route"},
+    "ImageId": {"Type": "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>", "Default": "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"}
+  },
+  "Resources": {
+    "PilotRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Principal": {"Service": "ec2.amazonaws.com"}, "Action": "sts:AssumeRole"}]},
+        "ManagedPolicyArns": [{"Fn::Sub": "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"}],
+        "Tags": [{"Key": "Project", "Value": "DECHIVE-WIKI"}, {"Key": "Environment", "Value": "p0"}]
+      }
+    },
+    "PilotProfile": {"Type": "AWS::IAM::InstanceProfile", "Properties": {"Roles": [{"Ref": "PilotRole"}]}},
+    "PilotGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "No inbound access; SSM and package HTTPS egress only",
+        "VpcId": {"Ref": "VpcId"},
+        "SecurityGroupIngress": [],
+        "SecurityGroupEgress": [{"IpProtocol": "tcp", "FromPort": 443, "ToPort": 443, "CidrIp": "0.0.0.0/0"}],
+        "Tags": [{"Key": "Project", "Value": "DECHIVE-WIKI"}, {"Key": "Environment", "Value": "p0"}]
+      }
+    },
+    "PilotInstance": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "ImageId": {"Ref": "ImageId"},
+        "InstanceType": "t3.small",
+        "CreditSpecification": {"CPUCredits": "standard"},
+        "IamInstanceProfile": {"Ref": "PilotProfile"},
+        "InstanceInitiatedShutdownBehavior": "stop",
+        "MetadataOptions": {"HttpTokens": "required", "HttpPutResponseHopLimit": 1, "HttpEndpoint": "enabled"},
+        "NetworkInterfaces": [{"DeviceIndex": "0", "AssociatePublicIpAddress": true, "SubnetId": {"Ref": "SubnetId"}, "GroupSet": [{"Ref": "PilotGroup"}]}],
+        "BlockDeviceMappings": [{"DeviceName": "/dev/xvda", "Ebs": {"Encrypted": true, "VolumeSize": 30, "VolumeType": "gp3", "DeleteOnTermination": true}}],
+        "UserData": {"Fn::Base64": "#!/bin/bash\nset -eu\ninstall -d -m 0700 /opt/dechive-reader\nprintf '[Unit]\\nDescription=Stop private wiki pilot after 24 hours\\n[Timer]\\nOnBootSec=24h\\nUnit=dechive-pilot-stop.service\\n[Install]\\nWantedBy=timers.target\\n' > /etc/systemd/system/dechive-pilot-stop.timer\nprintf '[Unit]\\nDescription=Stop private wiki pilot\\n[Service]\\nType=oneshot\\nExecStart=/usr/sbin/poweroff\\n' > /etc/systemd/system/dechive-pilot-stop.service\nsystemctl daemon-reload\nsystemctl enable --now dechive-pilot-stop.timer\nsystemctl enable --now amazon-ssm-agent\n"},
+        "Tags": [
+          {"Key": "Name", "Value": "dechive-wiki-p0-reader"},
+          {"Key": "Project", "Value": "DECHIVE-WIKI"},
+          {"Key": "Environment", "Value": "p0"},
+          {"Key": "Owner", "Value": "DECHIVE-WIKI"},
+          {"Key": "ManagedBy", "Value": "IaC"},
+          {"Key": "CostCenter", "Value": "wiki"}
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "InstanceId": {"Value": {"Ref": "PilotInstance"}, "Description": "SSM target; no publicly accessible web address"}
+  }
+}
