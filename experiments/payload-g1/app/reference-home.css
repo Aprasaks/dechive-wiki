@@ -27,7 +27,7 @@ body > main:has(> .reference-home) {
 }
 .ref-brand {display:flex;align-items:center;gap:11px;white-space:nowrap;
   font-size:28px;letter-spacing:-.8px;font-weight:bold;color:#080e09!important;}
-.ref-brand svg {fill:#0d281c;stroke:#0d281c}
+.ref-brand svg {fill:none;stroke:#0d281c}
 .ref-header-split{height:29px;width:1px;background:#bec9c0;flex:none;margin-left:12px}
 .ref-header-split-right{margin-left:auto}
 .ref-nav{display:flex;align-items:center;justify-content:space-between;gap:13px;
@@ -301,11 +301,22 @@ body > main:has(> .reference-home) {
   .ref-hero-tagline{gap:7px;margin:10px 0 21px}
   .ref-hero-tagline p{font-size:15px}
   .ref-rule{width:20px}
-  .ref-hero-landscape{background-position:center;
-    -webkit-mask-image:linear-gradient(90deg,#000 0%,transparent 28%,
-      transparent 74%,#000 100%);
-    mask-image:linear-gradient(90deg,#000 0%,transparent 28%,
-      transparent 74%,#000 100%)}
+  .ref-hero-landscape{
+    /* Never crop the screenshot's central baked-in title on mobile. */
+    background-size:auto 350px;
+    background-position:left center;
+    -webkit-mask-image:linear-gradient(90deg,#000 0%,rgba(0,0,0,.9) 10%,
+      transparent 75%,transparent 100%);
+    mask-image:linear-gradient(90deg,#000 0%,rgba(0,0,0,.9) 10%,
+      transparent 75%,transparent 100%);
+  }
+  .ref-hero::before{
+    content:"";position:absolute;right:0;top:0;bottom:0;width:48%;
+    background:url('/reference/hero.webp') right center/auto 350px no-repeat;
+    -webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 78%);
+    mask-image:linear-gradient(90deg,transparent 0%,#000 78%);
+    pointer-events:none;z-index:-1;
+  }
   .r-search{height:56px;gap:8px;padding-left:13px}
   .r-search input{font-size:13px}
   .r-search-icon svg{width:20px}
@@ -323,6 +334,11 @@ body > main:has(> .reference-home) {
   .ref-main{padding:10px 10px 0}
   .ref-feature-grid{gap:11px}
   .ref-knowledge-trail{height:275px}
+  .ref-trail-image{
+    background-image:linear-gradient(90deg,#0b2720 0%,#0b2720 61%,
+      rgba(11,39,32,.9) 75%,rgba(11,39,32,.26) 100%),
+      url('/reference/trail.webp');
+  }
   .ref-trail-content{padding:25px 20px}
   .ref-trail-content h2{font-size:32px;max-width:320px}
   .ref-trail-content p{font-size:13px;max-width:290px}
@@ -341,6 +357,8 @@ body > main:has(> .reference-home) {
   .ref-section-head h2{font-size:17px}
   .ref-journey-grid{grid-template-columns:1fr;gap:9px}
   .ref-journey{height:162px}
+  .ref-journey:after{background:linear-gradient(180deg,transparent 0%,
+    rgba(0,0,0,.12) 45%,#07100f 80%,#030807 100%)}
   .ref-journey-bottom h3{font-size:20px}
   .ref-journey-bottom p{font-size:12px}
   .ref-verified,.ref-random{min-height:205px}
