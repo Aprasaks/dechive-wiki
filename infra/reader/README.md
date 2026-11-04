@@ -22,7 +22,7 @@ Before any real content or public launch, add reviewed editorial migrations/runt
 
 ## Cost evidence, 2026-11-04
 
-AWS Price List API queried from the owner's console returned Seoul Linux shared t3.small at **USD 0.026/hour**. Compute alone is USD 0.624 for 24 hours or USD 18.98 for 730 hours. Public IPv4 costs USD 0.005/hour (USD 0.12/day). EBS, tax and transfer are additional; no free-tier credit is assumed. Approve a **USD 2 total incremental test allowance for one 24-hour pilot**, not continuous operation. This is an operating allowance, not a technical hard cap. Existing account budgets are USD 5 alerts only.
+AWS Price List API queried from the owner's console returned Seoul Linux shared t3.small at **USD 0.026/hour**. Compute alone is USD 0.624 for 24 hours or USD 18.98 for 730 hours. Public IPv4 costs USD 0.005/hour (USD 0.12/day). The same API returned gp3 storage at USD 0.0912/GB-month: 30 GiB costs USD 2.736/month (about USD 0.09/day), with default included IOPS/throughput. Basic compute + IPv4 + storage is approximately USD 0.834/day or USD 25.37 for 730 hours. Stopped storage continues costing USD 2.736/month until removed. Tax and transfer are additional; no free-tier credit is assumed. Approve a **USD 2 total incremental test allowance for one 24-hour pilot**, not continuous operation. This is an operating allowance, not a technical hard cap. Existing account budgets are USD 5 alerts only.
 
 Sources:
 - https://aws.amazon.com/ec2/pricing/on-demand/

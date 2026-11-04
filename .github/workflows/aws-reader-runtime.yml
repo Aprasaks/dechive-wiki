@@ -177,7 +177,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          docker build -f infra/reader/Dockerfile -t dechive-reader:ci reader-stage
+          docker pull node:22.23.4-bookworm-slim
+          base_image="$(docker image inspect node:22.23.4-bookworm-slim --format '{{index .RepoDigests 0}}')"
+          docker build --build-arg READER_BASE="$base_image" -f infra/reader/Dockerfile -t dechive-reader:ci reader-stage
           test "$(docker image inspect dechive-reader:ci --format '{{.Config.User}}')" = node
           docker image inspect node:22.23.4-bookworm-slim --format '{{json .RepoDigests}}' > reader-stage/base-image-digest.json
           docker run --rm --network host --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges -e PUBLIC_DATABASE_URL -e PORT=3120 -e HOSTNAME=127.0.0.1 --name wiki-reader-ci dechive-reader:ci > /tmp/reader-container.log 2>&1 &
