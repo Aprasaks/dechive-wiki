@@ -50,6 +50,37 @@ try{
    headless:true,args:['--no-sandbox','--disable-dev-shm-usage']})
  console.log('CHROME_VERSION '+browser.version())
  await mkdir('artifacts',{recursive:true})
+ await check('Actual Chrome renders English editorial homepage without unapproved records',async()=>{
+  const context=await browser!.newContext({viewport:{width:1440,height:1000}})
+  try{
+    const home=await context.newPage()
+    const response=await home.goto(BASE+'/',{waitUntil:'networkidle'})
+    assert.equal(response?.status(),200)
+    await home.getByRole('heading',{name:'The Living Knowledge Archive'}).waitFor()
+    await home.getByRole('heading',{name:'Recently verified'}).waitFor()
+    assert.equal(await home.getByText('Nothing is published without review.').count(),1)
+    assert.equal(await home.getByRole('link',{name:'The Library'}).count(),1)
+    await home.screenshot({path:'artifacts/homepage-desktop-1440.png',fullPage:true})
+  }finally{await context.close()}
+ })
+ await check('Mobile Chrome homepage has readable layout and no horizontal overflow',async()=>{
+  const context=await browser!.newContext({
+    viewport:{width:390,height:844},deviceScaleFactor:1,
+    isMobile:true,hasTouch:true,
+  })
+  try{
+    const page=await context.newPage()
+    const response=await page.goto(BASE+'/',{waitUntil:'networkidle'})
+    assert.equal(response?.status(),200)
+    await page.getByRole('heading',{name:'The Living Knowledge Archive'}).waitFor()
+    const widths=await page.evaluate(()=>({
+      viewport:window.innerWidth, scroll:document.documentElement.scrollWidth
+    }))
+    assert.ok(widths.scroll<=widths.viewport+2,
+      'Mobile horizontal overflow: '+JSON.stringify(widths))
+    await page.screenshot({path:'artifacts/homepage-mobile-390.png',fullPage:true})
+  }finally{await context.close()}
+ })
  const ctx=await browser.newContext({viewport:{width:1440,height:900}})
  const page=await ctx.newPage()
  await check('Chrome guest is redirected from private studio to login',async()=>{
