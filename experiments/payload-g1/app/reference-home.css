@@ -208,6 +208,11 @@ body > main:has(> .reference-home) {
   margin:0 17px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ref-random-content a{position:absolute;right:2px;top:12px;padding:5px;
   border:1px solid #dae2dc;border-radius:50%}
+.ref-random-refresh{display:inline-flex;align-items:center;justify-content:center;
+  width:28px;height:28px;padding:4px;border:1px solid transparent;border-radius:50%;
+  color:#1d3c2c;background:transparent;cursor:pointer;flex:none}
+.ref-random-refresh:not(:disabled):hover{background:#e9f1e9;border-color:#d6e4d6}
+.ref-random-refresh:disabled{opacity:.45;cursor:default}
 /* Bottom secondary journeys */
 .ref-crossroads{display:flex;align-items:center;gap:20px;border-top:1px solid #e6e7e1;
   min-height:78px;margin-top:12px;padding:11px 0}
@@ -373,4 +378,12 @@ body > main:has(> .reference-home) {
   .ref-crossroads-items{grid-template-columns:1fr 1fr;gap:7px}
   .ref-crossroads-items a{font-size:10px}
   .ref-footer{padding:14px 12px;flex-wrap:wrap;font-size:10px}
+}
+
+/* Small phones: allow all six topic chips to wrap without clipping the final row. */
+@media(max-width:360px){
+  .ref-hero{height:390px}
+  .ref-hero-content{padding-top:30px}
+  .r-suggestions{max-height:none;overflow:visible;row-gap:5px;padding-top:7px}
+  .r-suggestions button{padding:5px 8px;font-size:10px}
 }
