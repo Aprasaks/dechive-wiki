@@ -432,3 +432,24 @@ body > main:has(> .reference-home) {
   .r-suggestions{row-gap:7px}
 }
 /* CLEAN_HERO_END */
+
+/* NAV_WRAP_START — all navigation items remain visible at narrow widths. */
+@media(max-width:1360px){
+  .ref-header{display:grid;grid-template-columns:minmax(0,1fr) auto;height:auto;min-height:56px;padding:12px 20px;gap:9px 12px}
+  .ref-brand{grid-column:1;grid-row:1;justify-self:start}
+  .ref-tools{grid-column:2;grid-row:1;margin-left:0;justify-self:end}
+  .ref-header-split{display:none}
+  .ref-nav{grid-column:1 / -1;grid-row:2;order:initial;display:flex;flex-wrap:wrap;justify-content:flex-start;gap:4px 8px;width:100%;min-width:0;overflow:visible;border-top:1px solid #e9eae5;padding-top:8px;font-size:12px}
+  .ref-nav>*{flex:0 0 auto;padding:8px 10px;max-width:100%}
+}
+@media(max-width:540px){
+  .ref-header{padding:10px 12px;column-gap:10px}
+  .ref-brand{font-size:20px;gap:6px}
+  .ref-brand svg{width:24px;height:24px}
+  .ref-tools{gap:9px}
+  .ref-tools svg{width:18px;height:18px}
+  .ref-nav{gap:4px 3px;font-size:11px}
+  .ref-nav>*{gap:5px;padding:8px 6px}
+  .ref-nav svg{width:18px;height:18px;flex:none}
+}
+/* NAV_WRAP_END */
