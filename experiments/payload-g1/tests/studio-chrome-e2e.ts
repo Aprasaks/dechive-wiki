@@ -50,6 +50,59 @@ try{
    headless:true,args:['--no-sandbox','--disable-dev-shm-usage']})
  console.log('CHROME_VERSION '+browser.version())
  await mkdir('artifacts',{recursive:true})
+ await check('Reference desktop homepage matches the supplied encyclopedic layout sections', async()=>{
+  const context=await browser!.newContext({viewport:{width:1672,height:941}})
+  try{
+    const p=await context.newPage()
+    const r=await p.goto(BASE+'/',{waitUntil:'networkidle'})
+    assert.equal(r?.status(),200)
+    await p.getByRole('heading',{name:'DECHIVE.WIKI',level:1}).waitFor()
+    assert.equal(await p.locator('input#archive-search').count(),1)
+    for(const title of ['The Web of Knowledge','Today in the Archive',
+      'Featured Knowledge Journeys','New & Verified','Random Discovery',
+      'From AI to History to Philosophy']){
+      assert.equal(await p.getByRole('heading',{name:title}).count(),1,title)
+    }
+    assert.equal(await p.locator('.ref-domain').count(),12)
+    assert.equal(await p.locator('.ref-journey').count(),3)
+    assert.equal(await p.locator('.ref-nav > *').count(),9)
+    const wide=await p.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:innerWidth}))
+    assert.ok(wide.scroll <= wide.viewport + 2,JSON.stringify(wide))
+    await p.screenshot({path:'artifacts/reference-home-desktop-1672.png',fullPage:true})
+  }finally{await context.close()}
+ })
+ await check('Reference images are local optimized WebP assets, with no third-party request dependencies',async()=>{
+   for(const name of ['hero','trail','journey-ai','journey-civilization','journey-life','colosseum','maya']){
+     const res=await fetch(BASE+'/reference/'+name+'.webp',{signal:AbortSignal.timeout(8000)})
+     assert.equal(res.status,200,name+': '+res.status)
+     assert.match(res.headers.get('content-type')??'',/image\/webp/)
+     assert.ok(Number(res.headers.get('content-length')??0)>3000,name)
+   }
+ })
+ await check('Reference homepage search only returns loaded approved public entries',async()=>{
+   const context=await browser!.newContext({viewport:{width:1672,height:941}})
+   try{
+     const p=await context.newPage()
+     await p.goto(BASE+'/',{waitUntil:'domcontentloaded'})
+     await p.getByPlaceholder('Search anything in the archive...').fill('xyz-missing-archive-record-2026')
+     await p.getByRole('button',{name:'Search',exact:true}).click()
+     await p.getByText(/No approved records matching/).waitFor({timeout:12000})
+     assert.ok(!(await p.locator('body').innerText()).includes('PRIVATE CHROME FIXTURE'))
+   }finally{await context.close()}
+ })
+ await check('390px mobile reference homepage preserves all sections with no horizontal overflow',async()=>{
+   const context=await browser!.newContext({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true})
+   try{
+     const p=await context.newPage()
+     const r=await p.goto(BASE+'/',{waitUntil:'networkidle'})
+     assert.equal(r?.status(),200)
+     await p.getByRole('heading',{name:'DECHIVE.WIKI',level:1}).waitFor()
+     const wide=await p.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:innerWidth}))
+     assert.ok(wide.scroll <= wide.viewport + 2,JSON.stringify(wide))
+     assert.equal(await p.locator('.ref-domain').count(),12)
+     await p.screenshot({path:'artifacts/reference-home-mobile-390.png',fullPage:true})
+   }finally{await context.close()}
+ })
  const ctx=await browser.newContext({viewport:{width:1440,height:900}})
  const page=await ctx.newPage()
  await check('Chrome guest is redirected from private studio to login',async()=>{
