@@ -42,3 +42,10 @@ The AWS GitHub Action always validates the CloudFormation schema/security rules.
 The preview S3 bucket has **DeletionPolicy: Retain** to prevent accidental data loss. Removing the CloudFormation stack DOES NOT remove retained S3 objects/billing. An authorized operator must separately inspect and delete that exact isolated bucket after confirming no other data was placed there. CloudFront must be removed using reviewed change/cleanup. Production DNS must remain unchanged.
 
 **Status remains NO-GO for production launch.** Static browser preview is not database-backed staging or permission to publish.
+
+## Domain boundary and future launch
+
+- **Owner-designated canonical public domain:** `https://dechive.wiki` (reported registered/secured on 2026-11-04). Domain registration, public DNS resolution, TLS issuance, and live hosting **have not been independently verified**. Do not claim the wiki is online from the domain name alone.
+- **Current private preview:** continue using the generated `https://<distribution>.cloudfront.net` hostname with temporary access challenge. Do not attach the root domain to this static, illustrative review build.
+- **Future production:** only after the full launch gate, inventory authoritative nameservers and DNS records; create/validate an ACM TLS certificate in `us-east-1` for CloudFront and its production hostname(s); confirm CloudFront aliases and an intentional apex `A/AAAA ALIAS` (or equivalent supported configuration with the domain's DNS provider); then explicitly approve cutover and verify HTTPS, redirects, search robots and origin security.
+- **No DNS change in this PR.** The final wiki must not accidentally serve the non-live, offline review/search demonstration as public production content.
