@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 
 export type SearchRecord = { entity_id: string; body: string; version: number }
 
@@ -15,6 +15,8 @@ const suggestions = [
 
 export default function ArchiveSearch({ records }: { records: SearchRecord[] }) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const [hydrated,setHydrated] = useState(false)
+  useEffect(()=>setHydrated(true),[])
   const [query, setQuery] = useState('')
   const [searched, setSearched] = useState(false)
   const [opened, setOpened] = useState(false)
@@ -39,25 +41,25 @@ export default function ArchiveSearch({ records }: { records: SearchRecord[] }) 
 
   return (
     <div className="r-search-area" id="explore">
-      <form className="r-search" onSubmit={submit} role="search"
+      <form className="r-search" onSubmit={submit} data-search-ready={hydrated?"true":"false"} role="search"
         aria-label="Search approved archive records">
         <label className="r-search-icon" htmlFor="archive-search">
           <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="10.5" cy="10.5" r="7.5" /><path d="m16 16 5 5" />
           </svg>
         </label>
-        <input ref={inputRef} id="archive-search" value={query} onChange={e => {
+        <input ref={inputRef} id="archive-search" disabled={!hydrated} value={query} onChange={e => {
           setQuery(e.target.value)
           setSearched(false)
         }} onKeyDown={keyDown} placeholder="Search anything in the archive..."
           autoComplete="off" maxLength={120} />
         <kbd className="r-search-shortcut">⌘ K</kbd>
-        <button className="r-search-button" type="submit">Search</button>
+        <button className="r-search-button" type="submit" disabled={!hydrated}>Search</button>
       </form>
       <div className="r-suggestions" aria-label="Popular example queries">
         <strong>Popular searches:</strong>
         {suggestions.map(s => (
-          <button type="button" key={s} onClick={() => choose(s)}>{s}</button>
+          <button type="button" key={s} disabled={!hydrated} onClick={() => choose(s)}>{s}</button>
         ))}
       </div>
       {opened && (
