@@ -1,0 +1,20 @@
+.reading-page{color:#183126;font-family:Georgia,serif;overflow-wrap:anywhere}
+.reading-page *{box-sizing:border-box}.reading-page a{color:#245c3d;text-underline-offset:3px}
+.reading-page h1{font-size:clamp(28px,5vw,44px);line-height:1.2;margin:14px 0 20px}
+.reading-page h2{margin-top:38px;font-size:26px}.reading-page h3{font-size:20px;line-height:1.4;margin:0 0 10px}
+.reading-page :focus-visible{outline:2px solid #286542;outline-offset:4px}
+.reading-eyebrow{font:11px Arial,sans-serif;letter-spacing:2px;margin-top:32px}
+.reading-links{display:flex;justify-content:space-between;gap:20px;font:14px Arial,sans-serif}
+.reading-meta,.reading-note,.reading-page small{font:13px/1.6 Arial,sans-serif;color:#58685e}
+.reading-body{font-size:18px;line-height:1.85;margin:32px 0;white-space:pre-wrap}
+.reading-search{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0;font:16px Arial,sans-serif}
+.reading-label{flex-basis:100%;font-size:13px}.reading-search input{flex:1;min-width:0;padding:14px;border:1px solid #9fb1a3;border-radius:8px;font:inherit}
+.reading-search button,.reading-next{padding:13px 20px;background:#173d29;color:white!important;border:0;border-radius:8px;font:15px Arial,sans-serif}
+.reading-results{list-style:none;padding:0}.reading-results li,.reading-claim{background:white;border:1px solid #dce3da;border-radius:12px;padding:24px;margin:18px 0}
+.reading-results p{color:#42564a;line-height:1.6}.reading-next{display:inline-block;margin:12px 0;text-decoration:none}
+.reading-claim ul{padding-left:20px}.reading-source{padding:16px 0;border-top:1px solid #e6ebe3;line-height:1.5}
+.reading-source p{margin:8px 0;font:14px/1.6 Arial,sans-serif}.reading-stance{display:inline-block;padding:3px 9px;border-radius:16px;background:#eaf2e7;font-size:12px}
+.stance-contradicts{background:#fff0e6}.stance-uncertain{background:#f1f0df}
+.reading-revision{border-top:1px solid #d6dfd2;margin-top:36px;padding-top:22px;font:13px/1.6 Arial,sans-serif}
+.reading-revision code{overflow-wrap:anywhere;word-break:break-all}.reading-revision p{margin:7px 0}
+@media(max-width:540px){.reading-results li,.reading-claim{padding:16px}.reading-body{font-size:17px}.reading-search button{padding:12px}.reading-links{font-size:12px}}

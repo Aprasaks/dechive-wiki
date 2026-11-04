@@ -94,7 +94,7 @@ export default async function Home() {
           <span aria-hidden="true" className="ref-rule"/>
         </div>
         <p className="ref-visually-hidden">The Living Knowledge Archive</p>
-        <ArchiveSearch records={approved}/>
+        <ArchiveSearch/>
       </div>
     </section>
 
