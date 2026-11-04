@@ -5,6 +5,9 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import { chromium } from 'playwright-core'
 import { getPayload } from 'payload'
+import { pathToFileURL } from 'node:url'
+import { resolve } from 'node:path'
+import { exportOfflinePreview } from './export-offline-preview.ts'
 import config from '../native-auth.config.ts'
 
 const BASE='http://127.0.0.1:3112', EVIL='http://127.0.0.1:3113'
@@ -168,9 +171,49 @@ try{
    'figure img{display:block;width:100%;height:auto}figcaption{padding:10px 2px 0;color:#526454}'+
    '</style></head><body><header><h1>DECHIVE.WIKI / Screen Review</h1>'+
    '<p>Real browser snapshots of the reference-based homepage · five screen sizes.</p>'+
-   '<p>Isolated CI fixture only. Not deployed or populated with real reviewed knowledge.</p>'+
+   '<p>Isolated CI fixture only. Not deployed or populated with real reviewed knowledge.</p>'+\n   '<p><a href="offline-preview/index.html">Open clickable offline homepage review</a></p>'+
    '</header><main><div class="grid">'+gallery+'</div></main></body></html>'
   await writeFile('artifacts/index.html',html,'utf8')
+ })
+ await check('Export same rendered homepage as standalone offline clickable preview with zero network requests',async()=>{
+  const output=resolve('artifacts/offline-preview')
+  await exportOfflinePreview(browser!,BASE,output)
+  const context=await browser!.newContext({viewport:{width:1440,height:900}})
+  const page=await context.newPage()
+  const remoteRequests:string[]=[]
+  page.on('request',request=>{
+    if(/^https?:/i.test(request.url())) remoteRequests.push(request.url())
+  })
+  try{
+    const url=pathToFileURL(resolve(output,'index.html')).href
+    const response=await page.goto(url,{waitUntil:'load'})
+    assert.equal(response?.status(),200)
+    await page.getByRole('heading',{name:'DECHIVE.WIKI',level:1}).waitFor()
+    assert.equal(await page.locator('.ref-domain').count(),12)
+    const img=await page.locator('.ref-trail-image').evaluate(el=>getComputedStyle(el).backgroundImage)
+    assert.match(img,/reference\/trail\.webp/,'Real local WebP scenic asset was not loaded')
+    const input=page.getByPlaceholder('Search anything in the archive...')
+    await input.fill('Consciousness')
+    await page.getByRole('button',{name:'Search',exact:true}).click()
+    await page.getByText('Offline design preview',{exact:true}).waitFor()
+    await page.getByRole('button',{name:'Close search results'}).click()
+    await page.keyboard.press('Control+k')
+    assert.equal(await page.evaluate(()=>document.activeElement?.id),'archive-search')
+    await page.getByRole('button',{name:'Space Exploration'}).click()
+    await page.getByText(/Search interface test for/).waitFor()
+    assert.ok(!(await page.locator('body').innerText()).includes('PRIVATE CHROME FIXTURE'))
+    assert.deepEqual(remoteRequests,[],'Preview unexpectedly reached the network')
+    await page.screenshot({path:'artifacts/offline-preview-desktop.png',fullPage:true})
+  }finally{await context.close()}
+  const mobile=await browser!.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true})
+  try{
+    const page=await mobile.newPage()
+    await page.goto(pathToFileURL(resolve(output,'index.html')).href,{waitUntil:'load'})
+    const width=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:innerWidth}))
+    assert.ok(width.scroll<=width.viewport+2,JSON.stringify(width))
+    assert.equal(await page.locator('.ref-domain').count(),12)
+    await page.screenshot({path:'artifacts/offline-preview-mobile.png',fullPage:true})
+  }finally{await mobile.close()}
  })
  await check('Random refresh cycles through approved records without exposing private data',async()=>{
   const context=await browser!.newContext({viewport:{width:1440,height:900}})
