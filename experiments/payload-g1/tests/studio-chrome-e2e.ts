@@ -64,8 +64,16 @@ try{
       assert.equal(await p.getByRole('heading',{name:title}).count(),1,title)
     }
     assert.equal(await p.locator('.ref-domain').count(),12)
+    assert.equal(await p.locator('.ref-domain[aria-disabled="true"]').count(),12)
+    assert.equal(await p.locator('.ref-domains-scroll a').count(),0,
+      'Unbuilt category pages must not masquerade as working links')
     assert.equal(await p.locator('.ref-journey').count(),3)
     assert.equal(await p.locator('.ref-nav > *').count(),9)
+    await p.locator('form[data-search-ready="true"]').waitFor({timeout:15000})
+    await p.locator('#archive-search').blur()
+    await p.keyboard.press('Meta+k')
+    assert.equal(await p.evaluate(()=>document.activeElement?.id),'archive-search',
+      'Visible keyboard shortcut must actually focus search')
     const wide=await p.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:innerWidth}))
     assert.ok(wide.scroll <= wide.viewport + 2,JSON.stringify(wide))
     await p.screenshot({path:'artifacts/reference-home-desktop-1672.png',fullPage:true})
