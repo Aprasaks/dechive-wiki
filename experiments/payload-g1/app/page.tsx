@@ -1,5 +1,6 @@
 import ArchiveIcon from './archive-icon'
 import ArchiveSearch from './archive-search'
+import RandomDiscovery from './random-discovery'
 import { publicPool } from '../lib/public-db'
 import './reference-home.css'
 
@@ -189,27 +190,7 @@ export default async function Home() {
           </div>
         </section>
 
-        <section className="ref-random ref-panel" id="random" aria-labelledby="random-title">
-          <div className="ref-panel-head">
-            <h2 id="random-title"><ArchiveIcon name="dice" size={23}/>Random Discovery</h2>
-            <span aria-label="Future refresh function not enabled">
-              <ArchiveIcon name="refresh" size={18}/>
-            </span>
-          </div>
-          <div className="ref-random-landscape" role="img"
-            aria-label="Illustrative landscape photograph of ancient temple ruins"/>
-          <div className="ref-random-content">
-            {randomApproved? <>
-              <h3>{randomApproved.body.slice(0,80)}{randomApproved.body.length>80?'…':''}</h3>
-              <p>A randomly selected approved record from the current preview.</p>
-              <a href={'/knowledge/'+randomApproved.entity_id}
-                aria-label="Read this approved record"><ArchiveIcon name="arrow" size={18}/></a>
-            </> : <>
-              <h3>Discover the unexpected.</h3>
-              <p>Random reading becomes available with the first approved public record.</p>
-            </>}
-          </div>
-        </section>
+        <RandomDiscovery records={approved} initialId={randomApproved?.entity_id ?? null}/>
       </div>
 
       <section className="ref-crossroads" aria-labelledby="crossroads-title">
