@@ -8,7 +8,7 @@ root = pathlib.Path(sys.argv[1]).resolve(strict=True)
 expected = {
     'index.html', 'preview.js',
     *('reference/' + x + '.webp' for x in (
-        'hero', 'trail', 'journey-ai', 'journey-civilization',
+        'hero-landscape-v2', 'trail', 'journey-ai', 'journey-civilization',
         'journey-life', 'colosseum', 'maya')),
 }
 actual: set[str] = set()

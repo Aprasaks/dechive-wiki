@@ -4,7 +4,7 @@ import path from 'node:path'
 import type { Browser } from 'playwright-core'
 
 const ASSETS = [
-  'hero.webp','trail.webp','journey-ai.webp','journey-civilization.webp',
+  'hero-landscape-v2.webp','trail.webp','journey-ai.webp','journey-civilization.webp',
   'journey-life.webp','colosseum.webp','maya.webp'
 ]
 
