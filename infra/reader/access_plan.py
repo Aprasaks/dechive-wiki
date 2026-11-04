@@ -119,6 +119,14 @@ def documents(account, vpc, subnet, ami):
         'Effect': 'Allow', 'Action': 'sts:AssumeRole',
         'Resource': iam + 'role/' + DEPLOYER,
         'Condition': {'Bool': {'aws:MultiFactorAuthPresent': 'true'}},
+    }, {
+        'Effect': 'Allow',
+        'Action': ['cloudshell:CreateEnvironment', 'cloudshell:GetEnvironmentStatus',
+                   'cloudshell:StartEnvironment', 'cloudshell:StopEnvironment',
+                   'cloudshell:CreateSession', 'cloudshell:PutCredentials'],
+        'Resource': '*',
+        'Condition': {'Bool': {'aws:MultiFactorAuthPresent': 'true'},
+                      'StringEquals': {'aws:RequestedRegion': REGION}},
     }]}
     bootstrap = {
         'AWSTemplateFormatVersion': '2010-09-09',

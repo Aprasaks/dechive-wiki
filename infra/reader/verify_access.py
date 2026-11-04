@@ -81,6 +81,12 @@ def verify(directory, account, subnet):
           {'ec2:Subnet': root + 'subnet/' + subnet})
     check('deny another subnet', 'deployer', 'ec2:RunInstances', root + 'network-interface/eni-0123456789abcdef0', False,
           {'ec2:Subnet': root + 'subnet/subnet-00000000000000000'})
+    check('MFA operator Seoul shell', 'operator-assume', 'cloudshell:CreateEnvironment', '*', True,
+          {'aws:MultiFactorAuthPresent': True, 'aws:RequestedRegion': 'ap-northeast-2'})
+    check('deny shell without MFA', 'operator-assume', 'cloudshell:CreateEnvironment', '*', False,
+          {'aws:RequestedRegion': 'ap-northeast-2'})
+    check('deny out-of-region shell', 'operator-assume', 'cloudshell:CreateEnvironment', '*', False,
+          {'aws:MultiFactorAuthPresent': True, 'aws:RequestedRegion': 'us-east-1'})
     print('AWS_ACCESS_SIMULATION_' + str(passed) + '_CHECKS_SUCCESS')
 
 if __name__ == '__main__':
