@@ -1,6 +1,7 @@
 import ArchiveIcon from './archive-icon'
 import ArchiveSearch from './archive-search'
 import RandomDiscovery from './random-discovery'
+import DomainScroller from './domain-scroller'
 import { publicPool } from '../lib/public-db'
 import './reference-home.css'
 
@@ -102,13 +103,13 @@ export default async function Home() {
         <strong>12 Knowledge<br/>Domains</strong>
         <ArchiveIcon name="arrow" size={17}/>
       </div>
-      <div className="ref-domains-scroll">
+      <DomainScroller>
         {domains.map(d=><span key={d.name} className="ref-domain" aria-disabled="true"
           title="Domain pages are not yet available in this design preview">
           <ArchiveIcon name={d.icon} size={31}/>
           <span>{d.name}</span>
         </span>)}
-      </div>
+      </DomainScroller>
     </section>
 
     <main className="ref-main">
