@@ -5,7 +5,7 @@ import { Pool } from 'pg'
 // Genuine Payload JWT cookie/Authorization is verified before any DB access.
 // Dedicated PostgreSQL login only has narrowly granted reviewer privileges.
 const reviewer = new Pool({ connectionString: process.env.G1_REVIEWER_DATABASE_URL })
-const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i
+const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i
 const verdicts = new Set(['verified','unverified','disputed'])
 const rights = new Set(['cleared','not-cleared'])
 function requireReviewer(req:{user?:unknown}):number {
