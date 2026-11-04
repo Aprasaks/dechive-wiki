@@ -4,6 +4,7 @@ import { createServer } from 'node:http'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import { chromium } from 'playwright-core'
+import { Pool } from 'pg'
 import { getPayload } from 'payload'
 import { pathToFileURL } from 'node:url'
 import { resolve } from 'node:path'
@@ -90,7 +91,7 @@ try{
      assert.ok(Number(res.headers.get('content-length')??0)>3000,name)
    }
  })
- await check('Reference homepage search only returns loaded approved public entries',async()=>{
+ await check('Reference homepage submits to the full approved public search',async()=>{
    const context=await browser!.newContext({viewport:{width:1672,height:941}})
    try{
      const p=await context.newPage()
@@ -102,6 +103,31 @@ try{
      assert.ok(!(await p.locator('body').innerText()).includes('PRIVATE CHROME FIXTURE'))
    }finally{await context.close()}
  })
+
+ await check('Real browser follows full public search into a revision and its claim sources',async()=>{
+  const db=new Pool({connectionString:process.env.PUBLIC_DATABASE_URL})
+  const context=await browser!.newContext({viewport:{width:1440,height:1000}})
+  try{
+   const row=(await db.query("SELECT p.entity_id,p.body FROM kg.public_entries p WHERE p.body LIKE 'SYNTHETIC TEST ONLY reading-%' AND EXISTS(SELECT 1 FROM kg.public_claim_sources e WHERE e.entity_id=p.entity_id AND e.revision_id=p.revision_id) ORDER BY p.entity_id LIMIT 1")).rows[0]
+   assert.ok(row,'Public reading fixture with revision sources is required')
+   const p=await context.newPage()
+   await p.goto(BASE+'/',{waitUntil:'networkidle'})
+   await p.getByPlaceholder('Search anything in the archive...').fill(row.body)
+   await p.getByRole('button',{name:'Search',exact:true}).click()
+   await p.waitForURL('**/search?q=*')
+   await p.getByRole('link',{name:row.body,exact:true}).click()
+   await p.waitForURL('**/knowledge/'+row.entity_id)
+   await p.getByRole('heading',{name:'Claims & sources',exact:true}).waitFor()
+   await p.getByRole('link',{name:'Synthetic supporting reference',exact:true}).waitFor()
+   assert.ok(!(await p.locator('body').innerText()).includes('PRIVATE REVIEWER'))
+   await p.screenshot({path:'artifacts/public-reading-desktop.png',fullPage:true})
+   await p.setViewportSize({width:390,height:844})
+   const bounds=await p.evaluate(()=>({scroll:document.documentElement.scrollWidth,width:innerWidth}))
+   assert.ok(bounds.scroll<=bounds.width+2,JSON.stringify(bounds))
+   await p.screenshot({path:'artifacts/public-reading-mobile.png',fullPage:true})
+  }finally{await context.close();await db.end()}
+ })
+
  await check('390px mobile reference homepage preserves all sections with no horizontal overflow',async()=>{
    const context=await browser!.newContext({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true})
    try{
@@ -192,7 +218,7 @@ try{
     await page.getByRole('heading',{name:'DECHIVE.WIKI',level:1}).waitFor()
     assert.equal(await page.locator('.ref-domain').count(),12)
     const img=await page.locator('.ref-trail-image').evaluate(el=>getComputedStyle(el).backgroundImage)
-    assert.match(img,/reference\/trail\.webp/,'Real local WebP scenic asset was not loaded')
+    assert.match(img,/reference\/trail-network-v2\.webp/,'Real local WebP scenic asset was not loaded')
     const input=page.getByPlaceholder('Search anything in the archive...')
     await input.fill('Consciousness')
     await page.getByRole('button',{name:'Search',exact:true}).click()
