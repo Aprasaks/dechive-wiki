@@ -16,7 +16,17 @@ const suggestions = [
 export default function ArchiveSearch({ records }: { records: SearchRecord[] }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [hydrated,setHydrated] = useState(false)
-  useEffect(()=>setHydrated(true),[])
+  useEffect(() => {
+    setHydrated(true)
+    function focusShortcut(event: globalThis.KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        inputRef.current?.focus()
+      }
+    }
+    document.addEventListener('keydown', focusShortcut)
+    return () => document.removeEventListener('keydown', focusShortcut)
+  }, [])
   const [query, setQuery] = useState('')
   const [searched, setSearched] = useState(false)
   const [opened, setOpened] = useState(false)
@@ -51,13 +61,14 @@ export default function ArchiveSearch({ records }: { records: SearchRecord[] }) 
         <input ref={inputRef} id="archive-search" disabled={!hydrated} value={query} onChange={e => {
           setQuery(e.target.value)
           setSearched(false)
+          setOpened(false)
         }} onKeyDown={keyDown} placeholder="Search anything in the archive..."
           autoComplete="off" maxLength={120} />
         <kbd className="r-search-shortcut">⌘ K</kbd>
         <button className="r-search-button" type="submit" disabled={!hydrated}>Search</button>
       </form>
       <div className="r-suggestions" aria-label="Popular example queries">
-        <strong>Popular searches:</strong>
+        <strong>Try a topic:</strong>
         {suggestions.map(s => (
           <button type="button" key={s} disabled={!hydrated} onClick={() => choose(s)}>{s}</button>
         ))}
