@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >-
   DECHIVE.WIKI isolated, password-gated static design review only.
-  No database, runtime servers, app accounts, Route53 or production DNS.
+  No database, runtime servers, app accounts or Route53. Optional custom HTTPS domain.
 
 Parameters:
   PreviewAuthHeader:
@@ -14,6 +14,179 @@ Parameters:
       Base64 of preview:strong-random-password; never commit, print, or reuse it.
       Temporary preview use only; the value is embedded in the edge function,
       so AWS principals with CloudFront Function read permission can recover it.
+
+  CustomDomain:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|dechive[.]wiki  PreviewBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub 'dechive-wiki-ui-preview-${AWS::AccountId}-${AWS::Region}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      Tags:
+        - Key: project
+          Value: DECHIVE-WIKI
+        - Key: environment
+          Value: design-preview
+        - Key: no-production-data
+          Value: 'true'
+
+  PreviewOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${AWS::StackName}-s3-oac'
+        Description: 'CloudFront signed access to private design preview files'
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  PreviewAuthFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: !Sub '${AWS::StackName}-basic-auth'
+      AutoPublish: true
+      FunctionConfig:
+        Comment: 'Temporary Basic authentication for non-sensitive design review only'
+        Runtime: cloudfront-js-2.0
+      FunctionCode: !Sub |
+        function handler(event) {
+          var auth = event.request.headers.authorization;
+          if (!auth || auth.value !== 'Basic ${PreviewAuthHeader}') {
+            return {
+              statusCode: 401,
+              statusDescription: 'Unauthorized',
+              headers: {
+                'www-authenticate': { value: 'Basic realm="DECHIVE.WIKI Preview"' },
+                'cache-control': { value: 'no-store' },
+                'x-robots-tag': { value: 'noindex, nofollow' }
+              }
+            };
+          }
+          return event.request;
+        }
+
+  PreviewResponseHeaders:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub '${AWS::StackName}-security-headers'
+        Comment: 'Isolated preview; prevent indexing, framing and external calls'
+        CustomHeadersConfig:
+          Items:
+            - Header: X-Robots-Tag
+              Value: 'noindex, nofollow, noarchive'
+              Override: true
+        SecurityHeadersConfig:
+          ContentTypeOptions:
+            Override: true
+          FrameOptions:
+            FrameOption: DENY
+            Override: true
+          ReferrerPolicy:
+            ReferrerPolicy: no-referrer
+            Override: true
+          StrictTransportSecurity:
+            AccessControlMaxAgeSec: 31536000
+            Override: true
+          ContentSecurityPolicy:
+            ContentSecurityPolicy: >-
+              default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline';
+              img-src 'self' data:; font-src 'self' data:; connect-src 'none';
+              object-src 'none'; base-uri 'none'; form-action 'self';
+              frame-ancestors 'none'
+            Override: true
+
+  PreviewDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: 'DECHIVE.WIKI — segregated UI design review only'
+        Enabled: true
+        IPV6Enabled: true
+        HttpVersion: http2
+        PriceClass: PriceClass_100
+        DefaultRootObject: index.html
+        Aliases: !If [HasCustomDomain, [!Ref CustomDomain, !Sub 'www.${CustomDomain}'], !Ref 'AWS::NoValue']
+        Origins:
+          - Id: private-preview-s3
+            DomainName: !GetAtt PreviewBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt PreviewOAC.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        DefaultCacheBehavior:
+          TargetOriginId: private-preview-s3
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD]
+          CachedMethods: [GET, HEAD]
+          Compress: true
+          # AWS-managed CachingDisabled. Do not alter without review.
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+          ResponseHeadersPolicyId: !Ref PreviewResponseHeaders
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt PreviewAuthFunction.FunctionMetadata.FunctionARN
+        ViewerCertificate: !If
+          - HasCustomDomain
+          - AcmCertificateArn: !Ref CertificateArn
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - CloudFrontDefaultCertificate: true
+      Tags:
+        - Key: project
+          Value: DECHIVE-WIKI
+        - Key: environment
+          Value: design-preview
+
+  PreviewBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref PreviewBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: OnlyCloudFrontDistributionCanRead
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${PreviewBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${PreviewDistribution}'
+
+Outputs:
+  PreviewUrl:
+    Description: CloudFront HTTPS preview URL (Basic authentication required)
+    Value: !Sub 'https://${PreviewDistribution.DomainName}'
+  PreviewBucketName:
+    Description: Dedicated nonpublic S3 bucket retained on stack deletion
+    Value: !Ref PreviewBucket
+  PreviewDistributionId:
+    Description: CloudFront distribution for preview invalidation only
+    Value: !Ref PreviewDistribution
+
+    Description: Optional owner-authorized domain for this protected preview.
+  CertificateArn:
+    Type: String
+    Default: ''
+    Description: Issued non-exportable ACM certificate in us-east-1 covering apex and www.
+
+Conditions:
+  HasCustomDomain: !Not [!Equals [!Ref CustomDomain, '']]
 
 Resources:
   PreviewBucket:
