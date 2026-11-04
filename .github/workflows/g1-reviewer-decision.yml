@@ -4,10 +4,8 @@ on:
   push:
     branches:
       - p0/g1-reviewer-decision-gate
-    paths:
-      - "experiments/payload-g1/**"
-      - "db/**"
-      - ".github/workflows/g1-reviewer-decision.yml"
+    # Verify EVERY branch head, including documentation-only commits.
+    # Previously the paths filter left the latest Draft PR SHA untested.
   workflow_dispatch:
 
 concurrency:
