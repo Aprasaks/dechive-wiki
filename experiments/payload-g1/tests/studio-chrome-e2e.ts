@@ -131,6 +131,14 @@ try{
     assert.equal(await p.locator('.ref-domain').count(),12)
     const size=await p.evaluate(()=>({actual:document.documentElement.scrollWidth,viewport:innerWidth}))
     assert.ok(size.actual<=size.viewport+2,view.name+': '+JSON.stringify(size))
+    if(view.width===320){
+      const chipsFit=await p.getByRole('button',{name:'Space Exploration'}).evaluate(el=>{
+        const item=el.getBoundingClientRect()
+        const container=el.parentElement?.getBoundingClientRect()
+        return Boolean(container && item.bottom<=container.bottom+1 && item.right<=container.right+1)
+      })
+      assert.ok(chipsFit,'Smallest phone must show all six example topic chips, without crop')
+    }
     await p.screenshot({path:'artifacts/reference-home-'+view.name+'.png',fullPage:true})
    }finally{await context.close()}
   }
@@ -163,6 +171,27 @@ try{
    '<p>Isolated CI fixture only. Not deployed or populated with real reviewed knowledge.</p>'+
    '</header><main><div class="grid">'+gallery+'</div></main></body></html>'
   await writeFile('artifacts/index.html',html,'utf8')
+ })
+ await check('Random refresh cycles through approved records without exposing private data',async()=>{
+  const context=await browser!.newContext({viewport:{width:1440,height:900}})
+  try{
+   const p=await context.newPage()
+   assert.equal((await p.goto(BASE+'/',{waitUntil:'networkidle'}))?.status(),200)
+   const button=p.getByRole('button',{name:'Show another approved record'})
+   const links=await p.locator('.ref-verified-row').evaluateAll(elements=>
+    elements.map(el=>el.getAttribute('href')).filter(Boolean))
+   if(links.length>=2){
+    assert.equal(await button.isEnabled(),true)
+    const before=await p.locator('.ref-random-content a').getAttribute('href')
+    await button.click()
+    const after=await p.locator('.ref-random-content a').getAttribute('href')
+    assert.notEqual(after,before,'refresh should choose a different approved record')
+    assert.ok(links.includes(after),'refresh target must be an approved public record')
+   }else{
+    assert.equal(await button.isDisabled(),true)
+   }
+   assert.ok(!(await p.locator('body').innerText()).includes('PRIVATE CHROME FIXTURE'))
+  }finally{await context.close()}
  })
  const ctx=await browser.newContext({viewport:{width:1440,height:900}})
  const page=await ctx.newPage()
