@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >-
   DECHIVE.WIKI isolated, password-gated static design review only.
-  No database, runtime servers, app accounts, Route53 or production DNS.
+  No database, runtime servers, app accounts or Route53. Optional custom HTTPS domain.
 
 Parameters:
   PreviewAuthHeader:
@@ -14,6 +14,19 @@ Parameters:
       Base64 of preview:strong-random-password; never commit, print, or reuse it.
       Temporary preview use only; the value is embedded in the edge function,
       so AWS principals with CloudFront Function read permission can recover it.
+
+  CustomDomain:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|dechive[.]wiki$'
+    Description: Optional owner-authorized domain for this protected preview.
+  CertificateArn:
+    Type: String
+    Default: ''
+    Description: Issued non-exportable ACM certificate in us-east-1 covering apex and www.
+
+Conditions:
+  HasCustomDomain: !Not [!Equals [!Ref CustomDomain, '']]
 
 Resources:
   PreviewBucket:
@@ -118,6 +131,7 @@ Resources:
         HttpVersion: http2
         PriceClass: PriceClass_100
         DefaultRootObject: index.html
+        Aliases: !If [HasCustomDomain, [!Ref CustomDomain, !Sub 'www.${CustomDomain}'], !Ref 'AWS::NoValue']
         Origins:
           - Id: private-preview-s3
             DomainName: !GetAtt PreviewBucket.RegionalDomainName
@@ -136,8 +150,12 @@ Resources:
           FunctionAssociations:
             - EventType: viewer-request
               FunctionARN: !GetAtt PreviewAuthFunction.FunctionMetadata.FunctionARN
-        ViewerCertificate:
-          CloudFrontDefaultCertificate: true
+        ViewerCertificate: !If
+          - HasCustomDomain
+          - AcmCertificateArn: !Ref CertificateArn
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - CloudFrontDefaultCertificate: true
       Tags:
         - Key: project
           Value: DECHIVE-WIKI
