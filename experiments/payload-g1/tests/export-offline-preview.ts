@@ -4,7 +4,7 @@ import path from 'node:path'
 import type { Browser } from 'playwright-core'
 
 const ASSETS = [
-  'hero.webp','trail.webp','journey-ai.webp','journey-civilization.webp',
+  'hero-landscape-v2.webp','trail-network-v2.webp','journey-ai.webp','journey-civilization.webp',
   'journey-life.webp','colosseum.webp','maya.webp'
 ]
 
@@ -127,6 +127,28 @@ export async function exportOfflinePreview(browser: Browser, base: string, outpu
     }
     if (e.key === 'Escape') close();
   });
-})();`
+})();
+/* DOMAIN_ARROWS_START */
+(() => {
+  const controls=document.querySelector('.ref-domain-controls');
+  if(!controls)return;
+  const list=controls.querySelector('.ref-domains-scroll');
+  const prev=controls.querySelector('.ref-domain-prev');
+  const next=controls.querySelector('.ref-domain-next');
+  if(!list||!prev||!next)return;
+  function update(){
+    controls.dataset.overflow=String(list.scrollWidth>list.clientWidth+1);
+    prev.disabled=list.scrollLeft<=2;
+    next.disabled=list.scrollLeft+list.clientWidth>=list.scrollWidth-2;
+  }
+  function move(direction){list.scrollBy({left:direction*Math.max(156,list.clientWidth*.75),behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});}
+  prev.addEventListener('click',()=>move(-1));
+  next.addEventListener('click',()=>move(1));
+  list.addEventListener('scroll',update,{passive:true});
+  const observer=new ResizeObserver(update);observer.observe(list);observer.observe(controls);
+  update();
+})();
+/* DOMAIN_ARROWS_END */
+`
   await writeFile(path.join(output, 'preview.js'), behavior, 'utf8')
 }

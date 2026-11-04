@@ -49,7 +49,7 @@ body > main:has(> .reference-home) {
   linear-gradient(180deg,#f7f8f7 0%,#edf3f2 62%,#c6dedb 100%);
   position:relative;isolation:isolate;text-align:center}
 .ref-hero-landscape{position:absolute;inset:0;
-  background-image:url('/reference/hero.webp');
+  background-image:url('/reference/hero-landscape-v2.webp');
   background-size:cover;background-position:center;
   -webkit-mask-image:linear-gradient(90deg,#000 0%,#000 18%,transparent 25%,
     transparent 75%,#000 82%,#000 100%);
@@ -120,7 +120,7 @@ body > main:has(> .reference-home) {
   background:#0c2b26;position:relative;color:white}
 .ref-trail-image{position:absolute;inset:0;background-image:
   linear-gradient(90deg,#0b2720 0%,#0b2720 43%,
-   rgba(11,39,32,.95) 47%,rgba(11,39,32,.08) 66%),url('/reference/trail.webp');
+   rgba(11,39,32,.95) 47%,rgba(11,39,32,.08) 66%),url('/reference/trail-network-v2.webp');
   background-position:center;background-size:cover}
 .ref-trail-content{position:relative;max-width:480px;padding:26px 30px;height:100%;z-index:1}
 .ref-trail-kicker{font:11px Arial,Helvetica,sans-serif;letter-spacing:1.7px}
@@ -321,7 +321,7 @@ body > main:has(> .reference-home) {
   }
   .ref-hero::before{
     content:"";position:absolute;right:0;top:0;bottom:0;width:48%;
-    background:url('/reference/hero.webp') right center/auto 350px no-repeat;
+    background:url('/reference/hero-landscape-v2.webp') right center/auto 350px no-repeat;
     -webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 78%);
     mask-image:linear-gradient(90deg,transparent 0%,#000 78%);
     pointer-events:none;z-index:-1;
@@ -346,7 +346,7 @@ body > main:has(> .reference-home) {
   .ref-trail-image{
     background-image:linear-gradient(90deg,#0b2720 0%,#0b2720 61%,
       rgba(11,39,32,.9) 75%,rgba(11,39,32,.26) 100%),
-      url('/reference/trail.webp');
+      url('/reference/trail-network-v2.webp');
   }
   .ref-trail-content{padding:25px 20px}
   .ref-trail-content h2{font-size:32px;max-width:320px}
@@ -387,3 +387,93 @@ body > main:has(> .reference-home) {
   .r-suggestions{max-height:none;overflow:visible;row-gap:5px;padding-top:7px}
   .r-suggestions button{padding:5px 8px;font-size:10px}
 }
+
+/* HEADER_LAYOUT_FIX_START — keep navigation inside its own track. */
+.ref-header {flex-shrink:0}
+.ref-brand,.ref-tools {flex-shrink:0}
+.ref-nav {overflow-x:auto;scrollbar-width:none}
+.ref-nav::-webkit-scrollbar {display:none}
+.ref-nav>* {flex:none}
+.ref-header-split-right {margin-left:0}
+@media(min-width:831px){
+  .ref-header {display:grid;grid-template-columns:auto 1px minmax(0,1fr) 1px auto}
+  .ref-header-split {margin-left:0}
+}
+@media(min-width:831px) and (max-width:1680px){
+  .ref-header {gap:12px;padding:0 24px}
+  .ref-brand {font-size:22px;gap:6px}
+  .ref-nav {gap:2px;font-size:12px}
+  .ref-nav>* {gap:5px;padding:7px 5px}
+  .ref-tools {gap:12px}
+}
+/* HEADER_LAYOUT_FIX_END */
+
+/* CLEAN_HERO_START — scenery has no baked-in typography or interface. */
+.ref-hero{height:auto;min-height:249px;background:#edf3ef}
+.ref-hero-landscape{
+  background-image:linear-gradient(90deg,#f6f8f02b 0%,#f6f8f099 32%,#f6f8f099 68%,#f6f8f02b 100%),url('/reference/hero-landscape-v2.webp');
+  background-size:cover;background-position:center;
+  -webkit-mask-image:none;mask-image:none;
+}
+.ref-hero::before{display:none}
+.ref-hero-content{padding-bottom:20px}
+.r-suggestions{flex-wrap:wrap;white-space:normal;overflow:visible;max-height:none}
+@media(max-width:830px){
+  .ref-hero{min-height:297px}
+  .ref-hero-content{padding-bottom:25px}
+}
+@media(max-width:540px){
+  .ref-hero{min-height:350px}
+  .ref-hero-landscape{background-size:cover;background-position:40% center}
+  .ref-hero-content{padding:34px 13px 28px}
+  .ref-hero h1{font-size:clamp(28px,9vw,48px);letter-spacing:-1.5px}
+  .ref-hero-tagline p{font-size:clamp(12px,3.7vw,15px);white-space:normal}
+  .ref-rule{flex:none}
+  .r-suggestions{row-gap:7px}
+}
+/* CLEAN_HERO_END */
+
+/* NAV_WRAP_START — all navigation items remain visible at narrow widths. */
+@media(max-width:1360px){
+  .ref-header{display:grid;grid-template-columns:minmax(0,1fr) auto;height:auto;min-height:56px;padding:12px 20px;gap:9px 12px}
+  .ref-brand{grid-column:1;grid-row:1;justify-self:start}
+  .ref-tools{grid-column:2;grid-row:1;margin-left:0;justify-self:end}
+  .ref-header-split{display:none}
+  .ref-nav{grid-column:1 / -1;grid-row:2;order:initial;display:flex;flex-wrap:wrap;justify-content:flex-start;gap:4px 8px;width:100%;min-width:0;overflow:visible;border-top:1px solid #e9eae5;padding-top:8px;font-size:12px}
+  .ref-nav>*{flex:0 0 auto;padding:8px 10px;max-width:100%}
+}
+@media(max-width:540px){
+  .ref-header{padding:10px 12px;column-gap:10px}
+  .ref-brand{font-size:20px;gap:6px}
+  .ref-brand svg{width:24px;height:24px}
+  .ref-tools{gap:9px}
+  .ref-tools svg{width:18px;height:18px}
+  .ref-nav{gap:4px 3px;font-size:11px}
+  .ref-nav>*{gap:5px;padding:8px 6px}
+  .ref-nav svg{width:18px;height:18px;flex:none}
+}
+/* NAV_WRAP_END */
+
+/* TRAIL_DOMAINS_START */
+.ref-trail-image{background-image:linear-gradient(90deg,#06251c 0%,#06251cf2 42%,#06251c99 62%,#06251c14 100%),url('/reference/trail-network-v2.webp');background-position:center;background-size:cover}
+.ref-knowledge-trail{height:auto;min-height:254px}
+.ref-trail-content{height:auto;padding-bottom:28px}
+.ref-light-cta{position:static;display:inline-flex;margin-top:20px}
+.ref-domain-controls{display:flex;align-items:center;gap:6px;flex:1;min-width:0}
+.ref-domain-controls .ref-domains-scroll{min-width:0;max-width:none;overflow-x:auto;scrollbar-width:none;scroll-snap-type:x proximity}
+.ref-domains-scroll::-webkit-scrollbar{display:none}
+.ref-domain{scroll-snap-align:start}
+.ref-domain-arrow{display:inline-flex;align-items:center;justify-content:center;flex:0 0 34px;width:34px;height:38px;padding:0;border:1px solid #cdd8cf;border-radius:50%;background:#fff;color:#173d2b;cursor:pointer;font:28px/1 Arial,sans-serif}
+.ref-domain-arrow:hover:not(:disabled){background:#e7efe6;border-color:#86a18e}
+.ref-domain-arrow:disabled{opacity:.3;cursor:default}
+.ref-domain-controls[data-overflow="false"] .ref-domain-arrow{display:none}
+@media(max-width:540px){
+ .ref-trail-image{background-image:linear-gradient(90deg,#06251cf5 0%,#06251ce0 55%,#06251c80 100%),url('/reference/trail-network-v2.webp');background-position:60% center}
+ .ref-knowledge-trail{min-height:275px}
+ .ref-domain-strip{padding:0 8px}
+ .ref-domains-label{flex:0 0 94px;padding:0 5px}
+ .ref-domains-label>svg{display:none}
+ .ref-domain-controls{gap:3px}
+ .ref-domain-arrow{flex-basis:28px;width:28px;height:32px;font-size:24px}
+}
+/* TRAIL_DOMAINS_END */
