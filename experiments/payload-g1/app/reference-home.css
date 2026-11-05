@@ -509,3 +509,10 @@ body > main:has(> .reference-home) {
   .ref-nav::-webkit-scrollbar-track{background:transparent}
 }
 /* SINGLE_ROW_NAV_END */
+
+/* DESKTOP_HERO_HEIGHT_START */
+@media(min-width:831px){
+ .ref-hero{height:auto;min-height:500px;display:flex;align-items:center;justify-content:center}
+ .ref-hero-content{width:100%;padding-top:24px;padding-bottom:24px}
+}
+/* DESKTOP_HERO_HEIGHT_END */
