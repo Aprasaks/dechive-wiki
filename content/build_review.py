@@ -13,6 +13,9 @@ from validate_frontmatter import validate
 
 ROOT = Path(__file__).resolve().parent
 
+def header():
+    return '''<header class="brand"><a class="wordmark" href="https://dechive.wiki/" target="_blank" rel="noopener noreferrer" aria-label="Open DECHIVE.WIKI homepage in a new tab"><svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 2 29 9v14l-13 7L3 23V9Z M3 9l13 7 13-7 M16 16v14 M9 5l13 7"/></svg>DECHIVE.WIKI</a><span class="review-badge">Unpublished preview</span></header>'''
+
 def esc(value):
     return html.escape(value, quote=True)
 
@@ -132,13 +135,12 @@ def build(markdown, domain_href=None):
 <title>Editorial review — '''+esc(data['title'])+''' | DECHIVE.WIKI</title>
 <style>'''+(ROOT/'review.css').read_text()+'''</style></head><body>
 <a class="skip" href="#article">Skip to article</a>
-<header class="brand">DECHIVE.WIKI <span>Editorial preview</span></header>
-<div class="notice" role="note">Unpublished draft · For editorial review only. This file contains the draft; do not upload it to a public host. Source checks and image selection remain open.</div>
-<div class="layout"><aside><details open><summary>On this page</summary><nav aria-label="Article contents"><ol>'''+navigation+'''</ol></nav></details></aside>
+'''+header()+'''
+<details class="notice"><summary>Editorial review · Not published</summary><p>This file contains an unpublished draft. Do not upload it to a public host. Source checks and image selection remain open. Public sharing and account bookmarks are not available in this offline preview.</p></details>
+<div class="layout"><aside><details open><summary>On this page</summary><nav aria-label="Article contents"><ul class="toc-list">'''+navigation+'''</ul></nav></details></aside>
 <main id="article"><div class="domains">'''+domain_label+'''</div><h1>'''+esc(data['title'])+'''</h1>
 <p class="summary">'''+esc(data['summary'])+'''</p>
 <p class="state">English draft · Not approved or published</p>
-<p class="feature-note">Public sharing and account bookmarks become available on the published article. No public article URL has been assigned.</p>
 <article>'''+rendered+'''</article><footer>End of editorial preview · <a href="#article">Back to top</a></footer></main></div></body></html>'''
 
 def build_domain_review(domain, manuscripts):
@@ -149,7 +151,7 @@ def build_domain_review(domain, manuscripts):
         if domain not in [data['primary_domain']]+data.get('secondary_domains',[]):
             continue
         items.append('<li><a href="'+esc(data['slug'])+'.en.html">'+esc(data['title'])+'</a><p>'+esc(data['summary'])+'</p><small>Unpublished candidate · Editorial review only</small></li>')
-    return '''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><title>Editorial domain review — '''+esc(domain)+'''</title><style>'''+(ROOT/'review.css').read_text()+'''</style></head><body><header class="brand">DECHIVE.WIKI <span>Domain template review</span></header><div class="notice">Offline editorial preview. Draft candidates below are not published entries.</div><main style="max-width:800px;margin:48px auto;padding:0 24px"><h1>'''+esc(domain)+'''</h1><p class="summary">Explore related knowledge and the connections between subjects in this field.</p><h2>Published entries</h2><p>No public catalog is connected to this offline preview.</p><h2>Editorial candidates</h2>'''+('<ul>'+''.join(items)+'</ul>' if items else '<p>No matching candidates in this review bundle.</p>')+'''</main></body></html>'''
+    return '''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><title>Editorial domain review — '''+esc(domain)+'''</title><style>'''+(ROOT/'review.css').read_text()+'''</style></head><body>'''+header()+'''<div class="notice">Offline editorial preview. Draft candidates below are not published entries.</div><main style="max-width:800px;margin:48px auto;padding:0 24px"><h1>'''+esc(domain)+'''</h1><p class="summary">Explore related knowledge and the connections between subjects in this field.</p><h2>Published entries</h2><p>No public catalog is connected to this offline preview.</p><h2>Editorial candidates</h2>'''+('<ul>'+''.join(items)+'</ul>' if items else '<p>No matching candidates in this review bundle.</p>')+'''</main></body></html>'''
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
