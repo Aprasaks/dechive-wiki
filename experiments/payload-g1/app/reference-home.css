@@ -517,10 +517,6 @@ body > main:has(> .reference-home) {
 }
 /* DESKTOP_HERO_HEIGHT_END */
 
-/* WIDE_HEADER_COMPACT_START */
-@media(min-width:1361px){
- .ref-header{padding-inline:max(24px, calc((100vw - 1680px)/2))}
- .ref-nav{justify-content:flex-start;gap:8px}
-}
-@media(min-width:1681px){.ref-nav{gap:13px}}
-/* WIDE_HEADER_COMPACT_END */
+/* NAV_SPACING_ONLY_START */
+@media(min-width:1361px){.ref-nav{justify-content:flex-start;gap:13px}}
+/* NAV_SPACING_ONLY_END */
