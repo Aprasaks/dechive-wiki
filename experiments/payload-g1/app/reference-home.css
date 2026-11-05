@@ -516,3 +516,11 @@ body > main:has(> .reference-home) {
  .ref-hero-content{width:100%;padding-top:24px;padding-bottom:24px}
 }
 /* DESKTOP_HERO_HEIGHT_END */
+
+/* WIDE_HEADER_COMPACT_START */
+@media(min-width:1361px){
+ .ref-header{padding-inline:max(24px, calc((100vw - 1680px)/2))}
+ .ref-nav{justify-content:flex-start;gap:8px}
+}
+@media(min-width:1681px){.ref-nav{gap:13px}}
+/* WIDE_HEADER_COMPACT_END */
