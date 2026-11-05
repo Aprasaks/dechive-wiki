@@ -93,3 +93,7 @@ Requires Python 3 and PyYAML. Run from the repository root:
     python3 content/validate_frontmatter.py content/drafts/pompeii.en.md
 
 This checks field shape, duplicate keys, English-only pilot scope and H1 consistency. Taxonomy/type resolution, asset rights, factual review, HTML escaping and runtime publication gates are separate requirements. Five invalid-input probes (robots override, duplicate title, authored canonical, unsafe slug and unsupported language) were rejected during this change.
+
+## Product implementation reference
+
+See [ARTICLE_DISCOVERY_AND_SHARING.md](ARTICLE_DISCOVERY_AND_SHARING.md) for category templates, subject relations, Journey semantics, share controls, account bookmark requirements and the pending acceptance checklist. Proposed product fields are not additions to the current frontmatter validator until implemented.
