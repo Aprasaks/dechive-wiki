@@ -25,3 +25,13 @@ dialog{width:min(520px,calc(100% - 32px));max-height:85vh;overflow:auto;border:1
 @media(max-width:900px){aside{position:static;max-height:none}}
 @media(max-width:540px){.site-header{padding:0 12px}.wordmark{font-size:20px;gap:6px}.header-top{gap:8px;min-height:58px}.header-tools{gap:0}.header-tools button{padding:8px}.header-tools button span{display:none}.site-nav{gap:3px}.site-nav a,.site-nav button{padding:8px 9px;font-size:12px}.article-actions{flex-wrap:wrap}.article-actions small{font-size:11px}.site-header .wordmark svg{width:25px;height:25px}}
 @media print{.site-header,.article-actions,dialog,noscript{display:none}}
+/* Match the homepage's icon navigation and responsive header proportions. */
+.site-nav a,.site-nav button{display:inline-flex;align-items:center;gap:7px}
+.site-nav svg{width:20px;height:20px;flex:none}
+.site-nav a:first-child{background:transparent}
+.header-tools{gap:12px;border-left:1px solid #bec9c0;padding-left:18px}
+.header-tools button{padding:7px}
+@media(min-width:1361px){.site-header{display:flex;align-items:center;gap:18px;padding:0 24px}.header-top{display:contents}.wordmark{order:0;font-size:22px}.site-nav{order:1;flex:1;justify-content:space-between;border:0;padding:8px 0}.site-nav a,.site-nav button{padding:7px 5px;gap:5px;font-size:12px}.header-tools{order:2;min-height:55px}.header-tools button span{display:none}aside{top:76px;max-height:calc(100vh - 100px)}html{scroll-padding-top:80px}}
+@media(max-width:1360px){.site-header{display:block;padding:0 20px}.header-top{display:flex;min-height:56px}.site-nav{justify-content:flex-start;border-top:1px solid #e9eae5;padding:8px 0 5px}.header-tools{border:0;padding-left:0}.wordmark{font-size:22px}aside{top:130px;max-height:calc(100vh - 150px)}html{scroll-padding-top:140px}}
+@media(max-width:900px){aside{position:static;max-height:none}}
+@media(max-width:540px){.site-header{padding:0 12px}.site-nav{gap:3px}.site-nav a,.site-nav button{padding:8px 6px;font-size:11px;gap:5px}.site-nav svg{width:18px;height:18px}.header-tools{gap:3px}.header-tools button{padding:7px}.wordmark{font-size:20px}}
