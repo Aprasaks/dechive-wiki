@@ -32,6 +32,9 @@ These are product goals, **not shipped features**.
 
 ## Current status
 
+See the [2026-11-05 implementation audit](content/IMPLEMENTATION_AUDIT_2026-11-05.md) for the content branch's current gaps, offline article/domain review and next steps, and [article/discovery/sharing requirements](content/ARTICLE_DISCOVERY_AND_SHARING.md). Historical architecture status below is not a live infrastructure inventory. The protected homepage preview is distinct from the private reader pilot and unpublished manuscript.
+
+
 **Pre-implementation / architecture validation — production NO-GO.**
 
 The initial architecture and automation designs are proposals. No production deployment, database migration, public content catalog, or autonomous publishing system is claimed to exist.
