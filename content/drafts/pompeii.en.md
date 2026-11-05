@@ -2,12 +2,17 @@
 title: Pompeii
 slug: pompeii
 language: en
-status: draft
 document_type: place
+summary: >-
+  An ancient town in southern Italy buried by Vesuvius in AD 79,
+  preserving evidence of Roman life, disaster and archaeological discovery.
 primary_domain: History
 secondary_domains: [Society, Earth, Arts & Culture]
-reviewed_sources_on: 2026-11-05
-publication_status: unpublished
+seo:
+  title: "Pompeii: History, Daily Life and the AD 79 Eruption | DECHIVE.WIKI"
+  description: >-
+    Explore Pompeii's history, Roman daily life, the AD 79 eruption,
+    archaeological discoveries, and the evidence behind debated interpretations.
 ---
 
 # Pompeii
