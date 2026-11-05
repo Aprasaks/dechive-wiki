@@ -477,3 +477,52 @@ body > main:has(> .reference-home) {
  .ref-domain-arrow{flex-basis:28px;width:28px;height:32px;font-size:24px}
 }
 /* TRAIL_DOMAINS_END */
+
+/* COMPACT_HERO_SEARCH_START — search has its own width, independent of scenery. */
+.r-search-area{width:100%;max-width:850px}
+.r-search{
+  width:100%;max-width:640px;margin-inline:auto;height:48px;
+  padding:4px 6px 4px 17px;gap:12px;
+}
+.r-search input{font-size:15px}
+.r-search-icon svg{width:20px;height:20px}
+.r-search-shortcut{font-size:11px;padding:3px 5px}
+.r-search-button{height:38px;padding:0 22px;font-size:13px!important;flex:none}
+@media(max-width:540px){
+  .r-search{height:48px;padding:4px 5px 4px 12px;gap:8px}
+  .r-search input{font-size:16px}
+  .r-search-icon svg{width:18px;height:18px}
+  .r-search-button{height:38px;padding:0 16px;font-size:12px!important}
+}
+/* COMPACT_HERO_SEARCH_END */
+
+/* SINGLE_ROW_NAV_START — touch/trackpad horizontal navigation, never a second menu row. */
+@media(max-width:1360px){
+  .ref-nav{
+    flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;justify-content:flex-start;
+    scrollbar-width:thin;scrollbar-color:#a4b5a7 transparent;
+    overscroll-behavior-x:contain;scroll-snap-type:x proximity;padding-bottom:5px;
+  }
+  .ref-nav>*{flex:0 0 auto;white-space:nowrap;scroll-snap-align:start}
+  .ref-nav::-webkit-scrollbar{display:block;height:3px}
+  .ref-nav::-webkit-scrollbar-thumb{background:#a4b5a7;border-radius:3px}
+  .ref-nav::-webkit-scrollbar-track{background:transparent}
+}
+/* SINGLE_ROW_NAV_END */
+
+/* DESKTOP_HERO_HEIGHT_START */
+@media(min-width:831px){
+ .ref-hero{height:auto;min-height:500px;display:flex;align-items:center;justify-content:center}
+ .ref-hero-content{width:100%;padding-top:24px;padding-bottom:24px}
+}
+/* DESKTOP_HERO_HEIGHT_END */
+
+/* NAV_SPACING_ONLY_START */
+@media(min-width:1361px){.ref-nav{justify-content:flex-start;gap:13px}}
+/* NAV_SPACING_ONLY_END */
+
+/* STICKY_HEADER_START */
+.ref-header{position:sticky;top:0;z-index:100}
+.reference-home [id]{scroll-margin-top:70px}
+@media(max-width:1360px){.reference-home [id]{scroll-margin-top:130px}}
+/* STICKY_HEADER_END */
