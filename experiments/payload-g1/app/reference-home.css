@@ -495,3 +495,17 @@ body > main:has(> .reference-home) {
   .r-search-button{height:38px;padding:0 16px;font-size:12px!important}
 }
 /* COMPACT_HERO_SEARCH_END */
+
+/* SINGLE_ROW_NAV_START — touch/trackpad horizontal navigation, never a second menu row. */
+@media(max-width:1360px){
+  .ref-nav{
+    flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;justify-content:flex-start;
+    scrollbar-width:thin;scrollbar-color:#a4b5a7 transparent;
+    overscroll-behavior-x:contain;scroll-snap-type:x proximity;padding-bottom:5px;
+  }
+  .ref-nav>*{flex:0 0 auto;white-space:nowrap;scroll-snap-align:start}
+  .ref-nav::-webkit-scrollbar{display:block;height:3px}
+  .ref-nav::-webkit-scrollbar-thumb{background:#a4b5a7;border-radius:3px}
+  .ref-nav::-webkit-scrollbar-track{background:transparent}
+}
+/* SINGLE_ROW_NAV_END */
