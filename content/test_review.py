@@ -6,6 +6,7 @@ import base64
 from html.parser import HTMLParser
 from pathlib import Path
 from build_review import build, build_domain_review, render_body, inline
+from review_shell import header
 
 class Inspect(HTMLParser):
     def __init__(self):
@@ -65,5 +66,10 @@ class ReviewTests(unittest.TestCase):
         p=Inspect();p.feed(build_domain_review('Technology',[md]));self.assertNotIn('pompeii.en.html',p.links)
         self.assertIn('Unpublished candidate',build_domain_review('History',[md]))
         with self.assertRaises(ValueError):build(md,'https://example.com/')
+    def test_home_link_uses_top_in_same_tab_and_real_logo(self):
+        h=header()
+        self.assertIn('href="https://dechive.wiki/#top"',h)
+        self.assertNotIn('target="_blank"',h)
+        self.assertIn('M3 7 12 3l9 4v11l-9 4-9-4V7Z',h)
 
 if __name__=='__main__':unittest.main()
