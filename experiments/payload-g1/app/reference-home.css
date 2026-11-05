@@ -520,3 +520,9 @@ body > main:has(> .reference-home) {
 /* NAV_SPACING_ONLY_START */
 @media(min-width:1361px){.ref-nav{justify-content:flex-start;gap:13px}}
 /* NAV_SPACING_ONLY_END */
+
+/* STICKY_HEADER_START */
+.ref-header{position:sticky;top:0;z-index:100}
+.reference-home [id]{scroll-margin-top:70px}
+@media(max-width:1360px){.reference-home [id]{scroll-margin-top:130px}}
+/* STICKY_HEADER_END */
