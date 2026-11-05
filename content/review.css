@@ -36,3 +36,11 @@ dialog{width:min(520px,calc(100% - 32px));max-height:85vh;overflow:auto;border:1
 @media(max-width:900px){aside{position:static;max-height:none}}
 @media(max-width:540px){.site-header{padding:0 12px}.site-nav{gap:3px}.site-nav a,.site-nav button{padding:8px 6px;font-size:11px;gap:5px}.site-nav svg{width:18px;height:18px}.header-tools{gap:3px}.header-tools button{padding:7px}.wordmark{font-size:20px}}
 @media(min-width:1681px){.site-header{padding:0 42px;gap:21px}.wordmark{font-size:28px;gap:11px}.site-nav{gap:13px;font-size:14px}.site-nav a,.site-nav button{font-size:14px;padding:7px 9px;gap:7px}.header-tools{gap:21px}}
+
+/* Keep desktop navigation compact and align both edges within a readable width. */
+@media(min-width:1361px){
+ .site-header{padding-inline:max(24px, calc((100vw - 1680px)/2));gap:18px}
+ .site-nav{justify-content:flex-start;flex:0 1 auto;min-width:0;gap:8px}
+ .header-tools{margin-left:auto;flex:none}
+}
+@media(min-width:1681px){.site-nav{gap:13px}}
