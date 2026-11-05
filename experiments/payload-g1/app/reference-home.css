@@ -477,3 +477,21 @@ body > main:has(> .reference-home) {
  .ref-domain-arrow{flex-basis:28px;width:28px;height:32px;font-size:24px}
 }
 /* TRAIL_DOMAINS_END */
+
+/* COMPACT_HERO_SEARCH_START — search has its own width, independent of scenery. */
+.r-search-area{width:100%;max-width:850px}
+.r-search{
+  width:100%;max-width:640px;margin-inline:auto;height:48px;
+  padding:4px 6px 4px 17px;gap:12px;
+}
+.r-search input{font-size:15px}
+.r-search-icon svg{width:20px;height:20px}
+.r-search-shortcut{font-size:11px;padding:3px 5px}
+.r-search-button{height:38px;padding:0 22px;font-size:13px!important;flex:none}
+@media(max-width:540px){
+  .r-search{height:48px;padding:4px 5px 4px 12px;gap:8px}
+  .r-search input{font-size:16px}
+  .r-search-icon svg{width:18px;height:18px}
+  .r-search-button{height:38px;padding:0 16px;font-size:12px!important}
+}
+/* COMPACT_HERO_SEARCH_END */
