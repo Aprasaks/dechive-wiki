@@ -59,3 +59,9 @@ These checks do not prove production SEO, responsive visual rendering, browser k
 Open content/reviews/pompeii.en.html and follow History to its sibling domain template. Both files are self-contained; keep them together. Rebuild after manuscript or stylesheet edits. Requires Python 3 and the same PyYAML dependency as the existing frontmatter validator.
 
 The renderer intentionally covers only this manuscript's Markdown subset (headings, paragraphs, lists, pipe tables, bold/emphasis, HTTPS auto-links and S-references). It is not a general Markdown engine or production rendering library. Production integration should select and pin a maintained renderer and sanitization policy with browser tests; do not silently expand this pilot parser into the public runtime.
+
+## Follow-up: complete offline review chrome
+
+Shared sticky header now includes the main menu, search, Saved and Sign in controls on both review pages. The menu remains one horizontally scrollable row at narrow widths. Native modal panels expose offline two-page search, account-connection status, unavailable collections and unpublished share restrictions. No credentials, account records or network requests are collected by this UI. Public share/account integration remains unimplemented. Article Save/Share controls demonstrate placement and honestly explain unavailable actions.
+
+This supersedes the baseline's script-free/no-buttons description: a single trusted review script is embedded and authorized by its exact SHA-256 CSP hash; raw authored HTML remains escaped. Eight Python checks plus JavaScript syntax validation pass locally. No browser interaction/visual pass is claimed. Full live runtime integration and assets remain next work.

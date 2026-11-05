@@ -1,5 +1,8 @@
 """Integrity and isolation checks for the offline review renderer."""
 import unittest
+import re
+import hashlib
+import base64
 from html.parser import HTMLParser
 from pathlib import Path
 from build_review import build, build_domain_review, render_body, inline
@@ -18,7 +21,7 @@ class ReviewTests(unittest.TestCase):
         page=build((Path(__file__).parent/'drafts/pompeii.en.md').read_text())
         p=Inspect();p.feed(page)
         self.assertEqual(p.tags.count('h1'),1)
-        self.assertEqual(p.tags.count('h2'),17)  # 14 chapters + glance, glossary, sources
+        self.assertEqual(p.tags.count('h2'),18)  # 17 article headings + review panel heading
         self.assertEqual(p.tags.count('table'),3)
         self.assertEqual(len(p.ids),len(set(p.ids)))
         for href in p.links:
@@ -39,15 +42,27 @@ class ReviewTests(unittest.TestCase):
         page=build((Path(__file__).parent/'drafts/pompeii.en.md').read_text())
         p=Inspect();p.feed(page)
         self.assertIn({'name':'robots','content':'noindex,nofollow,noarchive'},p.meta)
-        self.assertNotIn('script',p.tags)
-        self.assertNotIn('og:',page);self.assertNotIn('rel="canonical"',page)
+        self.assertEqual(p.tags.count('script'),1)  # trusted hash-authorized UI only
+        self.assertFalse(any(m.get('property','').startswith('og:') for m in p.meta));self.assertNotIn('rel="canonical"',page)
         self.assertNotIn('datePublished',page)
     def test_malformed_table_fails(self):
         with self.assertRaises(ValueError):render_body('| a | b |\n| --- | --- |\n| one |')
+    def test_review_controls_have_hash_authorization_without_credentials(self):
+        page=build((Path(__file__).parent/'drafts/pompeii.en.md').read_text())
+        scripts=re.findall(r'<script>(.*?)</script>',page,re.S)
+        self.assertEqual(len(scripts),1)
+        digest=base64.b64encode(hashlib.sha256(scripts[0].encode()).digest()).decode()
+        p=Inspect();p.feed(page)
+        policy=next(m['content'] for m in p.meta if m.get('http-equiv')=='Content-Security-Policy')
+        self.assertIn("script-src 'sha256-"+digest+"'",policy)
+        self.assertNotIn('form',p.tags)
+        self.assertNotIn('type="password"',page)
+        for expected in ['review-panel','review-query','close-panel','review-results']:
+            self.assertIn(expected,p.ids)
     def test_domain_candidates_are_not_published_or_unrelated(self):
         md=(Path(__file__).parent/'drafts/pompeii.en.md').read_text()
         self.assertIn('pompeii.en.html',build_domain_review('History',[md]))
-        self.assertNotIn('pompeii.en.html',build_domain_review('Technology',[md]))
+        p=Inspect();p.feed(build_domain_review('Technology',[md]));self.assertNotIn('pompeii.en.html',p.links)
         self.assertIn('Unpublished candidate',build_domain_review('History',[md]))
         with self.assertRaises(ValueError):build(md,'https://example.com/')
 
