@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process'
 import { Pool } from 'pg'
 import { getPayload } from 'payload'
 import config from '../native-auth.config.ts'
+import { packageHash } from '../lib/multi-source-review'
 
 const BASE = 'http://127.0.0.1:3100'
 const admin = new Pool({ connectionString: process.env.DATABASE_URL })
@@ -462,10 +463,10 @@ try{
   await check('Private long draft preserves multiple sources and cannot use the single-source approval path',async()=>{
     const longBody='SYNTHETIC PRIVATE LONG DRAFT. '.repeat(600)+'A synthetic claim.'
     const supplementalEvidence={sources:[
-      {id:'s1',url:'https://example.invalid/source-one'},
-      {id:'s2',url:'https://example.invalid/source-two'}],
-      claims:[{id:'c1',statement:'A synthetic claim.',sourceIds:['s1','s2']}],
-      media:[{id:'m1',rightsStatus:'pending'}]}
+      {id:'s1',url:'https://example.invalid/source-one',description:'Source one'},
+      {id:'s2',url:'https://example.invalid/source-two',description:'Source two'}],
+      claims:[{id:'c1',statement:'A synthetic claim.',anchor:'body',sourceIds:['s1','s2']}],
+      media:[{id:'m1',objectKey:'review/example.webp',sha256:'a'.repeat(64),alt:'Synthetic image',credit:'Test author',rightsStatus:'pending' as const}]}
     const created=await fetchRaw('/api/editorial-drafts?draft=true','POST',{
       stableEntityId:randomUUID(),title:'Synthetic multi-source draft',
       body:longBody,supplementalEvidence,_status:'draft',
@@ -484,6 +485,30 @@ try{
       claim:'A synthetic claim.',anchor:'body',pinpoint:'section 1',licenseDeclaration:'unknown',
     },tokens.editor)
     assert.equal(candidate.status,409,candidate.text.slice(0,400))
+    const snapshotHash=packageHash({title:'Synthetic multi-source draft',body:longBody,...supplementalEvidence})
+    const review={draftId:id,snapshotHash,evidence:[
+      {claimId:'c1',sourceId:'s1',verdict:'verified',note:'Reviewed source one'},
+      {claimId:'c1',sourceId:'s2',verdict:'verified',note:'Reviewed source two'}],
+      media:[{mediaId:'m1',verdict:'cleared',note:'Reviewed image rights'}]}
+    for(const jwt of [undefined,tokens.editor,tokens.publisher]){
+      const blocked=await fetchRaw('/api/multi-source-reviews','POST',review,jwt)
+      denied(blocked)
+    }
+    const missing=await fetchRaw('/api/multi-source-reviews','POST',{...review,evidence:review.evidence.slice(0,1)},tokens.reviewer)
+    assert.equal(missing.status,400,missing.text.slice(0,400))
+    const reviewed=await fetchRaw('/api/multi-source-reviews','POST',{...review,reviewerId:'forged'},tokens.reviewer)
+    assert.ok([200,201].includes(reviewed.status),reviewed.text.slice(0,500))
+    assert.equal(String(reviewed.json.doc.reviewerId),String(seededAccounts.reviewer.id))
+    assert.equal(reviewed.json.doc.snapshot.body,longBody)
+    const reviewId=reviewed.json.doc.id
+    const update=await fetchRaw('/api/multi-source-reviews/'+reviewId,'PATCH',{snapshotHash:'f'.repeat(64)},tokens.reviewer)
+    denied(update)
+    const edited=await fetchRaw('/api/editorial-drafts/'+id+'?draft=true','PATCH',{body:longBody+' changed'},tokens.editor)
+    assert.equal(edited.status,200)
+    const stale=await fetchRaw('/api/multi-source-reviews','POST',review,tokens.reviewer)
+    assert.equal(stale.status,400,stale.text.slice(0,400))
+    const originalReview=await fetchRaw('/api/multi-source-reviews/'+reviewId,'GET',undefined,tokens.reviewer)
+    assert.equal(originalReview.json.snapshot.body,longBody)
     assert.equal((await fetchRaw('/sitemap.xml')).text.includes('SYNTHETIC PRIVATE LONG DRAFT'),false)
   })
   const candidateEntity=randomUUID()
