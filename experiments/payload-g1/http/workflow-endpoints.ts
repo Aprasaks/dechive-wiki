@@ -42,6 +42,12 @@ const approval: Endpoint = {
       req, overrideAccess: false, draft: true,
     })
     if (!doc) throw new APIError('DRAFT_NOT_FOUND', 404)
+    // The v1 approval signature only covers the body and cannot attest the
+    // multi-source snapshot or its review decisions. Fail closed until that
+    // complete snapshot is bound and validated by the database gate.
+    if (doc.supplementalEvidence != null) {
+      throw new APIError('MULTI_SOURCE_APPROVAL_NOT_AVAILABLE', 409)
+    }
     const revision = await reviewerPool.query(
       'SELECT id,entity_id,body,checksum FROM kg.revisions WHERE id=$1::uuid',
       [revisionId],
