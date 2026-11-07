@@ -4,6 +4,8 @@ import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { g1WorkflowEndpoints } from './http/workflow-endpoints'
 import { candidateEndpoint } from './http/candidate-endpoint'
 import { reviewerDecisionEndpoints } from './http/reviewer-decision-endpoints'
+import { assessMultiSourceReview, packageHash } from './lib/multi-source-review'
+import type { EditorialPackage } from './lib/editorial-package'
 
 // Isolated G1 security test config: separate from the existing P0/G1 fixture.
 // IMPORTANT: never deploy this disposable database-push config to production.
@@ -99,13 +101,51 @@ const EditorialDrafts: CollectionConfig = {
   ],
 }
 
+// Synthetic private experiment only. Records never authorize KG publication.
+// Capture the reviewed snapshot so a later editor change cannot rewrite history.
+const MultiSourceReviews: CollectionConfig = {
+  slug:'multi-source-reviews',
+  access:{create:({req})=>isReviewer(req.user),read:({req})=>isReviewer(req.user),
+    update:()=>false,delete:()=>false},
+  hooks:{beforeChange:[async({data,req,operation})=>{
+    if(operation!=='create'||!isReviewer(req.user))throw new APIError('REVIEWER_REQUIRED',403)
+    const draftId=Number(data?.draftId)
+    if(!Number.isSafeInteger(draftId)||draftId<1||typeof data?.snapshotHash!=='string'||
+      !Array.isArray(data?.evidence)||!Array.isArray(data?.media))throw new APIError('INVALID_REVIEW',400)
+    const draft=await req.payload.findByID({collection:'editorial-drafts',id:draftId,req,overrideAccess:false,draft:true})
+    const extra=draft?.supplementalEvidence as Record<string,unknown>|null
+    if(!extra||!Array.isArray(extra.sources)||!Array.isArray(extra.claims)||!Array.isArray(extra.media))throw new APIError('INVALID_DRAFT_PACKAGE',400)
+    const p={title:draft.title,body:draft.body,sources:extra.sources,claims:extra.claims,media:extra.media} as EditorialPackage
+    const editor=typeof draft.createdBy==='object' ? draft.createdBy?.id : draft.createdBy
+    const reviewer=actor(req.user)?.id
+    if(!editor||!reviewer||String(editor)===String(reviewer))throw new APIError('INDEPENDENT_REVIEWER_REQUIRED',403)
+    try {
+      if(data.snapshotHash!==packageHash(p))throw new Error('stale')
+      const assessment=assessMultiSourceReview(p,{snapshotHash:data.snapshotHash,editorId:String(editor),reviewerId:String(reviewer),evidence:data.evidence,media:data.media})
+      if(!assessment.readyForHumanGate)throw new Error('incomplete')
+    } catch { throw new APIError('REVIEW_INVALID_STALE_OR_INCOMPLETE',400) }
+    // Discard client-provided identity or snapshot; set both from trusted server state.
+    return {draftId,snapshotHash:data.snapshotHash,snapshot:p,evidence:data.evidence,media:data.media,
+      reviewerId:String(reviewer),editorId:String(editor)}
+  }]},
+  fields:[
+    {name:'draftId',type:'number',required:true},
+    {name:'snapshotHash',type:'text',required:true},
+    {name:'snapshot',type:'json',required:true},
+    {name:'evidence',type:'json',required:true},
+    {name:'media',type:'json',required:true},
+    {name:'reviewerId',type:'text',required:true},
+    {name:'editorId',type:'text',required:true},
+  ],
+}
+
 export default buildConfig({
   secret: process.env.PAYLOAD_SECRET ?? '',
   serverURL: process.env.G1_TRUSTED_ORIGIN || 'http://127.0.0.1:3100',
   csrf: [process.env.G1_TRUSTED_ORIGIN || 'http://127.0.0.1:3100'],
   admin: { user: 'staff' },
   editor: lexicalEditor(),
-  collections: [Staff, EditorialDrafts],
+  collections: [Staff, EditorialDrafts, MultiSourceReviews],
   endpoints: [...g1WorkflowEndpoints,candidateEndpoint,...reviewerDecisionEndpoints],
   db: postgresAdapter({
     pool: { connectionString: process.env.DATABASE_URL ?? '' },
