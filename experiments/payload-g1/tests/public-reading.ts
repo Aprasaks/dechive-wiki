@@ -40,6 +40,20 @@ try{
   if(i===0){firstRevision=row.revision;firstSource=row.source}
  }
  privateId=(await seed('SYNTHETIC PRIVATE '+tag+' SECRET_UNPUBLISHED_EVIDENCE',false)).id
+ await check('Multi-source snapshot is revision-bound, immutable and cannot be approved through the legacy path',async()=>{
+  const entity=randomUUID(),rev=randomUUID(),source=randomUUID(),body='SYNTHETIC LONG BODY '.repeat(1000)
+  await admin.query('INSERT INTO kg.entities(id,kind,name) VALUES($1,$2,$3)',[entity,'concept','Synthetic multi-source'])
+  await admin.query('INSERT INTO kg.revisions(id,entity_id,locale,body) VALUES($1,$2,$3,$4)',[rev,entity,'en',body])
+  await admin.query('INSERT INTO kg.claims VALUES($1,$2,$3,$4)',[rev,'claim-1','intro','SYNTHETIC LONG BODY'])
+  await admin.query('INSERT INTO kg.sources(id,locator,description) VALUES($1,$2,$3)',[source,'https://example.invalid/'+source,'Synthetic source'])
+  await admin.query('INSERT INTO kg.claim_evidence(revision_id,claim_key,source_id,stance,pinpoint,reviewer) VALUES($1,$2,$3,$4,$5,$6)',[rev,'claim-1',source,'supports','section 1','synthetic'])
+  const data=JSON.stringify({body,sources:[{id:'s1'},{id:'s2'}]})
+  await admin.query("INSERT INTO kg.multi_source_snapshots(revision_id,review_record_id,package_digest,package_data) VALUES($1,'synthetic',encode(public.digest(convert_to(($2::jsonb)::text,'UTF8'),'sha256'),'hex'),$2::jsonb)",[rev,data])
+  await assert.rejects(admin.query('UPDATE kg.multi_source_snapshots SET review_record_id=$2 WHERE revision_id=$1',[rev,'changed']),/IMMUTABLE_REVISION_OR_SNAPSHOT/)
+  await assert.rejects(admin.query('INSERT INTO kg.approvals(revision_id,reviewer) VALUES($1,$2)',[rev,'synthetic']),/MULTI_SOURCE_APPROVAL_NOT_IMPLEMENTED/)
+  await assert.rejects(reader.query('SELECT * FROM kg.multi_source_snapshots'),/permission denied/)
+  assert.equal(await readApproved(reader,entity),undefined)
+ })
  const unsafeSource=randomUUID(),dispute=randomUUID()
  // Additional evidence is inserted on a fresh revision before approval.
  const conflictId=randomUUID(),conflictRevision=randomUUID()
