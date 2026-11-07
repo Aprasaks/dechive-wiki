@@ -24,8 +24,8 @@ export default async function SearchPage({searchParams}:{searchParams:Promise<Pa
    <><h2>Results for “{q}”</h2>
     {!data?.results.length?<p role="status">No approved records matching “{q}” are available. Try another phrase.</p>:
      <ul className="reading-results">{data.results.map(r=><li key={r.entity_id}>
-      <h3><a href={'/knowledge/'+r.entity_id}>{entryTitle(r.body)}</a></h3>
-      <p>{r.body.slice(0,260)}{r.body.length>260?'…':''}</p>
+      <h3><a href={'/knowledge/'+r.entity_id}>{r.title || entryTitle(r.body)}</a></h3>
+      <p>{r.summary || (r.body.slice(0,260)+(r.body.length>260?'…':''))}</p>
       <small>Published revision {r.version} · English</small>
      </li>)}</ul>}
     {data?.nextCursor&&<a className="reading-next" href={'/search?'+new URLSearchParams({q,after:data.nextCursor}).toString()}>Next results →</a>}
