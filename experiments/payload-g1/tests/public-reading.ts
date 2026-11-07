@@ -47,8 +47,12 @@ try{
   await admin.query('INSERT INTO kg.claims VALUES($1,$2,$3,$4)',[rev,'claim-1','intro','SYNTHETIC LONG BODY'])
   await admin.query('INSERT INTO kg.sources(id,locator,description) VALUES($1,$2,$3)',[source,'https://example.invalid/'+source,'Synthetic source'])
   await admin.query('INSERT INTO kg.claim_evidence(revision_id,claim_key,source_id,stance,pinpoint,reviewer) VALUES($1,$2,$3,$4,$5,$6)',[rev,'claim-1',source,'supports','section 1','synthetic'])
-  const data=JSON.stringify({body,sources:[{id:'s1'},{id:'s2'}]})
-  await admin.query("INSERT INTO kg.multi_source_snapshots(revision_id,review_record_id,package_digest,package_data) VALUES($1,'synthetic',encode(public.digest(convert_to(($2::jsonb)::text,'UTF8'),'sha256'),'hex'),$2::jsonb)",[rev,data])
+  const pkg={body,sources:[{id:'s1',url:'https://example.invalid/one',description:'Source one'},{id:'s2',url:'https://example.invalid/two',description:'Source two'}],claims:[{id:'c1',statement:'SYNTHETIC LONG BODY',anchor:'intro',sourceIds:['s1','s2']}],media:[]}
+  const insertSnapshot="INSERT INTO kg.multi_source_snapshots(revision_id,review_record_id,package_digest,package_data) VALUES($1,'synthetic',encode(public.digest(convert_to(($2::jsonb)::text,'UTF8'),'sha256'),'hex'),$2::jsonb)"
+  await assert.rejects(admin.query(insertSnapshot,[rev,JSON.stringify({...pkg,claims:[{...pkg.claims[0],sourceIds:['missing']}]})]),/INVALID_SNAPSHOT_CLAIM_SOURCES/)
+  await assert.rejects(admin.query(insertSnapshot,[rev,JSON.stringify({...pkg,body:'changed'})]),/INVALID_MULTI_SOURCE_SNAPSHOT/)
+  const data=JSON.stringify(pkg)
+  await admin.query(insertSnapshot,[rev,data])
   await assert.rejects(admin.query('UPDATE kg.multi_source_snapshots SET review_record_id=$2 WHERE revision_id=$1',[rev,'changed']),/IMMUTABLE_REVISION_OR_SNAPSHOT/)
   await assert.rejects(admin.query('INSERT INTO kg.approvals(revision_id,reviewer) VALUES($1,$2)',[rev,'synthetic']),/MULTI_SOURCE_APPROVAL_NOT_IMPLEMENTED/)
   await assert.rejects(reader.query('SELECT * FROM kg.multi_source_snapshots'),/permission denied/)
