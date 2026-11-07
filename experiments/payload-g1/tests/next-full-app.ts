@@ -508,6 +508,21 @@ try{
     assert.equal(currentReview.json.status,'current')
     assert.equal(currentReview.json.approved,false)
     for(const jwt of [undefined,tokens.editor,tokens.publisher]){
+      const noSeal=await fetchRaw('/api/g1-seal-multi-review','POST',{reviewId},jwt)
+      denied(noSeal)
+    }
+    const sealed=await fetchRaw('/api/g1-seal-multi-review','POST',{reviewId},tokens.reviewer)
+    assert.equal(sealed.status,201,sealed.text.slice(0,500))
+    assert.equal(sealed.json.approved,false)
+    assert.equal(sealed.json.published,false)
+    const sealedRecord=await admin.query('SELECT r.body,s.package_data FROM kg.revisions r JOIN kg.multi_source_snapshots s ON s.revision_id=r.id WHERE r.id=$1',[sealed.json.revisionId])
+    assert.equal(sealedRecord.rows[0].body,longBody)
+    assert.equal(sealedRecord.rows[0].package_data.sources.length,2)
+    assert.equal(sealedRecord.rows[0].package_data.media.length,1)
+    await assert.rejects(admin.query('INSERT INTO kg.approvals(revision_id,reviewer) VALUES($1,$2)',[sealed.json.revisionId,'synthetic']),/MULTI_SOURCE_APPROVAL_NOT_IMPLEMENTED|APPROVAL_REQUIRES_CLAIMS/)
+    const duplicate=await fetchRaw('/api/g1-seal-multi-review','POST',{reviewId},tokens.reviewer)
+    assert.equal(duplicate.status,409)
+    for(const jwt of [undefined,tokens.editor,tokens.publisher]){
       const noStatus=await fetchRaw('/api/g1-multi-review-status?reviewId='+reviewId,'GET',undefined,jwt)
       denied(noStatus)
     }
