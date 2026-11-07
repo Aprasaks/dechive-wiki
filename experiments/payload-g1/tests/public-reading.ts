@@ -106,8 +106,16 @@ try{
   assert.ok(!JSON.stringify(metadata.rows).includes(marker))
   const history1=await listApprovedDomain(reader,'history')
   assert.ok(history1?.nextCursor)
-  const history2=await listApprovedDomain(reader,'history',history1!.nextCursor!)
-  assert.ok([...history1!.results,...history2!.results].some(x=>x.entity_id===ids[0]))
+  let historyPage=history1!
+  const historyResults=[...historyPage.results]
+  const seenCursors=new Set<string>()
+  while(historyPage.nextCursor){
+   assert.ok(!seenCursors.has(historyPage.nextCursor),'domain pagination cursor must advance')
+   seenCursors.add(historyPage.nextCursor)
+   historyPage=(await listApprovedDomain(reader,'history',historyPage.nextCursor))!
+   historyResults.push(...historyPage.results)
+  }
+  assert.ok(historyResults.some(x=>x.entity_id===ids[0]))
   const earth=await listApprovedDomain(reader,'earth')
   assert.ok(!earth?.results.some(x=>x.entity_id===ids[0]))
   assert.equal(await listApprovedDomain(reader,'invalid'),null)
