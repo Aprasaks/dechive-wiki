@@ -77,6 +77,21 @@ try{
   assert.ok(!JSON.stringify(entry).includes('PRIVATE REVIEWER'))
   assert.equal(await readApproved(reader,privateId),undefined)
  })
+ await check('A new unpublished revision cannot replace or leak through the approved search and detail',async()=>{
+  const marker='PRIVATE_NEW_REVISION_'+randomUUID()
+  const newRevision=randomUUID()
+  const before=await readApproved(reader,ids[0])
+  assert.equal(before?.revision_id,firstRevision)
+  await admin.query('INSERT INTO kg.revisions(id,entity_id,locale,body) VALUES($1,$2,$3,$4)',
+   [newRevision,ids[0],'en',marker])
+  const after=await readApproved(reader,ids[0])
+  assert.equal(after?.revision_id,firstRevision)
+  assert.equal(after?.body,before?.body)
+  assert.equal(after?.evidence[0]?.source_id,firstSource)
+  assert.ok(!JSON.stringify(after).includes(marker))
+  assert.equal((await searchApproved(reader,marker)).results.length,0)
+  assert.ok((await searchApproved(reader,'SYNTHETIC TEST ONLY '+tag+' published fixture 0')).results.some(x=>x.entity_id===ids[0]))
+ })
  await check('Published source metadata remains immutable',async()=>{
   await assert.rejects(admin.query('UPDATE kg.sources SET description=$1 WHERE id=$2',['swapped',firstSource]),/IMMUTABLE_REVISION_OR_SNAPSHOT/)
  })
