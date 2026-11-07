@@ -511,6 +511,16 @@ try{
       const noSeal=await fetchRaw('/api/g1-seal-multi-review','POST',{reviewId},jwt)
       denied(noSeal)
     }
+    // Simulate an incomplete stored review using the privileged test connection.
+    // Application permissions already prevent reviewers from modifying the record.
+    await admin.query('UPDATE public.multi_source_reviews SET evidence=$2::jsonb WHERE id=$1',[reviewId,JSON.stringify(review.evidence.slice(0,1))])
+    const incompleteSeal=await fetchRaw('/api/g1-seal-multi-review','POST',{reviewId},tokens.reviewer)
+    assert.equal(incompleteSeal.status,409,incompleteSeal.text.slice(0,400))
+    await admin.query('UPDATE public.multi_source_reviews SET evidence=$2::jsonb WHERE id=$1',[reviewId,JSON.stringify(review.evidence)])
+    await admin.query('UPDATE public.multi_source_reviews SET media=$2::jsonb WHERE id=$1',[reviewId,JSON.stringify([])])
+    const missingRights=await fetchRaw('/api/g1-seal-multi-review','POST',{reviewId},tokens.reviewer)
+    assert.equal(missingRights.status,409,missingRights.text.slice(0,400))
+    await admin.query('UPDATE public.multi_source_reviews SET media=$2::jsonb WHERE id=$1',[reviewId,JSON.stringify(review.media)])
     const sealed=await fetchRaw('/api/g1-seal-multi-review','POST',{reviewId},tokens.reviewer)
     assert.equal(sealed.status,201,sealed.text.slice(0,500))
     assert.equal(sealed.json.approved,false)
