@@ -106,6 +106,8 @@ jobs:
             -v ON_ERROR_STOP=1 -q -f experiments/payload-g1/sql/005_review_decision.sql
           psql -h 127.0.0.1 -U postgres -d dechive_native_g1 \
             -v ON_ERROR_STOP=1 -q -f experiments/payload-g1/sql/006_public_evidence.sql
+          psql -h 127.0.0.1 -U postgres -d dechive_native_g1 \
+            -v ON_ERROR_STOP=1 -q -f experiments/payload-g1/sql/007_revision_metadata.sql
       - name: Verify real Next.js dev server with authenticated edit/review/publish and SSR
         env:
           G1_TRUSTED_ORIGIN: http://127.0.0.1:3100
