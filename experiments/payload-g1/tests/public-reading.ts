@@ -14,6 +14,7 @@ async function seed(body:string,published=true){
  const id=randomUUID(),revision=randomUUID(),source=randomUUID()
  await admin.query('INSERT INTO kg.entities(id,kind,name) VALUES($1,$2,$3)',[id,'concept','PRIVATE EDITOR TITLE NOT FOR PUBLIC DISPLAY'])
  await admin.query('INSERT INTO kg.revisions(id,entity_id,locale,body) VALUES($1,$2,$3,$4)',[revision,id,'en',body])
+ await admin.query('INSERT INTO kg.revision_reader_metadata(revision_id,title,summary,primary_domain) VALUES($1,$2,$3,$4)',[revision,'Synthetic published title','Synthetic summary','history'])
  await admin.query('INSERT INTO kg.claims(revision_id,claim_key,anchor,statement) VALUES($1,$2,$3,$4)',[revision,'claim-1','paragraph-1',body])
  await admin.query('INSERT INTO kg.sources(id,locator,description) VALUES($1,$2,$3)',[source,'https://example.invalid/'+source,'Synthetic supporting reference'])
  await admin.query('INSERT INTO kg.claim_evidence(revision_id,claim_key,source_id,stance,pinpoint,reviewer) VALUES($1,$2,$3,$4,$5,$6)',[revision,'claim-1',source,'supports','Fixture paragraph 1','PRIVATE REVIEWER IDENTITY'])
@@ -84,6 +85,8 @@ try{
   assert.equal(before?.revision_id,firstRevision)
   await admin.query('INSERT INTO kg.revisions(id,entity_id,locale,body) VALUES($1,$2,$3,$4)',
    [newRevision,ids[0],'en',marker])
+  await admin.query('INSERT INTO kg.revision_reader_metadata(revision_id,title,summary,primary_domain) VALUES($1,$2,$3,$4)',
+   [newRevision,marker,'Private draft summary','earth'])
   const after=await readApproved(reader,ids[0])
   assert.equal(after?.revision_id,firstRevision)
   assert.equal(after?.body,before?.body)
@@ -91,6 +94,14 @@ try{
   assert.ok(!JSON.stringify(after).includes(marker))
   assert.equal((await searchApproved(reader,marker)).results.length,0)
   assert.ok((await searchApproved(reader,'SYNTHETIC TEST ONLY '+tag+' published fixture 0')).results.some(x=>x.entity_id===ids[0]))
+  const metadata=await reader.query('SELECT * FROM kg.public_revision_metadata WHERE entity_id=$1',[ids[0]])
+  assert.equal(metadata.rows.length,1)
+  assert.equal(metadata.rows[0].revision_id,firstRevision)
+  assert.equal(metadata.rows[0].title,'Synthetic published title')
+  assert.equal(metadata.rows[0].primary_domain,'history')
+  assert.ok(!JSON.stringify(metadata.rows).includes(marker))
+  await assert.rejects(reader.query('SELECT * FROM kg.revision_reader_metadata'),/permission denied/i)
+  await assert.rejects(admin.query('UPDATE kg.revision_reader_metadata SET title=$1 WHERE revision_id=$2',['modified',firstRevision]),/IMMUTABLE_REVISION_OR_SNAPSHOT/)
  })
  await check('Published source metadata remains immutable',async()=>{
   await assert.rejects(admin.query('UPDATE kg.sources SET description=$1 WHERE id=$2',['swapped',firstSource]),/IMMUTABLE_REVISION_OR_SNAPSHOT/)
