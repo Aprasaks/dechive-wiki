@@ -256,7 +256,15 @@ try{
     await button.click()
     const after=await p.locator('.ref-random-content a').getAttribute('href')
     assert.notEqual(after,before,'refresh should choose a different approved record')
-    assert.ok(links.includes(after),'refresh target must be an approved public record')
+    // The visible list shows only three entries, while Random Discovery draws
+    // from up to six approved entries. Validate the destination against the
+    // restricted public projection rather than the shorter display list.
+    assert.match(after ?? '', /^\/knowledge\/[0-9a-f-]{36}$/i)
+    const reader=new Pool({connectionString:process.env.PUBLIC_DATABASE_URL})
+    try {
+      const result=await reader.query("SELECT entity_id FROM kg.public_entries WHERE locale='en' AND entity_id=$1::uuid", [after!.split('/').pop()])
+      assert.equal(result.rows.length,1,'refresh target must be an approved public record')
+    } finally { await reader.end() }
    }else{
     assert.equal(await button.isDisabled(),true)
    }
