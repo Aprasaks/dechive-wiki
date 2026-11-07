@@ -54,6 +54,7 @@ jobs:
         run: |
           cd experiments/payload-g1
           node --import tsx tests/article-body.test.tsx
+          node --import tsx tests/editorial-package.test.ts
           node tests/draft-inventory.test.mjs
       - name: Apply immutable canonical KG schema
         shell: bash
