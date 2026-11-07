@@ -459,6 +459,33 @@ try{
   })
   // Issue #17 milestone 1: editor-supplied citation becomes a PENDING,
   // immutable KG candidate. It is NEVER considered independently verified.
+  await check('Private long draft preserves multiple sources and cannot use the single-source approval path',async()=>{
+    const longBody='SYNTHETIC PRIVATE LONG DRAFT. '.repeat(600)+'A synthetic claim.'
+    const supplementalEvidence={sources:[
+      {id:'s1',url:'https://example.invalid/source-one'},
+      {id:'s2',url:'https://example.invalid/source-two'}],
+      claims:[{id:'c1',statement:'A synthetic claim.',sourceIds:['s1','s2']}],
+      media:[{id:'m1',rightsStatus:'pending'}]}
+    const created=await fetchRaw('/api/editorial-drafts?draft=true','POST',{
+      stableEntityId:randomUUID(),title:'Synthetic multi-source draft',
+      body:longBody,supplementalEvidence,_status:'draft',
+    },tokens.editor)
+    assert.ok([200,201].includes(created.status),created.text.slice(0,400))
+    const id=created.json.doc.id
+    const saved=await fetchRaw('/api/editorial-drafts/'+id+'?draft=true','GET',undefined,tokens.editor)
+    assert.equal(saved.status,200)
+    assert.equal(saved.json.body,longBody)
+    assert.equal(saved.json.supplementalEvidence.sources.length,2)
+    const guest=await fetchRaw('/api/editorial-drafts/'+id+'?draft=true')
+    denied(guest)
+    const candidate=await fetchRaw('/api/g1-candidate','POST',{
+      draftId:id,sourceUrl:'https://example.invalid/source-one',
+      sourceDescription:'Synthetic source description for a private draft',
+      claim:'A synthetic claim.',anchor:'body',pinpoint:'section 1',licenseDeclaration:'unknown',
+    },tokens.editor)
+    assert.equal(candidate.status,409,candidate.text.slice(0,400))
+    assert.equal((await fetchRaw('/sitemap.xml')).text.includes('SYNTHETIC PRIVATE LONG DRAFT'),false)
+  })
   const candidateEntity=randomUUID()
   const candidateBody='The synthetic test note says the fixture idea was introduced in the lab.'
   const candidateClaim='the fixture idea was introduced in the lab'
