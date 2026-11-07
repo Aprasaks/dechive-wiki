@@ -104,11 +104,10 @@ export default async function Home() {
         <ArchiveIcon name="arrow" size={17}/>
       </div>
       <DomainScroller>
-        {domains.map(d=><span key={d.name} className="ref-domain" aria-disabled="true"
-          title="Domain pages are not yet available in this design preview">
+        {domains.map(d=><a key={d.name} className="ref-domain" href={'/domains/'+(d.name==='Arts & Culture'?'arts-culture':d.name.toLowerCase())}>
           <ArchiveIcon name={d.icon} size={31}/>
           <span>{d.name}</span>
-        </span>)}
+        </a>)}
       </DomainScroller>
     </section>
 
