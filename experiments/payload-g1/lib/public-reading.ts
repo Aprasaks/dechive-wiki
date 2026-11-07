@@ -8,6 +8,17 @@ export type PublicEvidence={
  stance:'supports'|'contradicts'|'uncertain';pinpoint:string;checked_at:Date|string
 }
 type Reader=Pick<Pool,'query'>
+export const DOMAINS={science:'Science',technology:'Technology',humanities:'Humanities',philosophy:'Philosophy',history:'History',society:'Society',economics:'Economics',health:'Health',life:'Life',space:'Space',earth:'Earth','arts-culture':'Arts & Culture'} as const
+export function domainName(code:string):string|null {
+ return Object.hasOwn(DOMAINS,code)?DOMAINS[code as keyof typeof DOMAINS]:null
+}
+export async function listApprovedDomain(reader:Reader,code:string,after?:string){
+ if(!domainName(code)||(after!==undefined&&!UUID.test(after)))return null
+ const result=await reader.query(
+  "SELECT p.entity_id,p.locale,p.version,p.revision_id,p.body,m.title,m.summary,m.primary_domain FROM kg.public_entries p JOIN kg.public_revision_metadata m ON m.entity_id=p.entity_id AND m.locale=p.locale AND m.version=p.version AND m.revision_id=p.revision_id WHERE p.locale='en' AND m.primary_domain=$1 AND ($2::uuid IS NULL OR p.entity_id>$2::uuid) ORDER BY p.entity_id LIMIT 21",[code,after??null])
+ const rows=result.rows as PublicEntry[],results=rows.slice(0,20)
+ return {results,nextCursor:rows.length>20?results[results.length-1].entity_id:null}
+}
 export function searchTerm(value:unknown):string|null {
  if(typeof value!=='string')return null
  const term=value.trim()
