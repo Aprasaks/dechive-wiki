@@ -25,7 +25,8 @@ export default async function KnowledgePage({params}:{params:Promise<{id:string}
  return <article className="reading-page">
   <nav className="reading-links" aria-label="Archive navigation"><a href="/">← DECHIVE.WIKI</a><a href="/search">Search the archive</a></nav>
   <p className="reading-eyebrow">DECHIVE.WIKI / VERIFIED KNOWLEDGE</p>
-  <h1>{entryTitle(record.body)}</h1>
+  <h1>{record.title || entryTitle(record.body)}</h1>
+  {record.summary && <p>{record.summary}</p>}
   <p className="reading-meta">Published revision {record.version} · English · <a href="#claim-sources">Claims &amp; sources</a></p>
   <div className="reading-body" data-testid="public-approved-body">{record.body.split(/\r?\n\s*\r?\n/).map((p,i)=><p key={i}>{p}</p>)}</div>
   <section id="claim-sources" aria-labelledby="sources-heading">
