@@ -85,6 +85,9 @@ const EditorialDrafts: CollectionConfig = {
     { name: 'stableEntityId', type: 'text', required: true },
     { name: 'title', type: 'text', required: true },
     { name: 'body', type: 'textarea', required: true },
+    // Private, unreviewed working data. The single-source submission endpoint
+    // refuses these drafts until a revision-bound multi-source gate exists.
+    { name: 'supplementalEvidence', type: 'json' },
     {
       name: 'createdBy',
       type: 'relationship',
