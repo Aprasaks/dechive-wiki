@@ -68,9 +68,8 @@ try{
       assert.equal(await p.getByRole('heading',{name:title}).count(),1,title)
     }
     assert.equal(await p.locator('.ref-domain').count(),12)
-    assert.equal(await p.locator('.ref-domain[aria-disabled="true"]').count(),12)
-    assert.equal(await p.locator('.ref-domains-scroll a').count(),0,
-      'Unbuilt category pages must not masquerade as working links')
+    assert.equal(await p.locator('.ref-domains-scroll a.ref-domain').count(),12)
+    assert.equal(await p.locator('.ref-domains-scroll a[href="/domains/history"]').count(),1)
     assert.equal(await p.locator('.ref-journey').count(),3)
     assert.equal(await p.locator('.ref-nav > *').count(),9)
     await p.locator('form[data-search-ready="true"]').waitFor({timeout:15000})
@@ -102,6 +101,19 @@ try{
      await p.getByText(/No approved records matching/).waitFor({timeout:12000})
      assert.ok(!(await p.locator('body').innerText()).includes('PRIVATE CHROME FIXTURE'))
    }finally{await context.close()}
+ })
+
+ await check('Domain link shows approved records and excludes drafts',async()=>{
+  const context=await browser!.newContext({viewport:{width:1440,height:900}})
+  try{
+   const p=await context.newPage()
+   await p.goto(BASE+'/',{waitUntil:'networkidle'})
+   await p.locator('.ref-domains-scroll a[href="/domains/history"]').click()
+   await p.waitForURL('**/domains/history')
+   await p.getByRole('heading',{name:'History',exact:true}).waitFor()
+   assert.ok((await p.locator('a[href^="/knowledge/"]').count())>0,'approved history records should be listed')
+   assert.ok(!(await p.locator('body').innerText()).includes('PRIVATE_NEW_REVISION_'))
+  }finally{await context.close()}
  })
 
  await check('Real browser follows full public search into a revision and its claim sources',async()=>{
