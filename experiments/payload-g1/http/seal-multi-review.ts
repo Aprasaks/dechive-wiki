@@ -1,7 +1,7 @@
 import { APIError, type Endpoint } from 'payload'
 import { createHmac, randomBytes, randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
-import { packageHash } from '../lib/multi-source-review'
+import { assessMultiSourceReview, packageHash, type EvidenceDecision, type MediaDecision } from '../lib/multi-source-review'
 import type { EditorialPackage } from '../lib/editorial-package'
 const pool=new Pool({connectionString:process.env.G1_CANDIDATE_DATABASE_URL})
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -21,8 +21,14 @@ export const sealMultiReview:Endpoint={path:'/g1-seal-multi-review',method:'post
     typeof draft.stableEntityId!=='string'||!UUID.test(draft.stableEntityId)||
     draft.stableEntityId!==review.snapshotEntityId||String(editor)!==review.editorId)throw new APIError('REVIEW_STALE',409)
  const pack={title:draft.title,body:draft.body,sources:extra.sources,claims:extra.claims,media:extra.media} as EditorialPackage
- try { if(packageHash(pack)!==review.snapshotHash||packageHash(review.snapshot as EditorialPackage)!==review.snapshotHash)throw new Error('stale') }
- catch { throw new APIError('REVIEW_STALE',409) }
+ try {
+  if(packageHash(pack)!==review.snapshotHash||packageHash(review.snapshot as EditorialPackage)!==review.snapshotHash)throw new Error('stale')
+  if(!Array.isArray(review.evidence)||!Array.isArray(review.media)||
+     !assessMultiSourceReview(pack,{snapshotHash:review.snapshotHash,editorId:review.editorId,
+       reviewerId:review.reviewerId,evidence:review.evidence as EvidenceDecision[],media:review.media as MediaDecision[]}).readyForHumanGate)
+    throw new Error('incomplete')
+ }
+ catch { throw new APIError('REVIEW_STALE_OR_INCOMPLETE',409) }
  const secret=process.env.G1_CANDIDATE_SECRET??''
  if(!/^[a-f0-9]{64}$/i.test(secret))throw new APIError('SEAL_SERVICE_UNAVAILABLE',503)
  const revision=randomUUID(),nonce=randomBytes(16).toString('hex')
