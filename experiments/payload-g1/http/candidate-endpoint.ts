@@ -36,6 +36,11 @@ export const candidateEndpoint: Endpoint = {
     if (!doc || doc._status === 'published') {
       throw new APIError('DRAFT_NOT_AVAILABLE',404)
     }
+    // Never silently publish or attest just one source from a draft that has
+    // additional evidence. Multi-source review is not implemented yet.
+    if (doc.supplementalEvidence != null) {
+      throw new APIError('MULTI_SOURCE_REVIEW_NOT_AVAILABLE',409)
+    }
     // The exact author-controlled draft snapshot is loaded from Payload,
     // not accepted as a separate body or entity identifier from the client.
     const title = doc.title
