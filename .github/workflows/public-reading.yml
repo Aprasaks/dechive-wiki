@@ -50,6 +50,11 @@ jobs:
           cache-dependency-path: experiments/payload-g1/package-lock.json
       - name: Install exact Payload v3 + Next runtime from lockfile
         run: npm ci --prefix experiments/payload-g1 --no-audit --no-fund
+      - name: Check article formatting and draft inventory
+        run: |
+          cd experiments/payload-g1
+          node --import tsx tests/article-body.test.tsx
+          node tests/draft-inventory.test.mjs
       - name: Apply immutable canonical KG schema
         shell: bash
         run: |
