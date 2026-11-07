@@ -1,7 +1,7 @@
 import type { Pool } from 'pg'
 
 export const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-export type PublicEntry={entity_id:string;locale:string;version:string|number;revision_id:string;body:string}
+export type PublicEntry={entity_id:string;locale:string;version:string|number;revision_id:string;body:string;title?:string|null;summary?:string|null;primary_domain?:string|null}
 export type PublicEvidence={
  claim_key:string;anchor:string;statement:string;source_id:string;
  locator:string;description:string;accessed_at:Date|string;
@@ -27,9 +27,10 @@ export async function searchApproved(reader:Reader,term:string,after?:string){
  if(!searchTerm(term)||(after!==undefined&&!UUID.test(after)))
   return {results:[] as PublicEntry[],hasMore:false,nextCursor:null as string|null}
  const result=await reader.query(
-  "SELECT entity_id,locale,version,revision_id,body FROM kg.public_search_verified "+
-  "WHERE locale='en' AND position(lower($1::text) in lower(body))>0 "+
-  "AND ($2::uuid IS NULL OR entity_id>$2::uuid) ORDER BY entity_id LIMIT 21",
+  "SELECT p.entity_id,p.locale,p.version,p.revision_id,p.body,m.title,m.summary,m.primary_domain FROM kg.public_search_verified p "+
+  "LEFT JOIN kg.public_revision_metadata m ON m.entity_id=p.entity_id AND m.locale=p.locale AND m.version=p.version AND m.revision_id=p.revision_id "+
+  "WHERE p.locale='en' AND (position(lower($1::text) in lower(p.body))>0 OR position(lower($1::text) in lower(coalesce(m.title,'')))>0 OR position(lower($1::text) in lower(coalesce(m.summary,'')))>0) "+
+  "AND ($2::uuid IS NULL OR p.entity_id>$2::uuid) ORDER BY p.entity_id LIMIT 21",
   [term,after??null])
  const rows=result.rows as PublicEntry[]
  const results=rows.slice(0,20),hasMore=rows.length>20
@@ -40,7 +41,7 @@ export async function readApproved(reader:Reader,id:string){
  // A single statement gives the body and its citations one MVCC snapshot,
  // including if publication/withdrawal happens concurrently.
  const result=await reader.query(
-  "SELECT p.entity_id,p.locale,p.version,p.revision_id,p.body,p.checksum,"+
+  "SELECT p.entity_id,p.locale,p.version,p.revision_id,p.body,p.checksum,m.title,m.summary,m.primary_domain,"+
   "coalesce((SELECT jsonb_agg(jsonb_build_object("+
   "'claim_key',e.claim_key,'anchor',e.anchor,'statement',e.statement,"+
   "'source_id',e.source_id,'locator',e.locator,'description',e.description,"+
@@ -48,6 +49,6 @@ export async function readApproved(reader:Reader,id:string){
   "ORDER BY e.claim_key,e.source_id,e.stance,e.pinpoint) "+
   "FROM kg.public_claim_sources e WHERE e.entity_id=p.entity_id AND e.locale=p.locale "+
   "AND e.revision_id=p.revision_id AND e.version=p.version),'[]'::jsonb) AS evidence "+
-  "FROM kg.public_entries p WHERE p.entity_id=$1::uuid AND p.locale='en' LIMIT 1",[id])
+  "FROM kg.public_entries p LEFT JOIN kg.public_revision_metadata m ON m.entity_id=p.entity_id AND m.locale=p.locale AND m.version=p.version AND m.revision_id=p.revision_id WHERE p.entity_id=$1::uuid AND p.locale='en' LIMIT 1",[id])
  return result.rows[0] as (PublicEntry&{checksum:string;evidence:PublicEvidence[]})|undefined
 }
