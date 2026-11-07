@@ -126,12 +126,14 @@ const MultiSourceReviews: CollectionConfig = {
       if(!assessment.readyForHumanGate)throw new Error('incomplete')
     } catch { throw new APIError('REVIEW_INVALID_STALE_OR_INCOMPLETE',400) }
     // Discard client-provided identity or snapshot; set both from trusted server state.
+    if(typeof draft.stableEntityId!=='string')throw new APIError('DRAFT_IDENTITY_INVALID',400)
     return {draftId,snapshotHash:data.snapshotHash,snapshot:p,evidence:data.evidence,media:data.media,
-      reviewerId:String(reviewer),editorId:String(editor)}
+      snapshotEntityId:draft.stableEntityId,reviewerId:String(reviewer),editorId:String(editor)}
   }]},
   fields:[
     {name:'draftId',type:'number',required:true},
     {name:'snapshotHash',type:'text',required:true},
+    {name:'snapshotEntityId',type:'text',required:true},
     {name:'snapshot',type:'json',required:true},
     {name:'evidence',type:'json',required:true},
     {name:'media',type:'json',required:true},
