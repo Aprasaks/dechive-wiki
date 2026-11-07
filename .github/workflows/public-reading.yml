@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - p0/public-search-evidence
+      - integration/approved-search-validation
     # Verify EVERY branch head, including documentation-only commits.
     # Previously the paths filter left the latest Draft PR SHA untested.
   workflow_dispatch:
