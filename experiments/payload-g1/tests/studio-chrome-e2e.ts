@@ -108,14 +108,16 @@ try{
   const db=new Pool({connectionString:process.env.PUBLIC_DATABASE_URL})
   const context=await browser!.newContext({viewport:{width:1440,height:1000}})
   try{
-   const row=(await db.query("SELECT p.entity_id,p.body FROM kg.public_entries p WHERE p.body LIKE 'SYNTHETIC TEST ONLY reading-%' AND EXISTS(SELECT 1 FROM kg.public_claim_sources e WHERE e.entity_id=p.entity_id AND e.revision_id=p.revision_id) ORDER BY p.entity_id LIMIT 1")).rows[0]
+   const row=(await db.query("SELECT p.entity_id,p.body,m.title FROM kg.public_entries p LEFT JOIN kg.public_revision_metadata m ON m.revision_id=p.revision_id AND m.entity_id=p.entity_id AND m.locale=p.locale AND m.version=p.version WHERE p.body LIKE 'SYNTHETIC TEST ONLY reading-%' AND EXISTS(SELECT 1 FROM kg.public_claim_sources e WHERE e.entity_id=p.entity_id AND e.revision_id=p.revision_id) ORDER BY p.entity_id LIMIT 1")).rows[0]
    assert.ok(row,'Public reading fixture with revision sources is required')
    const p=await context.newPage()
    await p.goto(BASE+'/',{waitUntil:'networkidle'})
    await p.getByPlaceholder('Search anything in the archive...').fill(row.body)
    await p.getByRole('button',{name:'Search',exact:true}).click()
    await p.waitForURL('**/search?q=*')
-   await p.getByRole('link',{name:row.body,exact:true}).click()
+   const result=p.locator('a[href="/knowledge/'+row.entity_id+'"]')
+   assert.equal(await result.innerText(),row.title || row.body)
+   await result.click()
    await p.waitForURL('**/knowledge/'+row.entity_id)
    await p.getByRole('heading',{name:'Claims & sources',exact:true}).waitFor()
    await p.getByRole('link',{name:'Synthetic supporting reference',exact:true}).waitFor()
