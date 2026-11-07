@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import {spawn} from 'node:child_process'
 import {randomUUID} from 'node:crypto'
 import {Pool} from 'pg'
-import {readApproved,searchApproved,safeSourceUrl} from '../lib/public-reading'
+import {readApproved,searchApproved,safeSourceUrl,listApprovedDomain} from '../lib/public-reading'
 const admin=new Pool({connectionString:process.env.DATABASE_URL})
 const reader=new Pool({connectionString:process.env.PUBLIC_DATABASE_URL})
 const tag='reading-'+randomUUID()
@@ -104,6 +104,13 @@ try{
   assert.equal(metadata.rows[0].title,'Synthetic published title')
   assert.equal(metadata.rows[0].primary_domain,'history')
   assert.ok(!JSON.stringify(metadata.rows).includes(marker))
+  const history1=await listApprovedDomain(reader,'history')
+  assert.ok(history1?.nextCursor)
+  const history2=await listApprovedDomain(reader,'history',history1!.nextCursor!)
+  assert.ok([...history1!.results,...history2!.results].some(x=>x.entity_id===ids[0]))
+  const earth=await listApprovedDomain(reader,'earth')
+  assert.ok(!earth?.results.some(x=>x.entity_id===ids[0]))
+  assert.equal(await listApprovedDomain(reader,'invalid'),null)
   await assert.rejects(reader.query('SELECT * FROM kg.revision_reader_metadata'),/permission denied/i)
   await assert.rejects(admin.query('UPDATE kg.revision_reader_metadata SET title=$1 WHERE revision_id=$2',['modified',firstRevision]),/IMMUTABLE_REVISION_OR_SNAPSHOT/)
  })
