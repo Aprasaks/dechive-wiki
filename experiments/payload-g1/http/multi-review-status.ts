@@ -15,11 +15,13 @@ export const multiReviewStatus:Endpoint={
   if(!review)throw new APIError('REVIEW_NOT_FOUND',404)
   const draft=await req.payload.findByID({collection:'editorial-drafts',id:review.draftId,req,overrideAccess:false,draft:true})
   const extra=draft?.supplementalEvidence as Record<string,unknown>|null
+  const editor=typeof draft?.createdBy==='object'?draft.createdBy?.id:draft?.createdBy
   let current=false
   try {
    if(extra&&Array.isArray(extra.sources)&&Array.isArray(extra.claims)&&Array.isArray(extra.media)){
     const p={title:draft.title,body:draft.body,sources:extra.sources,claims:extra.claims,media:extra.media} as EditorialPackage
-    current=packageHash(p)===review.snapshotHash&&packageHash(review.snapshot as EditorialPackage)===review.snapshotHash
+    current=packageHash(p)===review.snapshotHash&&packageHash(review.snapshot as EditorialPackage)===review.snapshotHash&&
+      draft.stableEntityId===review.snapshotEntityId&&String(editor)===review.editorId
    }
   } catch { current=false }
   return Response.json({reviewId:id,status:current?'current':'stale',approved:false,
