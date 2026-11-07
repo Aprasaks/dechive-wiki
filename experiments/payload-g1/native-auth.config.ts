@@ -6,6 +6,7 @@ import { candidateEndpoint } from './http/candidate-endpoint'
 import { reviewerDecisionEndpoints } from './http/reviewer-decision-endpoints'
 import { assessMultiSourceReview, packageHash } from './lib/multi-source-review'
 import type { EditorialPackage } from './lib/editorial-package'
+import { multiReviewStatus } from './http/multi-review-status'
 
 // Isolated G1 security test config: separate from the existing P0/G1 fixture.
 // IMPORTANT: never deploy this disposable database-push config to production.
@@ -146,7 +147,7 @@ export default buildConfig({
   admin: { user: 'staff' },
   editor: lexicalEditor(),
   collections: [Staff, EditorialDrafts, MultiSourceReviews],
-  endpoints: [...g1WorkflowEndpoints,candidateEndpoint,...reviewerDecisionEndpoints],
+  endpoints: [...g1WorkflowEndpoints,candidateEndpoint,...reviewerDecisionEndpoints,multiReviewStatus],
   db: postgresAdapter({
     pool: { connectionString: process.env.DATABASE_URL ?? '' },
     push: true, // ONLY this disposable GitHub-hosted G1 fixture database
