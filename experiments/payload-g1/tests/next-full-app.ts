@@ -485,6 +485,8 @@ try{
       claim:'A synthetic claim.',anchor:'body',pinpoint:'section 1',licenseDeclaration:'unknown',
     },tokens.editor)
     assert.equal(candidate.status,409,candidate.text.slice(0,400))
+    const bypass=await fetchRaw('/api/g1-approve','POST',{draftId:id,revisionId:randomUUID()},tokens.reviewer)
+    assert.equal(bypass.status,409,bypass.text.slice(0,400))
     const snapshotHash=packageHash({title:'Synthetic multi-source draft',body:longBody,...supplementalEvidence})
     const review={draftId:id,snapshotHash,evidence:[
       {claimId:'c1',sourceId:'s1',verdict:'verified',note:'Reviewed source one'},
