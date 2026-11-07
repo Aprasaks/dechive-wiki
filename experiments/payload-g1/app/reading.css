@@ -6,7 +6,8 @@
 .reading-eyebrow{font:11px Arial,sans-serif;letter-spacing:2px;margin-top:32px}
 .reading-links{display:flex;justify-content:space-between;gap:20px;font:14px Arial,sans-serif}
 .reading-meta,.reading-note,.reading-page small{font:13px/1.6 Arial,sans-serif;color:#58685e}
-.reading-body{font-size:18px;line-height:1.85;margin:32px 0;white-space:pre-wrap}
+.reading-body{font-size:18px;line-height:1.85;margin:32px 0}
+.reading-table-wrap{overflow-x:auto;max-width:100%}.reading-body table{border-collapse:collapse;width:100%;font:15px/1.6 Arial,sans-serif}.reading-body th,.reading-body td{border:1px solid #d6dfd2;padding:12px;text-align:left;vertical-align:top}.reading-body th{background:#eaf2e7}.reading-body pre{overflow:auto;white-space:pre-wrap}
 .reading-search{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0;font:16px Arial,sans-serif}
 .reading-label{flex-basis:100%;font-size:13px}.reading-search input{flex:1;min-width:0;padding:14px;border:1px solid #9fb1a3;border-radius:8px;font:inherit}
 .reading-search button,.reading-next{padding:13px 20px;background:#173d29;color:white!important;border:0;border-radius:8px;font:15px Arial,sans-serif}
