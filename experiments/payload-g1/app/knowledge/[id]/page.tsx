@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { publicPool } from '../../../lib/public-db'
-import { UUID,entryTitle,readApproved,safeSourceUrl,type PublicEvidence } from '../../../lib/public-reading'
+import { UUID,domainName,entryTitle,readApproved,safeSourceUrl,type PublicEvidence } from '../../../lib/public-reading'
+import { ArticleBody } from '../../../lib/article-body'
 import '../../reading.css'
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
@@ -25,10 +26,11 @@ export default async function KnowledgePage({params}:{params:Promise<{id:string}
  return <article className="reading-page">
   <nav className="reading-links" aria-label="Archive navigation"><a href="/">← DECHIVE.WIKI</a><a href="/search">Search the archive</a></nav>
   <p className="reading-eyebrow">DECHIVE.WIKI / VERIFIED KNOWLEDGE</p>
+  {record.primary_domain && domainName(record.primary_domain) && <p><a href={'/domains/'+record.primary_domain}>{domainName(record.primary_domain)}</a></p>}
   <h1>{record.title || entryTitle(record.body)}</h1>
   {record.summary && <p>{record.summary}</p>}
   <p className="reading-meta">Published revision {record.version} · English · <a href="#claim-sources">Claims &amp; sources</a></p>
-  <div className="reading-body" data-testid="public-approved-body">{record.body.split(/\r?\n\s*\r?\n/).map((p,i)=><p key={i}>{p}</p>)}</div>
+  <ArticleBody body={record.body}/>
   <section id="claim-sources" aria-labelledby="sources-heading">
    <h2 id="sources-heading">Claims &amp; sources</h2>
    <p className="reading-note">These references belong to this published revision. Source support, disagreement and uncertainty are shown separately.</p>
