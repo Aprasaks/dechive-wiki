@@ -6,6 +6,7 @@ import { candidateEndpoint } from './http/candidate-endpoint'
 import { reviewerDecisionEndpoints } from './http/reviewer-decision-endpoints'
 import { assessMultiSourceReview, packageHash } from './lib/multi-source-review'
 import type { EditorialPackage } from './lib/editorial-package'
+import { prepareMultiSourceProjection } from './lib/multi-source-projection'
 import { multiReviewStatus } from './http/multi-review-status'
 import { sealMultiReview } from './http/seal-multi-review'
 
@@ -125,6 +126,7 @@ const MultiSourceReviews: CollectionConfig = {
       if(data.snapshotHash!==packageHash(p))throw new Error('stale')
       const assessment=assessMultiSourceReview(p,{snapshotHash:data.snapshotHash,editorId:String(editor),reviewerId:String(reviewer),evidence:data.evidence,media:data.media})
       if(!assessment.readyForHumanGate)throw new Error('incomplete')
+      prepareMultiSourceProjection(p,{snapshotHash:data.snapshotHash,editorId:String(editor),reviewerId:String(reviewer),evidence:data.evidence,media:data.media},data.evidence.map((d:any)=>({claimId:d.claimId,sourceId:d.sourceId,pinpoint:d.pinpoint})))
     } catch { throw new APIError('REVIEW_INVALID_STALE_OR_INCOMPLETE',400) }
     // Discard client-provided identity or snapshot; set both from trusted server state.
     if(typeof draft.stableEntityId!=='string')throw new APIError('DRAFT_IDENTITY_INVALID',400)
