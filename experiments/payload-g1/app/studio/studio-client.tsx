@@ -10,7 +10,7 @@ type Draft = {
   body?: string
   _status?: string
   stableEntityId?: string
-  supplementalEvidence?: {privateSnapshot?: Snapshot} | null
+  supplementalEvidence?: {privateSnapshot?: Snapshot; imageSourceReview?: {checkedAt?: string; publicationAllowed?: boolean; matchingMethod?: string; items?: Array<{sha256?: string; creator?: string; license?: string; source?: string; license_url?: string; conditions?: string; next?: string}>}} | null
 }
 type ReviewRecord = {
   revisionId: string
@@ -397,7 +397,18 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
                   <button type="button" disabled={!hydrated} onClick={()=>setActiveSnapshot(activeSnapshot===String(d.id)?null:String(d.id))}>
                     {activeSnapshot===String(d.id)?'Close private preview':'Open private preview'}
                   </button>
-                  {activeSnapshot===String(d.id)&&<PrivateArticlePreview body={d.body} snapshot={d.supplementalEvidence.privateSnapshot}/>}
+                  {activeSnapshot===String(d.id)&&<><PrivateArticlePreview body={d.body} snapshot={d.supplementalEvidence.privateSnapshot}/>
+{d.supplementalEvidence.imageSourceReview && <section aria-label="Image source review" style={{margin:'20px 0',padding:16,border:'1px solid #D7D5CD'}}>
+  <h3>Image source review</h3>
+  <p>Source pages checked {d.supplementalEvidence.imageSourceReview.checkedAt}. Original-image matching and editorial approval remain pending. This record does not authorize publication.</p>
+  <ul>{d.supplementalEvidence.imageSourceReview.items?.map((item,i)=><li key={item.sha256||i} style={{marginBottom:16,overflowWrap:'anywhere'}}>
+    <strong>{item.creator}</strong> · {item.license}<br/>
+    Source: {item.source}<br/>
+    {item.license_url && <>License: {item.license_url}<br/></>}
+    {item.conditions && <>{item.conditions}<br/></>}
+    Remaining: {item.next}
+  </li>)}</ul>
+</section>}</>}
                 </div>}
                 {role==='editor'&&(
                   <div style={{padding:'12px 0 4px'}}>
