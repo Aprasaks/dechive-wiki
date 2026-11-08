@@ -12,6 +12,9 @@ DECLARE target uuid;
 BEGIN
  target:=CASE WHEN TG_OP='DELETE' THEN OLD.revision_id ELSE NEW.revision_id END;
  PERFORM pg_advisory_xact_lock(hashtextextended(target::text,7007));
+ IF TG_OP='UPDATE' AND OLD.revision_id IS DISTINCT FROM NEW.revision_id THEN
+  RAISE EXCEPTION 'REVISION_CHANGE_FORBIDDEN' USING ERRCODE='23514';
+ END IF;
  IF EXISTS(SELECT 1 FROM kg.multi_evidence_staged WHERE revision_id=target) THEN
   RAISE EXCEPTION 'STAGED_MULTI_EVIDENCE_IMMUTABLE' USING ERRCODE='23514';
  END IF;
