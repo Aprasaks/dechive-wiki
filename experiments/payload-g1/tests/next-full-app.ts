@@ -490,8 +490,8 @@ try{
     assert.equal(bypass.status,409,bypass.text.slice(0,400))
     const snapshotHash=packageHash({title:'Synthetic multi-source draft',body:longBody,...supplementalEvidence})
     const review={draftId:id,snapshotHash,evidence:[
-      {claimId:'c1',sourceId:'s1',verdict:'verified',note:'Reviewed source one'},
-      {claimId:'c1',sourceId:'s2',verdict:'verified',note:'Reviewed source two'}],
+      {claimId:'c1',sourceId:'s1',verdict:'verified',note:'Reviewed source one',pinpoint:'section one'},
+      {claimId:'c1',sourceId:'s2',verdict:'verified',note:'Reviewed source two',pinpoint:'section two'}],
       media:[{mediaId:'m1',verdict:'cleared',note:'Reviewed image rights'}]}
     for(const jwt of [undefined,tokens.editor,tokens.publisher]){
       const blocked=await fetchRaw('/api/multi-source-reviews','POST',review,jwt)
@@ -499,6 +499,8 @@ try{
     }
     const missing=await fetchRaw('/api/multi-source-reviews','POST',{...review,evidence:review.evidence.slice(0,1)},tokens.reviewer)
     assert.equal(missing.status,400,missing.text.slice(0,400))
+    const noLocation=await fetchRaw('/api/multi-source-reviews','POST',{...review,evidence:review.evidence.map(e=>({...e,pinpoint:''}))},tokens.reviewer)
+    assert.equal(noLocation.status,400,noLocation.text.slice(0,400))
     const reviewed=await fetchRaw('/api/multi-source-reviews','POST',{...review,reviewerId:'forged'},tokens.reviewer)
     assert.ok([200,201].includes(reviewed.status),reviewed.text.slice(0,500))
     assert.equal(String(reviewed.json.doc.reviewerId),String(seededAccounts.reviewer.id))
@@ -537,6 +539,8 @@ try{
     assert.equal(sealedRecord.rows[0].body,longBody)
     assert.equal(sealedRecord.rows[0].package_data.sources.length,2)
     assert.equal(sealedRecord.rows[0].package_data.media.length,1)
+    assert.equal(sealedRecord.rows[0].package_data.reviewEvidence[0].pinpoint,'section one')
+    assert.equal(sealedRecord.rows[0].package_data.reviewMedia[0].verdict,'cleared')
     await assert.rejects(admin.query('INSERT INTO kg.approvals(revision_id,reviewer) VALUES($1,$2)',[sealed.json.revisionId,'synthetic']),/MULTI_SOURCE_APPROVAL_NOT_IMPLEMENTED|APPROVAL_REQUIRES_CLAIMS/)
     const duplicate=await fetchRaw('/api/g1-seal-multi-review','POST',{reviewId},tokens.reviewer)
     assert.equal(duplicate.status,409)
