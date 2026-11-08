@@ -541,6 +541,17 @@ try{
     assert.equal(sealedRecord.rows[0].package_data.media.length,1)
     assert.equal(sealedRecord.rows[0].package_data.reviewEvidence[0].pinpoint,'section one')
     assert.equal(sealedRecord.rows[0].package_data.reviewMedia[0].verdict,'cleared')
+    // Stage exact reviewed sources and locations as private, revision-bound data.
+    await admin.query(await readFile('sql/011_stage_multi_evidence.sql','utf8'))
+    await assert.rejects(reviewerProbe.query('SELECT kg.stage_multi_evidence($1::uuid)',[sealed.json.revisionId]),/permission denied/)
+    await candidateProbe.query('SELECT kg.stage_multi_evidence($1::uuid)',[sealed.json.revisionId])
+    const staged=await admin.query('SELECT c.claim_key,s.locator,e.pinpoint FROM kg.claims c JOIN kg.claim_evidence e ON e.revision_id=c.revision_id AND e.claim_key=c.claim_key JOIN kg.sources s ON s.id=e.source_id WHERE c.revision_id=$1 ORDER BY s.locator',[sealed.json.revisionId])
+    assert.equal(staged.rows.length,2)
+    assert.equal(staged.rows[0].pinpoint,'section one')
+    assert.equal(staged.rows[1].pinpoint,'section two')
+    await assert.rejects(candidateProbe.query('SELECT kg.stage_multi_evidence($1::uuid)',[sealed.json.revisionId]),/MULTI_STAGE_INVALID_STATE/)
+    await assert.rejects(admin.query('UPDATE kg.claim_evidence SET pinpoint=$2 WHERE revision_id=$1',[sealed.json.revisionId,'altered']),/STAGED_MULTI_EVIDENCE_IMMUTABLE/)
+
     await assert.rejects(admin.query('INSERT INTO kg.approvals(revision_id,reviewer) VALUES($1,$2)',[sealed.json.revisionId,'synthetic']),/MULTI_SOURCE_APPROVAL_NOT_IMPLEMENTED|APPROVAL_REQUIRES_CLAIMS/)
     const duplicate=await fetchRaw('/api/g1-seal-multi-review','POST',{reviewId},tokens.reviewer)
     assert.equal(duplicate.status,409)
