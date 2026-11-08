@@ -3,6 +3,7 @@ import { createHmac, randomBytes, randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
 import { assessMultiSourceReview, packageHash, type EvidenceDecision, type MediaDecision } from '../lib/multi-source-review'
 import type { EditorialPackage } from '../lib/editorial-package'
+import { prepareMultiSourceProjection } from '../lib/multi-source-projection'
 const pool=new Pool({connectionString:process.env.G1_CANDIDATE_DATABASE_URL})
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 export const sealMultiReview:Endpoint={path:'/g1-seal-multi-review',method:'post',handler:async(req)=>{
@@ -27,6 +28,7 @@ export const sealMultiReview:Endpoint={path:'/g1-seal-multi-review',method:'post
      !assessMultiSourceReview(pack,{snapshotHash:review.snapshotHash,editorId:review.editorId,
        reviewerId:review.reviewerId,evidence:review.evidence as EvidenceDecision[],media:review.media as MediaDecision[]}).readyForHumanGate)
     throw new Error('incomplete')
+  prepareMultiSourceProjection(pack,{snapshotHash:review.snapshotHash,editorId:review.editorId,reviewerId:review.reviewerId,evidence:review.evidence as EvidenceDecision[],media:review.media as MediaDecision[]},(review.evidence as (EvidenceDecision & {pinpoint:string})[]).map(d=>({claimId:d.claimId,sourceId:d.sourceId,pinpoint:d.pinpoint})))
  }
  catch { throw new APIError('REVIEW_STALE_OR_INCOMPLETE',409) }
  const secret=process.env.G1_CANDIDATE_SECRET??''
