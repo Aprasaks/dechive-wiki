@@ -10,7 +10,7 @@ type Draft = {
   body?: string
   _status?: string
   stableEntityId?: string
-  supplementalEvidence?: {privateSnapshot?: Snapshot; imageSourceReview?: {checkedAt?: string; publicationAllowed?: boolean; matchingMethod?: string; items?: Array<{sha256?: string; creator?: string; license?: string; source?: string; license_url?: string; conditions?: string; comparison?: string; next?: string}>}} | null
+  supplementalEvidence?: {privateSnapshot?: Snapshot; factSourceReview?: {checkedAt?: string; scope?: string; items?: Array<{claim?: string; result?: string; source?: string; scope?: string}>}; imageSourceReview?: {checkedAt?: string; publicationAllowed?: boolean; matchingMethod?: string; items?: Array<{sha256?: string; creator?: string; license?: string; source?: string; license_url?: string; conditions?: string; comparison?: string; next?: string}>}} | null
 }
 type ReviewRecord = {
   revisionId: string
@@ -408,6 +408,14 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
     {item.conditions && <>{item.conditions}<br/></>}
     {item.comparison && <>Comparison: {item.comparison}<br/></>}
     Remaining: {item.next}
+  </li>)}</ul>
+</section>}
+{d.supplementalEvidence.factSourceReview && <section aria-label="Fact source review" style={{margin:'20px 0',padding:16,border:'1px solid #D7D5CD'}}>
+  <h3>Fact and source review</h3>
+  <p>{d.supplementalEvidence.factSourceReview.scope} Reviewed {d.supplementalEvidence.factSourceReview.checkedAt}. Publication approval remains pending.</p>
+  <ul>{d.supplementalEvidence.factSourceReview.items?.map((item,i)=><li key={i} style={{marginBottom:16,overflowWrap:'anywhere'}}>
+    <strong>{item.result}</strong> · {item.claim}<br/>
+    {item.scope}<br/>Source: {item.source}
   </li>)}</ul>
 </section>}</>}
                 </div>}
