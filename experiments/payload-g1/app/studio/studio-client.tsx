@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import PrivateArticlePreview, {type Snapshot} from './private-article-preview'
 
 type Role = 'editor' | 'reviewer' | 'publisher'
 type Draft = {
@@ -9,6 +10,7 @@ type Draft = {
   body?: string
   _status?: string
   stableEntityId?: string
+  supplementalEvidence?: {privateSnapshot?: Snapshot} | null
 }
 type ReviewRecord = {
   revisionId: string
@@ -44,6 +46,7 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
   const [status,setStatus]=useState('')
   const [loading,setLoading]=useState(false)
   const [activeEvidenceDraft,setActiveEvidenceDraft]=useState<string|null>(null)
+  const [activeSnapshot,setActiveSnapshot]=useState<string|null>(null)
   const [sourceUrl,setSourceUrl]=useState('')
   const [sourceDescription,setSourceDescription]=useState('')
   const [claim,setClaim]=useState('')
@@ -388,8 +391,14 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
                 </div>
                 <p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere',
                   color:'#555B53',fontSize:14}}>
-                  {(d.body??'').slice(0,460)}{(d.body??'').length>460?'…':''}
+                  {d.supplementalEvidence?.privateSnapshot ? 'Imported article snapshot — open the private preview below.' : <>{(d.body??'').slice(0,460)}{(d.body??'').length>460?'…':''}</>}
                 </p>
+                {d.body&&d.supplementalEvidence?.privateSnapshot&&<div>
+                  <button type="button" disabled={!hydrated} onClick={()=>setActiveSnapshot(activeSnapshot===String(d.id)?null:String(d.id))}>
+                    {activeSnapshot===String(d.id)?'Close private preview':'Open private preview'}
+                  </button>
+                  {activeSnapshot===String(d.id)&&<PrivateArticlePreview body={d.body} snapshot={d.supplementalEvidence.privateSnapshot}/>}
+                </div>}
                 {role==='editor'&&(
                   <div style={{padding:'12px 0 4px'}}>
                     <button type="button" disabled={!hydrated}
@@ -463,3 +472,4 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
     </div>
   )
 }
+
