@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { createHmac, randomBytes, randomUUID } from 'node:crypto'
 import { spawn } from 'node:child_process'
+import { readFile } from 'node:fs/promises'
 import { Pool } from 'pg'
 import { getPayload } from 'payload'
 import config from '../native-auth.config.ts'
@@ -521,6 +522,13 @@ try{
     const missingRights=await fetchRaw('/api/g1-seal-multi-review','POST',{reviewId},tokens.reviewer)
     assert.equal(missingRights.status,409,missingRights.text.slice(0,400))
     await admin.query('UPDATE public.multi_source_reviews SET media=$2::jsonb WHERE id=$1',[reviewId,JSON.stringify(review.media)])
+    // Apply the isolated integrity migration after the simulated corruption checks.
+    // This executes after Payload has initialized its review table.
+    await admin.query(await readFile('sql/010_review_record_integrity.sql','utf8'))
+    await assert.rejects(admin.query('UPDATE public.multi_source_reviews SET evidence=$2::jsonb WHERE id=$1',[reviewId,JSON.stringify([])]),/IMMUTABLE_REVISION_OR_SNAPSHOT/)
+    await assert.rejects(admin.query('DELETE FROM public.multi_source_reviews WHERE id=$1',[reviewId]),/IMMUTABLE_REVISION_OR_SNAPSHOT/)
+    await assert.rejects(admin.query('TRUNCATE public.multi_source_reviews'),/IMMUTABLE_REVISION_OR_SNAPSHOT/)
+
     const sealed=await fetchRaw('/api/g1-seal-multi-review','POST',{reviewId},tokens.reviewer)
     assert.equal(sealed.status,201,sealed.text.slice(0,500))
     assert.equal(sealed.json.approved,false)
