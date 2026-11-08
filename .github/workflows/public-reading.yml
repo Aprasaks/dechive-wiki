@@ -56,6 +56,7 @@ jobs:
           node --import tsx tests/article-body.test.tsx
           node --import tsx tests/editorial-package.test.ts
           node --import tsx tests/multi-source-review.test.ts
+          node --import tsx tests/multi-source-projection.test.ts
           node tests/draft-inventory.test.mjs
       - name: Apply immutable canonical KG schema
         shell: bash
