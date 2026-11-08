@@ -21,7 +21,9 @@ BEGIN
  v_message:=concat_ws('|','g1-multi-seal-v1',p_entity::text,p_revision::text,p_review::text,p_reviewer::text,v_review.snapshot_hash,p_nonce);
  v_expected:=encode(public.hmac(convert_to(v_message,'UTF8'),v_key,'sha256'),'hex');
  IF v_expected<>p_signature THEN RAISE EXCEPTION 'SEAL_SIGNATURE_INVALID' USING ERRCODE='42501'; END IF;
- v_package:=v_review.snapshot::jsonb;
+ -- Preserve the exact private review decisions together with the reviewed body.
+ v_package:=v_review.snapshot::jsonb || jsonb_build_object(
+   'reviewEvidence',v_review.evidence::jsonb,'reviewMedia',v_review.media::jsonb);
  INSERT INTO kg.entities(id,kind,name) VALUES(p_entity,'concept',v_package->>'title') ON CONFLICT(id) DO NOTHING;
  INSERT INTO kg.revisions(id,entity_id,locale,body) VALUES(p_revision,p_entity,'en',v_package->>'body');
  INSERT INTO kg.multi_source_snapshots(revision_id,review_record_id,package_digest,package_data)
