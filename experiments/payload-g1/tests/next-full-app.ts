@@ -527,7 +527,7 @@ try{
     await admin.query(await readFile('sql/010_review_record_integrity.sql','utf8'))
     await assert.rejects(admin.query('UPDATE public.multi_source_reviews SET evidence=$2::jsonb WHERE id=$1',[reviewId,JSON.stringify([])]),/IMMUTABLE_REVISION_OR_SNAPSHOT/)
     await assert.rejects(admin.query('DELETE FROM public.multi_source_reviews WHERE id=$1',[reviewId]),/IMMUTABLE_REVISION_OR_SNAPSHOT/)
-    await assert.rejects(admin.query('TRUNCATE public.multi_source_reviews'),/IMMUTABLE_REVISION_OR_SNAPSHOT/)
+    await assert.rejects(admin.query('TRUNCATE public.multi_source_reviews CASCADE'),/IMMUTABLE_REVISION_OR_SNAPSHOT/)
 
     const sealed=await fetchRaw('/api/g1-seal-multi-review','POST',{reviewId},tokens.reviewer)
     assert.equal(sealed.status,201,sealed.text.slice(0,500))
