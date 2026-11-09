@@ -1,0 +1,143 @@
+name: Wiki Studio — Dedicated DB and Staff Gate
+
+on:
+  push:
+    branches:
+      - release/wiki-first-launch
+    paths:
+      - 'infra/studio/**'
+      - '.github/workflows/studio-database-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wiki-studio-db-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-isolated-studio-db:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-postgres-ci-only
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      NODE_ENV: production
+      STUDIO_CI_SYNTHETIC: 'true'
+      G1_TRUSTED_ORIGIN: https://studio.example.invalid
+      G1_COOKIE_SECURE: 'true'
+      DATABASE_URL: postgres://kg_studio_ci:synthetic-studio-ci-only@127.0.0.1:5432/dechive_studio_ci
+      PAYLOAD_SECRET: synthetic-ci-payload-secret-at-least-thirty-two-characters
+      G1_REVIEWER_DATABASE_URL: postgres://kg_studio_reviewer:synthetic-ci-only@127.0.0.1:5432/dechive_studio_ci
+      G1_PUBLISHER_DATABASE_URL: postgres://kg_studio_publisher:synthetic-ci-only@127.0.0.1:5432/dechive_studio_ci
+      G1_CANDIDATE_DATABASE_URL: postgres://kg_studio_candidate:synthetic-ci-only@127.0.0.1:5432/dechive_studio_ci
+      G1_REVIEW_ATTESTATION_SECRET: abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd
+      G1_CANDIDATE_SECRET: abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd
+      STUDIO_BOOTSTRAP_CONFIRM: CREATE_PRIVATE_STAFF_ONLY
+      STUDIO_BOOTSTRAP_ROLE: editor
+      STUDIO_BOOTSTRAP_EMAIL: synthetic-editor@example.invalid
+      STUDIO_BOOTSTRAP_PASSWORD: synthetic-staff-password-not-for-real-accounts-2026
+    steps:
+      - name: Checkout source without AWS credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install Node 22 matching release runtime
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.23.4'
+      - name: Prepare disposable, dedicated studio database
+        env:
+          PGPASSWORD: synthetic-postgres-ci-only
+        run: |
+          set -euo pipefail
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 \
+            -c "CREATE ROLE kg_studio_ci LOGIN PASSWORD 'synthetic-studio-ci-only'"
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 \
+            -c "CREATE DATABASE dechive_studio_ci OWNER kg_studio_ci"
+          # The production knowledge DB is deliberately not present here.
+          test "$(psql -h 127.0.0.1 -U postgres -d postgres -At -c \
+            "SELECT count(*) FROM pg_database WHERE datname='dechive_reader_pilot'")" = 0
+      - name: Stage operational code without fixture or reader
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "STUDIO_STAGE=$RUNNER_TEMP/dechive-studio-data-test" >> "$GITHUB_ENV"
+          python3 infra/studio/stage.py "$RUNNER_TEMP/dechive-studio-data-test"
+          test -f "$RUNNER_TEMP/dechive-studio-data-test/scripts/bootstrap-staff.ts"
+          ! grep -q 'push: true' "$RUNNER_TEMP/dechive-studio-data-test/operational-auth.config.ts"
+      - name: Install locked dependencies in isolated stage
+        shell: bash
+        run: npm ci --prefix "$STUDIO_STAGE" --no-audit --no-fund
+      - name: Generate initial migration only if reviewed migration not checked in yet
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$STUDIO_STAGE"
+          if test -f migrations/index.ts; then
+            echo "CHECKED_IN_MIGRATIONS_PRESENT"
+          else
+            PAYLOAD_CONFIG_PATH=./operational-auth.config.ts \
+              timeout 100s ./node_modules/.bin/payload migrate:create initial_private_studio --skip-empty
+            echo "STUDIO_MIGRATION_GENERATED_FOR_REVIEW"
+            for file in migrations/*.ts; do
+              test -f "$file"
+              echo "STUDIO_MIGRATION_FILE=$(basename "$file")"
+              echo "STUDIO_MIGRATION_B64=$(base64 -w 0 "$file")"
+            done
+          fi
+      - name: Apply migration ONLY to disposable studio DB
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$STUDIO_STAGE"
+          PAYLOAD_CONFIG_PATH=./operational-auth.config.ts \
+            timeout 100s ./node_modules/.bin/payload migrate
+          PAYLOAD_CONFIG_PATH=./operational-auth.config.ts \
+            timeout 30s ./node_modules/.bin/payload migrate:status
+          count="$(psql "$DATABASE_URL" -Atc "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='staff'")"
+          test "$count" = 1 || { echo "Staff schema missing after reviewed migration"; exit 1; }
+          echo "ISOLATED_STUDIO_MIGRATION_OK"
+      - name: Create private staff account offline; reject duplication
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$STUDIO_STAGE"
+          timeout 40s ./node_modules/.bin/tsx scripts/bootstrap-staff.ts
+          count="$(psql "$DATABASE_URL" -Atc "SELECT count(*) FROM staff")"
+          test "$count" = 1
+          if timeout 40s ./node_modules/.bin/tsx scripts/bootstrap-staff.ts; then
+            echo "Duplicate staff provisioning unexpectedly succeeded"
+            exit 1
+          fi
+          echo "OFFLINE_STAFF_PROVISION_GATE_OK"
+      - name: Reject wiki DB accidentally configured as studio
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$STUDIO_STAGE"
+          if DATABASE_URL=postgres://kg_studio_ci:bad@127.0.0.1:5432/dechive_reader_pilot \
+            timeout 30s ./node_modules/.bin/tsx scripts/bootstrap-staff.ts; then
+            echo "Wrong database guard failed"
+            exit 1
+          fi
+          echo "CROSS_DATABASE_GUARD_OK"
+      - name: Export synthetic migration review files only
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: studio-reviewed-migration-candidate
+          path: ${{ runner.temp }}/dechive-studio-data-test/migrations/
+          retention-days: 7
+          if-no-files-found: error
