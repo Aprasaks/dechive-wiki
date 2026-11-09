@@ -135,19 +135,22 @@ try{
    await p.getByRole('link',{name:'Synthetic supporting reference',exact:true}).waitFor()
    assert.ok(!(await p.locator('body').innerText()).includes('PRIVATE REVIEWER'))
    // Published article links are usable and never carry preview or staff tokens.
+   let copiedArticle=''
+   await p.exposeFunction('testCopyArticle', (value:string)=>{copiedArticle=value})
+   await p.exposeFunction('testDenyCopyArticle', ()=>{throw new Error('Clipboard blocked in test')})
    await p.evaluate(()=>{
     Object.defineProperty(navigator,'clipboard',{configurable:true,value:{
-     writeText:async (value:string)=>{(window as Window&{_copiedArticle?:string})._copiedArticle=value}
+     writeText:(window as Window&{testCopyArticle:(value:string)=>Promise<void>}).testCopyArticle
     }})
     history.replaceState(null,'','/knowledge/'+location.pathname.split('/').pop()+'?preview=true&token=private')
    })
    await p.getByRole('button',{name:'Copy link',exact:true}).click()
    await p.getByRole('status').getByText('Link copied.').waitFor()
    const expectedLink=BASE+'/knowledge/'+row.entity_id
-   assert.equal(await p.evaluate(()=>(window as Window&{_copiedArticle?:string})._copiedArticle),expectedLink)
+   assert.equal(copiedArticle,expectedLink)
    await p.evaluate(()=>{
     Object.defineProperty(navigator,'clipboard',{configurable:true,value:{
-     writeText:async ()=>{throw new Error('Clipboard blocked in test')}
+     writeText:(window as Window&{testDenyCopyArticle:()=>Promise<void>}).testDenyCopyArticle
     }})
     Object.defineProperty(navigator,'share',{configurable:true,value:undefined})
    })
