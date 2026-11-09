@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 25
     services:
       postgres:
-        image: postgres@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5f7450c77753542eee94
+        image: postgres@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: synthetic-reader-package-ci
