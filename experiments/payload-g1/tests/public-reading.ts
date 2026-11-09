@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import {spawn} from 'node:child_process'
 import {randomUUID} from 'node:crypto'
 import {Pool} from 'pg'
-import {readApproved,searchApproved,safeSourceUrl,listApprovedDomain} from '../lib/public-reading'
+import {readApproved,searchApproved,safeSourceUrl,listApprovedDomain,listRelatedApproved} from '../lib/public-reading'
 const admin=new Pool({connectionString:process.env.DATABASE_URL})
 const reader=new Pool({connectionString:process.env.PUBLIC_DATABASE_URL})
 const tag='reading-'+randomUUID()
@@ -40,6 +40,36 @@ try{
   if(i===0){firstRevision=row.revision;firstSource=row.source}
  }
  privateId=(await seed('SYNTHETIC PRIVATE '+tag+' SECRET_UNPUBLISHED_EVIDENCE',false)).id
+ const relation=randomUUID(),privateRelation=randomUUID()
+ await admin.query(
+  'INSERT INTO kg.relations(id,kind,subject,object,status) VALUES($1,$2,$3,$4,$5)',
+  [relation,'related_to',ids[0],ids[1],'proposed'])
+ await check('Proposed and unsupported knowledge relations stay private',async()=>{
+  assert.equal((await listRelatedApproved(reader,ids[0])).length,0)
+  await admin.query('UPDATE kg.relations SET status=$1 WHERE id=$2',['approved',relation])
+  assert.equal((await listRelatedApproved(reader,ids[0])).length,0)
+ })
+ await admin.query(
+  'INSERT INTO kg.relation_evidence(relation_id,source_id,stance,pinpoint,reviewer) VALUES($1,$2,$3,$4,$5)',
+  [relation,firstSource,'supports','Synthetic relation review','PRIVATE RELATION REVIEWER'])
+ await admin.query(
+  'INSERT INTO kg.relations(id,kind,subject,object,status) VALUES($1,$2,$3,$4,$5)',
+  [privateRelation,'related_to',ids[0],privateId,'approved'])
+ await admin.query(
+  'INSERT INTO kg.relation_evidence(relation_id,source_id,stance,pinpoint,reviewer) VALUES($1,$2,$3,$4,$5)',
+  [privateRelation,firstSource,'supports','Synthetic private-target review','PRIVATE RELATION REVIEWER'])
+ await check('Approved relations link only two published entries, in both directions',async()=>{
+  const forward=await listRelatedApproved(reader,ids[0])
+  const reverse=await listRelatedApproved(reader,ids[1])
+  assert.equal(forward.length,1)
+  assert.equal(forward[0].related_entity_id,ids[1])
+  assert.equal(reverse.length,1)
+  assert.equal(reverse[0].related_entity_id,ids[0])
+  assert.equal((await listRelatedApproved(reader,privateId)).length,0)
+  assert.equal((await listRelatedApproved(reader,'invalid')).length,0)
+  assert.ok(!JSON.stringify(forward).includes('PRIVATE'))
+  await assert.rejects(reader.query('SELECT * FROM kg.relations'),/permission denied/i)
+ })
  await check('Multi-source snapshot is revision-bound, immutable and cannot be approved through the legacy path',async()=>{
   const entity=randomUUID(),rev=randomUUID(),source=randomUUID(),body='SYNTHETIC LONG BODY '.repeat(1000)
   await admin.query('INSERT INTO kg.entities(id,kind,name) VALUES($1,$2,$3)',[entity,'concept','Synthetic multi-source'])
@@ -179,6 +209,14 @@ try{
   assert.match(r.headers.get('cache-control')??'',/no-store/)
   assert.match(r.headers.get('x-robots-tag')??'',/noindex/)
  })
+ await check('Real HTTP shows reviewed related links without unpublished targets',async()=>{
+  const r=await request('/knowledge/'+ids[0])
+  assert.equal(r.status,200)
+  assert.ok(r.body.includes('Continue exploring'))
+  assert.ok(r.body.includes('/knowledge/'+ids[1]))
+  assert.ok(!r.body.includes('/knowledge/'+privateId))
+  assert.ok(!r.body.includes('PRIVATE RELATION REVIEWER'))
+ })
  await check('Real HTTP detail shows body, claim pinpoint, source and revision identity',async()=>{
   const r=await request('/knowledge/'+ids[0])
   assert.equal(r.status,200);assert.ok(r.body.includes(firstRevision))
@@ -213,6 +251,11 @@ try{
   assert.equal(r.rows.length,0)
   assert.ok(!(await searchApproved(reader,tag)).results.some(x=>x.entity_id===ids[0]))
   assert.equal((await request('/knowledge/'+ids[0])).status,404)
+  assert.equal((await listRelatedApproved(reader,ids[0])).length,0)
+  assert.equal((await listRelatedApproved(reader,ids[1])).length,0)
+  const survivor=await request('/knowledge/'+ids[1])
+  assert.equal(survivor.status,200)
+  assert.ok(!survivor.body.includes('/knowledge/'+ids[0]))
  })
  console.log('PUBLIC_READING_'+mode.toUpperCase()+'_'+count+'_CHECKS_SUCCESS')
 }catch(error){console.error('PUBLIC_READING_SERVER_CONTEXT',log);throw error}
