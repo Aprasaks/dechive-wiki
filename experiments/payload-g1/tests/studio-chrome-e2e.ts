@@ -134,6 +134,29 @@ try{
    await p.getByRole('heading',{name:'Claims & sources',exact:true}).waitFor()
    await p.getByRole('link',{name:'Synthetic supporting reference',exact:true}).waitFor()
    assert.ok(!(await p.locator('body').innerText()).includes('PRIVATE REVIEWER'))
+   // Published article links are usable and never carry preview or staff tokens.
+   await p.evaluate(()=>{
+    Object.defineProperty(navigator,'clipboard',{configurable:true,value:{
+     writeText:async (value:string)=>{(window as Window&{_copiedArticle?:string})._copiedArticle=value}
+    }})
+    history.replaceState(null,'','/knowledge/'+location.pathname.split('/').pop()+'?preview=true&token=private')
+   })
+   await p.getByRole('button',{name:'Copy link',exact:true}).click()
+   await p.getByRole('status').getByText('Link copied.').waitFor()
+   const expectedLink=BASE+'/knowledge/'+row.entity_id
+   assert.equal(await p.evaluate(()=>(window as Window&{_copiedArticle?:string})._copiedArticle),expectedLink)
+   await p.evaluate(()=>{
+    Object.defineProperty(navigator,'clipboard',{configurable:true,value:{
+     writeText:async ()=>{throw new Error('Clipboard blocked in test')}
+    }})
+    Object.defineProperty(navigator,'share',{configurable:true,value:undefined})
+   })
+   await p.getByRole('button',{name:'Copy link',exact:true}).click()
+   await p.getByLabel('Public article link').waitFor()
+   assert.equal(await p.getByLabel('Public article link').inputValue(),expectedLink)
+   assert.ok(!(await p.locator('.reading-share').innerText()).includes('Link copied.'))
+   await p.getByRole('button',{name:'Share article',exact:true}).click()
+   await p.getByRole('status').getByText('Use the link below to share this article.').waitFor()
    await p.screenshot({path:'artifacts/public-reading-desktop.png',fullPage:true})
    await p.setViewportSize({width:390,height:844})
    const bounds=await p.evaluate(()=>({scroll:document.documentElement.scrollWidth,width:innerWidth}))
