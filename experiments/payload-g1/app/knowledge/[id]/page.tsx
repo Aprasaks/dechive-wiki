@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { publicPool } from '../../../lib/public-db'
-import { UUID,domainName,entryTitle,readApproved,safeSourceUrl,type PublicEvidence } from '../../../lib/public-reading'
+import { UUID,domainName,entryTitle,readApproved,listRelatedApproved,safeSourceUrl,type PublicEvidence } from '../../../lib/public-reading'
 import { ArticleBody } from '../../../lib/article-body'
 import '../../reading.css'
 export const runtime='nodejs'
@@ -19,8 +19,10 @@ function Evidence({e}:{e:PublicEvidence}){
 export default async function KnowledgePage({params}:{params:Promise<{id:string}>}){
  const {id}=await params
  if(!UUID.test(id))notFound()
- const record=await readApproved(publicPool(),id)
+ const reader=publicPool()
+ const record=await readApproved(reader,id)
  if(!record)notFound()
+ const related=await listRelatedApproved(reader,id)
  const groups=new Map<string,PublicEvidence[]>()
  for(const e of record.evidence)groups.set(e.claim_key,[...(groups.get(e.claim_key)||[]),e])
  return <article className="reading-page">
@@ -40,6 +42,15 @@ export default async function KnowledgePage({params}:{params:Promise<{id:string}
      <small>Claim location: {evidence[0].anchor}</small>
      <ul>{evidence.map((e,i)=><Evidence key={e.source_id+'-'+i} e={e}/>)}</ul>
     </section>)}
+  </section>
+  <section className="reading-related" aria-labelledby="related-heading">
+   <h2 id="related-heading">Continue exploring</h2>
+   {related.length?<ul className="reading-related-list">{related.map(item=><li key={item.related_entity_id}>
+    <a href={'/knowledge/'+item.related_entity_id}>{item.title}</a>
+    <p>{item.summary}</p>
+    <small>{domainName(item.primary_domain)||'Knowledge'} · Published revision {item.related_version}</small>
+   </li>)}</ul>:
+    <p className="reading-note">No related published entries yet.</p>}
   </section>
   <footer className="reading-revision"><strong>Revision record</strong><p>Version {record.version}</p><p>Revision ID: <code>{record.revision_id}</code></p><p>Content checksum: <code>{record.checksum}</code></p></footer>
  </article>
