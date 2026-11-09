@@ -48,9 +48,12 @@ async function main() {
   }
 }
 
-main().catch((error) => {
+// Other private HTTP endpoint modules allocate lazy DB pools at import time.
+// For this one-shot maintenance command, exit once the awaited write is done
+// rather than leave unused pools holding the process open indefinitely.
+main().then(() => process.exit(0)).catch((error) => {
   // Never print credentials or DB URLs into deployment logs.
   const msg = error instanceof Error ? error.message : 'Unknown provisioning error'
   console.error('PRIVATE_STAFF_PROVISION_FAILED: ' + msg)
-  process.exitCode = 1
+  process.exit(1)
 })
