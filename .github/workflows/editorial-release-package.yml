@@ -103,8 +103,14 @@ jobs:
           set -euo pipefail
           mkdir -p studio-package
           tar -C "$STUDIO_STAGE/.next/standalone" -czf studio-package/studio-standalone.tgz .
+          # Separate maintenance source: migrations and offline staff bootstrap.
+          # No node_modules, test credentials or live environment files.
+          tar -C "$STUDIO_STAGE" --exclude='./node_modules' --exclude='./.next' \
+            -czf studio-package/studio-operations-src.tgz .
+          tar -tzf studio-package/studio-operations-src.tgz | grep -qx './migrations/index.ts'
+          tar -tzf studio-package/studio-operations-src.tgz | grep -qx './scripts/bootstrap-staff.ts'
           printf 'commit=%s\nbranch=%s\nstatus=private-editor-build-only\nMIGRATIONS_NOT_APPLIED=true\nAWS_NOT_DEPLOYED=true\n' "$GITHUB_SHA" "$GITHUB_REF_NAME" > studio-package/BUILD_INFO.txt
-          (cd studio-package && sha256sum studio-standalone.tgz > SHA256SUMS)
+          (cd studio-package && sha256sum studio-standalone.tgz studio-operations-src.tgz > SHA256SUMS)
       - name: Preserve private studio build artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
