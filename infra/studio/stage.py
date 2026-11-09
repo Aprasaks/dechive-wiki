@@ -47,6 +47,24 @@ def stage(dest: Path) -> None:
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(src, dst)
 
+    staff_src = ROOT / "infra" / "studio" / "bootstrap-staff.ts"
+    if not staff_src.is_file() or staff_src.is_symlink():
+        raise SystemExit("Missing offline staff bootstrap")
+    staff_dst = dest / "scripts" / "bootstrap-staff.ts"
+    staff_dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(staff_src, staff_dst)
+
+    migrations_src = ROOT / "infra" / "studio" / "migrations"
+    if migrations_src.exists():
+        if not migrations_src.is_dir() or migrations_src.is_symlink():
+            raise SystemExit("Unsafe migration directory")
+        migrations_dst = dest / "migrations"
+        migrations_dst.mkdir()
+        for file in migrations_src.iterdir():
+            if not file.is_file() or file.is_symlink() or file.suffix != ".ts":
+                raise SystemExit("Unexpected migration file: " + file.name)
+            shutil.copyfile(file, migrations_dst / file.name)
+
     # Explicitly do NOT copy the fixture's test-only push config.
     fixture = (SOURCE / "native-auth.config.ts").read_text()
     fixture = replace_once(
@@ -57,6 +75,12 @@ def stage(dest: Path) -> None:
         fixture,
         "secret: process.env.PAYLOAD_SECRET ?? '',",
         "secret: operationalSecret,")
+    fixture = replace_once(
+        fixture,
+        "push: false, // Mandatory: use reviewed migrations only",
+        "push: false, // Reviewed migrations only, never schema push\n"
+        "    disableCreateDatabase: true,\n"
+        "    migrationDir: './migrations',")
     fixture = replace_once(
         fixture,
         "pool: { connectionString: process.env.DATABASE_URL ?? '' },",
@@ -92,7 +116,9 @@ try { parsedDatabase = new URL(operationalDatabaseUrl) }
 catch { throw new Error('STUDIO_DEDICATED_DB_REQUIRED') }
 if (!['postgres:', 'postgresql:'].includes(parsedDatabase.protocol) ||
     !parsedDatabase.hostname || !parsedDatabase.password ||
-    !parsedDatabase.username.startsWith('kg_studio_')) {
+    !parsedDatabase.username.startsWith('kg_studio_') ||
+    parsedDatabase.pathname !== (process.env.STUDIO_CI_SYNTHETIC === 'true'
+      ? '/dechive_studio_ci' : '/dechive_studio')) {
   throw new Error('STUDIO_DEDICATED_DB_ROLE_REQUIRED')
 }
 for (const key of [
@@ -104,7 +130,9 @@ for (const key of [
 }
 """
     fixture = replace_once(fixture, before, safety + "\n" + before)
-    if "push: true" in fixture or "native-auth.config" in fixture:
+    if ("push: true" in fixture or "native-auth.config" in fixture or
+            "disableCreateDatabase: true" not in fixture or
+            "migrationDir: './migrations'" not in fixture):
         raise SystemExit("Fixture/push reference leaked into operational config")
     (dest / "operational-auth.config.ts").write_text(fixture)
 
@@ -147,7 +175,7 @@ for (const key of [
     for name in forbidden:
         if (dest / name).exists():
             raise SystemExit("Unapproved public/fixture file staged: " + name)
-    print("PRIVATE_STUDIO_STAGE_OK: no fixture config, no DB push, no public reader")
+    print("PRIVATE_STUDIO_STAGE_OK: dedicated DB; migration-only; private staff route")
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
