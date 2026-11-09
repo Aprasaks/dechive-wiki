@@ -24,3 +24,11 @@
 .reading-related-list li{border:1px solid #dce3da;border-radius:12px;padding:18px;background:#fff}
 .reading-related-list a{font-size:20px;font-weight:bold;line-height:1.35}
 .reading-related-list p{font:14px/1.55 Arial,sans-serif;color:#42564a}
+
+.reading-share{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:20px 0 26px;font:14px Arial,sans-serif}
+.reading-share button{background:#fff;color:#245c3d;border:1px solid #9fb1a3;border-radius:6px;padding:10px 14px;cursor:pointer;font:inherit}
+.reading-share button:hover{background:#f0f5ee}
+.reading-share-status{flex-basis:100%;min-height:1em;color:#465c4d}
+.reading-share-status:empty{display:none}
+.reading-share-fallback{flex-basis:100%;max-width:100%;display:grid;gap:7px}
+.reading-share-fallback input{width:100%;min-width:0;padding:11px 12px;border:1px solid #9fb1a3;border-radius:6px;background:#fff;color:#25372b;font:14px Arial,sans-serif}
