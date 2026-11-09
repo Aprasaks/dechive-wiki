@@ -1,0 +1,113 @@
+name: Wiki Release — Private Editorial Package
+
+on:
+  push:
+    branches:
+      - release/wiki-first-launch
+    paths:
+      - 'infra/studio/**'
+      - '.github/workflows/editorial-release-package.yml'
+      - 'experiments/payload-g1/**'
+  workflow_dispatch:
+
+concurrency:
+  group: wiki-release-studio-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  package-private-editor:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: '1'
+      G1_TRUSTED_ORIGIN: https://studio.example.invalid
+      G1_COOKIE_SECURE: 'true'
+      DATABASE_URL: postgres://kg_studio_build:synthetic-no-live-database@127.0.0.1:5432/studio_buildonly
+      G1_REVIEWER_DATABASE_URL: postgres://kg_studio_reviewer:synthetic-no-live-database@127.0.0.1:5432/studio_buildonly
+      G1_PUBLISHER_DATABASE_URL: postgres://kg_studio_publisher:synthetic-no-live-database@127.0.0.1:5432/studio_buildonly
+      G1_CANDIDATE_DATABASE_URL: postgres://kg_studio_candidate:synthetic-no-live-database@127.0.0.1:5432/studio_buildonly
+    steps:
+      - name: Checkout release branch without AWS access
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Set up pinned Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.23.4'
+      - name: Assemble isolated operational editor code
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "STUDIO_STAGE=$RUNNER_TEMP/dechive-private-studio" >> "$GITHUB_ENV"
+          python3 infra/studio/stage.py "$RUNNER_TEMP/dechive-private-studio"
+          ! grep -q 'push: true' "$RUNNER_TEMP/dechive-private-studio/operational-auth.config.ts"
+          grep -q 'push: false' "$RUNNER_TEMP/dechive-private-studio/operational-auth.config.ts"
+          test ! -e "$RUNNER_TEMP/dechive-private-studio/native-auth.config.ts"
+          test ! -d "$RUNNER_TEMP/dechive-private-studio/app/knowledge"
+          test ! -d "$RUNNER_TEMP/dechive-private-studio/app/search"
+      - name: Create synthetic build-only secrets (never a deployed credential)
+        shell: bash
+        run: |
+          set -euo pipefail
+          secret="$(openssl rand -hex 32)"
+          review="$(openssl rand -hex 32)"
+          candidate="$(openssl rand -hex 32)"
+          for value in "$secret" "$review" "$candidate"; do echo "::add-mask::$value"; done
+          echo "PAYLOAD_SECRET=$secret" >> "$GITHUB_ENV"
+          echo "G1_REVIEW_ATTESTATION_SECRET=$review" >> "$GITHUB_ENV"
+          echo "G1_CANDIDATE_SECRET=$candidate" >> "$GITHUB_ENV"
+      - name: Install immutable lockfile and compile production standalone editor
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --prefix "$STUDIO_STAGE" --no-audit --no-fund
+          npm --prefix "$STUDIO_STAGE" run build:next
+          test -f "$STUDIO_STAGE/.next/standalone/server.js"
+          test -e "$STUDIO_STAGE/.next/standalone/.next/server/app/studio"
+          test ! -e "$STUDIO_STAGE/.next/standalone/.next/server/app/knowledge"
+          test ! -e "$STUDIO_STAGE/.next/standalone/.next/server/app/search"
+          mkdir -p "$STUDIO_STAGE/.next/standalone/.next"
+          cp -R "$STUDIO_STAGE/.next/static" "$STUDIO_STAGE/.next/standalone/.next/static"
+      - name: Verify local login shell renders while public routes stay absent
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$STUDIO_STAGE/.next/standalone"
+          PORT=3121 HOSTNAME=127.0.0.1 node server.js > "$RUNNER_TEMP/studio-server.log" 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=0
+          for n in $(seq 1 60); do
+            if curl -fsS 'http://127.0.0.1:3121/studio/login' > "$RUNNER_TEMP/studio-login.html"; then
+              ready=1; break
+            fi
+            sleep 1
+          done
+          if [ "$ready" != 1 ]; then
+            tail -40 "$RUNNER_TEMP/studio-server.log"; exit 1
+          fi
+          grep -q 'Editorial Sign In' "$RUNNER_TEMP/studio-login.html"
+          grep -q 'Public registration is disabled' "$RUNNER_TEMP/studio-login.html"
+          for route in /search /domains/history /knowledge/00000000-0000-0000-0000-000000000000; do
+            code="$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:3121$route")"
+            test "$code" = 404 || { echo "Public reader leaked: $route $code"; exit 1; }
+          done
+          echo "PRIVATE_STUDIO_STANDALONE_SMOKE_OK"
+      - name: Package only approved private runtime (no AWS deployment)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p studio-package
+          tar -C "$STUDIO_STAGE/.next/standalone" -czf studio-package/studio-standalone.tgz .
+          printf 'commit=%s\nbranch=%s\nstatus=private-editor-build-only\nMIGRATIONS_NOT_APPLIED=true\nAWS_NOT_DEPLOYED=true\n' "$GITHUB_SHA" "$GITHUB_REF_NAME" > studio-package/BUILD_INFO.txt
+          (cd studio-package && sha256sum studio-standalone.tgz > SHA256SUMS)
+      - name: Preserve private studio build artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: wiki-first-launch-private-studio
+          path: studio-package/
+          if-no-files-found: error
+          retention-days: 7
