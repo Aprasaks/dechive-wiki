@@ -80,7 +80,7 @@ jobs:
           ! grep -q 'push: true' "$RUNNER_TEMP/dechive-studio-data-test/operational-auth.config.ts"
       - name: Install locked dependencies in isolated stage
         shell: bash
-        run: npm ci --prefix "$STUDIO_STAGE" --no-audit --no-fund
+        run: npm ci --prefix "$STUDIO_STAGE" --include=dev --no-audit --no-fund
       - name: Generate initial migration only if reviewed migration not checked in yet
         shell: bash
         run: |
