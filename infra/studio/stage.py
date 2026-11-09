@@ -170,7 +170,7 @@ for (const key of [
     forbidden = (
         "native-auth.config.ts", "payload.config.ts", "app/knowledge",
         "app/search", "app/domains", "lib/public-db.ts",
-        "lib/public-reading.ts", "db", "migrations",
+        "lib/public-reading.ts", "db",
     )
     for name in forbidden:
         if (dest / name).exists():
