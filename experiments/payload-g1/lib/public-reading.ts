@@ -63,3 +63,19 @@ export async function readApproved(reader:Reader,id:string){
   "FROM kg.public_entries p LEFT JOIN kg.public_revision_metadata m ON m.entity_id=p.entity_id AND m.locale=p.locale AND m.version=p.version AND m.revision_id=p.revision_id WHERE p.entity_id=$1::uuid AND p.locale='en' LIMIT 1",[id])
  return result.rows[0] as (PublicEntry&{checksum:string;evidence:PublicEvidence[]})|undefined
 }
+
+export type PublicRelatedEntry={
+ related_entity_id:string;related_version:number;title:string;summary:string;primary_domain:string
+}
+
+// The database view enforces both endpoints' current public snapshots, an
+// approved relation and supporting review evidence. Never query raw relations
+// using the public reader role.
+export async function listRelatedApproved(reader:Reader,id:string):Promise<PublicRelatedEntry[]>{
+ if(!UUID.test(id))return []
+ const result=await reader.query(
+  'SELECT related_entity_id,related_version,title,summary,primary_domain '+
+  'FROM kg.public_related_entries WHERE entity_id=$1::uuid '+
+  'ORDER BY title,related_entity_id LIMIT 6',[id])
+ return result.rows as PublicRelatedEntry[]
+}
