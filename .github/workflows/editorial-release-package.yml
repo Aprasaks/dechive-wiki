@@ -26,7 +26,8 @@ jobs:
       NEXT_TELEMETRY_DISABLED: '1'
       G1_TRUSTED_ORIGIN: https://studio.example.invalid
       G1_COOKIE_SECURE: 'true'
-      DATABASE_URL: postgres://kg_studio_build:synthetic-no-live-database@127.0.0.1:5432/studio_buildonly
+      STUDIO_CI_SYNTHETIC: 'true'
+      DATABASE_URL: postgres://kg_studio_build:synthetic-no-live-database@127.0.0.1:5432/dechive_studio_ci
       G1_REVIEWER_DATABASE_URL: postgres://kg_studio_reviewer:synthetic-no-live-database@127.0.0.1:5432/studio_buildonly
       G1_PUBLISHER_DATABASE_URL: postgres://kg_studio_publisher:synthetic-no-live-database@127.0.0.1:5432/studio_buildonly
       G1_CANDIDATE_DATABASE_URL: postgres://kg_studio_candidate:synthetic-no-live-database@127.0.0.1:5432/studio_buildonly
