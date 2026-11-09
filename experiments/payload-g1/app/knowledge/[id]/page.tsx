@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { publicPool } from '../../../lib/public-db'
 import { UUID,domainName,entryTitle,readApproved,listRelatedApproved,safeSourceUrl,type PublicEvidence } from '../../../lib/public-reading'
 import { ArticleBody } from '../../../lib/article-body'
+import ShareControls from './share-controls'
 import '../../reading.css'
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
@@ -32,6 +33,7 @@ export default async function KnowledgePage({params}:{params:Promise<{id:string}
   <h1>{record.title || entryTitle(record.body)}</h1>
   {record.summary && <p>{record.summary}</p>}
   <p className="reading-meta">Published revision {record.version} · English · <a href="#claim-sources">Claims &amp; sources</a></p>
+  <ShareControls entryId={id} title={record.title || entryTitle(record.body)}/>
   <ArticleBody body={record.body}/>
   <section id="claim-sources" aria-labelledby="sources-heading">
    <h2 id="sources-heading">Claims &amp; sources</h2>
