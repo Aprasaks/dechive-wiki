@@ -5,6 +5,7 @@ on:
     branches:
       - p0/public-search-evidence
       - integration/approved-search-validation
+      - release/wiki-first-launch
     # Verify EVERY branch head, including documentation-only commits.
     # Previously the paths filter left the latest Draft PR SHA untested.
   workflow_dispatch:
@@ -120,6 +121,8 @@ jobs:
             -v ON_ERROR_STOP=1 -q -f experiments/payload-g1/sql/008_multisource_snapshot.sql
           psql -h 127.0.0.1 -U postgres -d dechive_native_g1 \
             -v ON_ERROR_STOP=1 -q -f experiments/payload-g1/sql/009_seal_multi_review.sql
+          psql -h 127.0.0.1 -U postgres -d dechive_native_g1 \
+            -v ON_ERROR_STOP=1 -q -f experiments/payload-g1/sql/012_public_related_entries.sql
       - name: Verify real Next.js dev server with authenticated edit/review/publish and SSR
         env:
           G1_TRUSTED_ORIGIN: http://127.0.0.1:3100
