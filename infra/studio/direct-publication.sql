@@ -54,7 +54,7 @@ CREATE FUNCTION kg.publish_studio_draft(p_entity uuid,p_title text,p_body text,p
  LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,kg,public AS $$
 DECLARE new_version bigint; new_revision uuid;
 BEGIN
- IF p_entity IS NULL OR length(btrim(p_title)) NOT BETWEEN 1 AND 180
+ IF p_entity IS NULL OR p_title IS NULL OR p_body IS NULL OR p_summary IS NULL OR p_domain IS NULL OR length(btrim(p_summary)) NOT BETWEEN 1 AND 1000 OR length(btrim(p_title)) NOT BETWEEN 1 AND 180
     OR length(btrim(p_body)) NOT BETWEEN 1 AND 100000 THEN
    RAISE EXCEPTION 'INVALID_PUBLICATION';
  END IF;
@@ -68,7 +68,7 @@ BEGIN
  VALUES(p_entity,new_version,btrim(p_title),p_body,p_summary,p_domain) RETURNING studio_public_revisions.revision_id INTO new_revision;
  INSERT INTO kg.studio_public_heads(entity_id,revision_id,version)
  VALUES(p_entity,new_revision,new_version)
- ON CONFLICT (entity_id) DO UPDATE SET revision_id=excluded.revision_id,version=excluded.version;
+ ON CONFLICT ON CONSTRAINT studio_public_heads_pkey DO UPDATE SET revision_id=excluded.revision_id,version=excluded.version;
  RETURN QUERY SELECT p_entity,new_revision,new_version;
 END $$;
 REVOKE ALL ON kg.studio_public_revisions,kg.studio_public_heads FROM PUBLIC;

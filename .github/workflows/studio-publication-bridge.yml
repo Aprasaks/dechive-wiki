@@ -37,3 +37,23 @@ jobs:
           name: studio-publication-bridge
           path: /tmp/studio-publication.tgz
           retention-days: 7
+  sql-bridge:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d testdb"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      PGPASSWORD: test-only
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: psql -h 127.0.0.1 -U postgres -d testdb -v ON_ERROR_STOP=1 -f infra/studio/direct-publication-test-setup.sql
+      - run: psql -h 127.0.0.1 -U postgres -d testdb -v ON_ERROR_STOP=1 -f infra/studio/direct-publication.sql
+      - run: psql -h 127.0.0.1 -U postgres -d testdb -v ON_ERROR_STOP=1 -f infra/studio/direct-publication-test.sql
