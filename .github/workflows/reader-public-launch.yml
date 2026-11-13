@@ -1,0 +1,126 @@
+name: Wiki Public Launch Reader
+
+on:
+  push:
+    branches:
+      - work/studio-publication-bridge
+    paths:
+      - 'infra/reader/**'
+      - '.github/workflows/reader-release-package.yml'
+      - 'experiments/payload-g1/**'
+  workflow_dispatch:
+
+concurrency:
+  group: wiki-release-reader-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  package-public-reader:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-reader-package-ci
+          POSTGRES_DB: dechive_reader_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d dechive_reader_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      PGPASSWORD: synthetic-reader-package-ci
+      PGHOST: 127.0.0.1
+      PGUSER: postgres
+      PGDATABASE: dechive_reader_ci
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - name: Checkout reviewed release branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Set up Node.js 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.23.4'
+      - name: Stage only the public reader source and images
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "READER_STAGE=$RUNNER_TEMP/dechive-public-reader" >> "$GITHUB_ENV"
+          python3 infra/reader/stage.py "$RUNNER_TEMP/dechive-public-reader"
+          test ! -d "$RUNNER_TEMP/dechive-public-reader/app/studio"
+          test ! -d "$RUNNER_TEMP/dechive-public-reader/app/api"
+          test ! -e "$RUNNER_TEMP/dechive-public-reader/native-auth.config.ts"
+          test -f "$RUNNER_TEMP/dechive-public-reader/app/knowledge/share-controls.tsx"
+          test -f "$RUNNER_TEMP/dechive-public-reader/app/domains/[code]/page.tsx"
+      - name: Prepare disposable read-only public PostgreSQL schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          for migration in db/00[1-4]_*.sql; do
+            psql -X -v ON_ERROR_STOP=1 -q -f "$migration"
+          done
+          reader_password="$(openssl rand -hex 24)"
+          echo "::add-mask::$reader_password"
+          psql -X -v ON_ERROR_STOP=1 -q -v reader_password="$reader_password" -f experiments/payload-g1/sql/001_http_reader.sql
+          psql -X -v ON_ERROR_STOP=1 -q -f experiments/payload-g1/sql/006_public_evidence.sql
+          psql -X -v ON_ERROR_STOP=1 -q -f experiments/payload-g1/sql/007_revision_metadata.sql
+          psql -X -v ON_ERROR_STOP=1 -q -f experiments/payload-g1/sql/012_public_related_entries.sql
+          echo "PUBLIC_DATABASE_URL=postgres://kg_public_http:$reader_password@127.0.0.1:5432/dechive_reader_ci" >> "$GITHUB_ENV"
+      - name: Build standalone reader WITHOUT CMS code or publisher credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --prefix "$READER_STAGE" --no-audit --no-fund
+          npm --prefix "$READER_STAGE" run build:next
+          test -f "$READER_STAGE/.next/standalone/server.js"
+          test ! -d "$READER_STAGE/.next/standalone/.next/server/app/studio"
+          test ! -d "$READER_STAGE/.next/standalone/.next/server/app/api"
+          cp -R "$READER_STAGE/public" "$READER_STAGE/.next/standalone/public"
+          mkdir -p "$READER_STAGE/.next/standalone/.next"
+          cp -R "$READER_STAGE/.next/static" "$READER_STAGE/.next/standalone/.next/static"
+      - name: Smoke-test packaged public routes and private-route isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$READER_STAGE/.next/standalone"
+          PORT=3120 HOSTNAME=127.0.0.1 node server.js > "$RUNNER_TEMP/reader-server.log" 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:3120/robots.txt > /dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" != "1" ]; then cat "$RUNNER_TEMP/reader-server.log"; exit 1; fi
+          curl -fsS http://127.0.0.1:3120/ | grep -q "DECHIVE.WIKI"
+          curl -fsS "http://127.0.0.1:3120/search?q=knowledge" | grep -q "No approved records"
+          curl -fsS http://127.0.0.1:3120/domains/history | grep -q "History"
+          curl -fsS http://127.0.0.1:3120/robots.txt | grep -q "Allow: /"
+          for path in /studio /studio/login /api/staff /api/graphql /api/g1/publish; do
+            code="$(curl --silent --output /dev/null --write-out '%{http_code}' "http://127.0.0.1:3120$path")"
+            test "$code" = 404 || { echo "Private route exposed: $path ($code)"; exit 1; }
+          done
+          echo "RELEASE_READER_PUBLIC_ONLY_SMOKE_OK"
+      - name: Preserve exact release-candidate reader artifact (NO AWS upload)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p reader-package
+          tar -C "$READER_STAGE/.next/standalone" -czf reader-package/reader-standalone.tgz .
+          printf 'commit=%s\nbranch=%s\nstatus=private-release-candidate\n' "$GITHUB_SHA" "$GITHUB_REF_NAME" > reader-package/BUILD_INFO.txt
+          (cd reader-package && sha256sum reader-standalone.tgz > SHA256SUMS)
+      - name: Upload reader package for a separate approved AWS deployment
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: wiki-public-launch-reader
+          path: reader-package/
+          if-no-files-found: error
+          retention-days: 7

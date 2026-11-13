@@ -45,6 +45,15 @@ def stage(destination: Path) -> None:
         target = destination / filename
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(original, target)
+    # Only the reader release is indexable; keep the shared private fixture unchanged.
+    layout = destination / "app/layout.tsx"
+    text = layout.read_text()
+    old = "robots: { index: false, follow: false }, // test lab: do not index the preview"
+    if text.count(old) != 1:
+        raise SystemExit("Unexpected reader robots metadata")
+    layout.write_text(text.replace(old, "robots: { index: true, follow: true },"))
+    robots = destination / "app/robots.txt/route.ts"
+    robots.write_text("export function GET() { return new Response('User-agent: *\\nAllow: /\\n', { headers: { 'Content-Type': 'text/plain; charset=utf-8' } }) }\n")
     assets = SOURCE / "public" / "reference"
     for filename in ASSETS:
         original = assets / filename
