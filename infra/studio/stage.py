@@ -20,7 +20,7 @@ FILES = (
     "app/studio/private-article-preview.tsx",
     "app/api/[...slug]/route.ts", "app/api/graphql/route.ts",
     "proxy.ts",
-    "http/candidate-endpoint.ts", "http/workflow-endpoints.ts",
+    "http/candidate-endpoint.ts", "http/workflow-endpoints.ts", "http/direct-publication.ts",
     "http/reviewer-decision-endpoints.ts", "http/multi-review-status.ts",
     "http/seal-multi-review.ts",
     "lib/article-body.tsx", "lib/editorial-package.ts",

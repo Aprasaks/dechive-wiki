@@ -209,6 +209,25 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
     }finally{setDecisionBusy(false)}
   }
 
+
+  async function publishDraft(e:FormEvent<HTMLFormElement>, draft:Draft){
+    e.preventDefault()
+    const form = new FormData(e.currentTarget)
+    const summary = String(form.get('summary') || '').trim()
+    const domain = String(form.get('domain') || '')
+    if (!summary || !domain || !window.confirm('Publish this draft to the public wiki and search?')) return
+    setStatus('')
+    try {
+      const r = await fetch('/api/studio-publish',{
+        method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({draftId:draft.id,summary,domain})
+      })
+      if (!r.ok) throw new Error('Publication failed')
+      const result = await r.json()
+      setStatus('Published. Public article: /knowledge/'+result.entity_id)
+    } catch { setStatus('Publication failed. The draft is still private.') }
+  }
+
   async function logout(){
     setStatus('')
     try {
@@ -236,8 +255,7 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
         <h1 style={{fontFamily:'Georgia, serif',fontSize:40,fontWeight:400,
           margin:'12px 0'}}>Editorial Workspace</h1>
         <p style={{fontSize:16,maxWidth:700,color:'#3E443C'}}>
-          Every public article must pass independent evidence review.
-          Saving a draft never publishes or indexes content.
+          Saving a draft keeps it private. Choose Publish when you are ready to make it public.
         </p>
       </header>
       {role==='editor'&&(
@@ -419,6 +437,14 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
   </li>)}</ul>
 </section>}</>}
                 </div>}
+                {role==='editor' && <form onSubmit={e=>void publishDraft(e,d)} aria-label={'Publish '+(d.title??'draft')} style={{display:'grid',gap:12,margin:'16px 0'}}>
+                  <label>Public summary <textarea name="summary" required maxLength={1000} rows={2} style={ui.field}/></label>
+                  <label>Category <select name="domain" required defaultValue="" style={ui.field}>
+                    <option value="" disabled>Select a category</option>
+                    {['science','technology','humanities','philosophy','history','society','economics','health','life','space','earth','arts-culture'].map(x=><option key={x} value={x}>{x}</option>)}
+                  </select></label>
+                  <button type="submit" disabled={!hydrated} style={{padding:'10px 16px',background:'#233D34',color:'#fff',border:0}}>Publish to wiki</button>
+                </form>}
                 {role==='editor'&&(
                   <div style={{padding:'12px 0 4px'}}>
                     <button type="button" disabled={!hydrated}

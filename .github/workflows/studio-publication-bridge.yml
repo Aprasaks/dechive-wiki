@@ -1,0 +1,39 @@
+name: Studio publication bridge
+on:
+  push:
+    branches: [work/studio-publication-bridge]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-editor:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: '1'
+      STUDIO_CI_SYNTHETIC: 'true'
+      G1_TRUSTED_ORIGIN: https://studio.example.invalid
+      G1_COOKIE_SECURE: 'true'
+      DATABASE_URL: postgres://kg_studio_ci:synthetic@127.0.0.1:5432/dechive_studio_ci
+      PAYLOAD_SECRET: synthetic-secret-value-at-least-32-bytes
+      G1_REVIEWER_DATABASE_URL: postgres://reviewer:synthetic@127.0.0.1:5432/test
+      G1_PUBLISHER_DATABASE_URL: postgres://publisher:synthetic@127.0.0.1:5432/test
+      G1_CANDIDATE_DATABASE_URL: postgres://candidate:synthetic@127.0.0.1:5432/test
+      G1_REVIEW_ATTESTATION_SECRET: abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd
+      G1_CANDIDATE_SECRET: abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd
+      STUDIO_PUBLICATION_DATABASE_URL: postgres://publisher:synthetic@127.0.0.1:5432/test
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.23.4'
+      - run: python3 infra/studio/stage.py /tmp/studio-bridge
+      - run: npm ci --prefix /tmp/studio-bridge --no-audit --no-fund
+      - run: npm --prefix /tmp/studio-bridge run build:next
+      - run: mkdir -p /tmp/studio-bridge/.next/standalone/.next && cp -R /tmp/studio-bridge/.next/static /tmp/studio-bridge/.next/standalone/.next/static && tar -C /tmp/studio-bridge/.next/standalone -czf /tmp/studio-publication.tgz .
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: studio-publication-bridge
+          path: /tmp/studio-publication.tgz
+          retention-days: 7
