@@ -35,7 +35,7 @@ export default function LoginPage() {
     <h1 style={{fontFamily:'Georgia, serif',fontSize:40,fontWeight:400}}>
       Editorial Sign In</h1>
     <p style={{lineHeight:1.6,color:'#4B554B'}}>
-      Drafts and evidence reviews remain private until independently approved.
+      Your drafts stay private until you choose to publish them.
     </p>
     <form onSubmit={signIn} data-login-ready={hydrated?'true':'false'}
       style={{display:'grid',gap:18,marginTop:32}}>

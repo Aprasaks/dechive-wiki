@@ -445,72 +445,7 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
                   </select></label>
                   <button type="submit" disabled={!hydrated} style={{padding:'10px 16px',background:'#233D34',color:'#fff',border:0}}>Publish to wiki</button>
                 </form>}
-                {role==='editor'&&(
-                  <div style={{padding:'12px 0 4px'}}>
-                    <button type="button" disabled={!hydrated}
-                      onClick={()=>{
-                        const key=String(d.id)
-                        setActiveEvidenceDraft(activeEvidenceDraft===key?null:key)
-                        setClaim('');setSourceUrl('');setPinpoint('')
-                        setSourceDescription('');setLicenseDeclaration('unknown')
-                      }}
-                      style={{padding:'9px 12px',border:'1px solid #536D5F',
-                        color:'#233D34',background:'#fff',cursor:'pointer'}}>
-                      {activeEvidenceDraft===String(d.id)?'Close evidence form':'Attach source & request review'}
-                    </button>
-                    {activeEvidenceDraft===String(d.id)&&(
-                      <form onSubmit={e=>void submitEvidence(e,d)} aria-label="Source evidence submission"
-                        style={{display:'grid',gap:12,padding:20,marginTop:12,
-                          background:'#F6F7F3',border:ui.border}}>
-                        <strong>Source and claim — not independently verified</strong>
-                        <p style={{margin:0,fontSize:13,color:'#586356'}}>
-                          A citation is an editor assertion, not proof. A separate reviewer
-                          must check the source, statement, permissions and rights.
-                          This form cannot publish an article.
-                        </p>
-                        <label>Source URL (HTTPS only)
-                          <input aria-label="Source URL" type="url" required
-                            value={sourceUrl} onChange={e=>setSourceUrl(e.target.value)}
-                            placeholder="https://example.invalid/reference" style={ui.field}/>
-                        </label>
-                        <label>Source description
-                          <input aria-label="Source description" required
-                            minLength={12} maxLength={700}
-                            value={sourceDescription} onChange={e=>setSourceDescription(e.target.value)}
-                            style={ui.field}/>
-                        </label>
-                        <label>Exact claim from this draft
-                          <textarea aria-label="Exact claim from draft" required
-                            minLength={8} maxLength={700} rows={3}
-                            value={claim} onChange={e=>setClaim(e.target.value)}
-                            style={{...ui.field,resize:'vertical'}}/>
-                        </label>
-                        <label>Source pinpoint (page, section, timestamp)
-                          <input aria-label="Source pinpoint" required
-                            minLength={3} maxLength={300}
-                            value={pinpoint} onChange={e=>setPinpoint(e.target.value)}
-                            style={ui.field}/>
-                        </label>
-                        <label>Editor license declaration (unverified)
-                          <select aria-label="Editor license declaration" value={licenseDeclaration}
-                            onChange={e=>setLicenseDeclaration(e.target.value)} style={ui.field}>
-                            <option value="unknown">Unknown — must review</option>
-                            <option value="public-domain">Claimed public domain</option>
-                            <option value="cc-by-4.0">Claimed CC BY 4.0</option>
-                            <option value="permission-required">Permission required</option>
-                          </select>
-                        </label>
-                        <div>
-                          <button type="submit" disabled={!hydrated||evidenceBusy}
-                            style={{padding:'10px 16px',border:0,color:'#fff',
-                              background:'#233D34',cursor:evidenceBusy?'wait':'pointer'}}>
-                            {evidenceBusy?'Submitting…':'Queue for independent review'}
-                          </button>
-                        </div>
-                      </form>
-                    )}
-                  </div>
-                )}
+
               </li>)}
             </ul>}
         </section>
