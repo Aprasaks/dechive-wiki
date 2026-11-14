@@ -20,7 +20,7 @@ FILES = (
     "app/reading.css", "app/search/page.tsx",
     "app/domains/[code]/page.tsx",
     "app/knowledge/[id]/page.tsx",
-    "app/knowledge/share-controls.tsx",
+    "app/knowledge/share-controls.tsx", "app/media/[id]/route.ts",
     "app/robots.txt/route.ts",
     "lib/public-db.ts", "lib/public-reading.ts", "lib/article-body.tsx",
 )

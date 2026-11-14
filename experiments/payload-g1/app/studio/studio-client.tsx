@@ -49,6 +49,8 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
   const [editingId,setEditingId]=useState<string|null>(null)
   const [editTitle,setEditTitle]=useState('')
   const [editBody,setEditBody]=useState('')
+  const [imageAlt,setImageAlt]=useState('')
+  const [imageUploading,setImageUploading]=useState(false)
   const [publicInfo,setPublicInfo]=useState<Record<string,{published:boolean,entity_id?:string,summary?:string,primary_domain?:string}>>({})
   const [activeEvidenceDraft,setActiveEvidenceDraft]=useState<string|null>(null)
   const [activeSnapshot,setActiveSnapshot]=useState<string|null>(null)
@@ -253,6 +255,22 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
       setEditingId(null); await refresh()
       setPublicationState(prev=>({...prev,[key]:{message:'Draft saved. Publish again to update the public article.'}}))
     }catch{setPublicationState(prev=>({...prev,[key]:{message:'Could not save the draft.'}}))}
+  }
+  async function uploadImage(draft:Draft,file:File){
+    const key=String(draft.id)
+    if(file.size>2097152){setPublicationState(prev=>({...prev,[key]:{message:'Choose an image smaller than 2 MB.'}}));return}
+    setImageUploading(true)
+    try{
+      const form=new FormData(); form.set('draftId',key); form.set('image',file)
+      const r=await fetch('/api/studio-image',{method:'POST',credentials:'same-origin',body:form})
+      if(!r.ok)throw new Error('upload failed')
+      const result=await r.json()
+      const alt=imageAlt.trim().replace(/[\[\]\n\r]/g,' ')||'Article image'
+      setEditBody(prev=>prev+'\n\n!['+alt+']('+result.path+')\n')
+      setImageAlt('')
+      setPublicationState(prev=>({...prev,[key]:{message:'Image added to the end of the draft. Save changes to keep it.'}}))
+    }catch{setPublicationState(prev=>({...prev,[key]:{message:'Image upload failed. Use a PNG, JPEG or WebP under 2 MB.'}}))}
+    finally{setImageUploading(false)}
   }
   async function unpublishDraft(draft:Draft){
     if(!window.confirm('Remove this article from the public wiki and search? You can publish it again later.'))return
@@ -479,6 +497,10 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
                   {editingId===String(d.id) ? <form onSubmit={e=>void saveEdit(e,d)} style={{display:'grid',gap:10}}>
                     <label>Title <input required value={editTitle} onChange={e=>setEditTitle(e.target.value)} style={ui.field}/></label>
                     <label>Content <textarea required rows={18} value={editBody} onChange={e=>setEditBody(e.target.value)} style={ui.field}/></label>
+                    <label>Image description <input value={imageAlt} onChange={e=>setImageAlt(e.target.value)} placeholder="Describe the image" style={ui.field}/></label>
+                    <label>Add image (PNG, JPEG, WebP · up to 2 MB) <input type="file" accept="image/png,image/jpeg,image/webp" disabled={imageUploading} onChange={e=>{const file=e.target.files?.[0];if(file)void uploadImage(d,file);e.target.value=''}}/></label>
+                    <small>Images are inserted at the end. Move the inserted image line to position it in the article.</small>
+
                     <button type="submit" disabled={publicationState[String(d.id)]?.busy}>Save changes privately</button>
                     <button type="button" onClick={()=>setEditingId(null)}>Cancel</button>
                   </form> : <button type="button" onClick={()=>{setEditingId(String(d.id));setEditTitle(d.title??'');setEditBody(d.body??'')}}>Edit draft</button>}

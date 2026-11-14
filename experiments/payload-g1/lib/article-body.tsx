@@ -20,7 +20,10 @@ function inline(tokens:Token[]|undefined):ReactNode[] {
    case 'codespan': return <code key={i}>{t.text}</code>
    case 'br': return <br key={i}/>
    case 'link': { const href=safeLink(t.href||''); return href?<a key={i} href={href} rel={href.startsWith('https:')?'noopener noreferrer':undefined}>{children}</a>:<React.Fragment key={i}>{children}</React.Fragment> }
-   case 'image': return <span key={i}>{t.text||'Image unavailable'}</span>
+   case 'image': {
+    const src=/^\/media\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(t.href||'')?t.href:null
+    return src?<img key={i} src={src} alt={t.text||''} loading="lazy"/>:<span key={i}>{t.text||'Image unavailable'}</span>
+   }
    default: return <React.Fragment key={i}>{t.raw||t.text||''}</React.Fragment>
   }
  })

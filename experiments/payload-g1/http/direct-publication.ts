@@ -55,3 +55,25 @@ export const studioManageEndpoint: Endpoint = {
   } catch { throw new APIError('MANAGEMENT_FAILED',500) }
  },
 }
+
+export const studioImageEndpoint: Endpoint = {
+ path:'/studio-image', method:'post',
+ handler:async req=>{
+  if(!req.user || req.user.collection!=='staff' || req.user.role!=='editor') throw new APIError('EDITOR_REQUIRED',403)
+  const form=await req.formData?.().catch(()=>null)
+  const id=Number(form?.get('draftId'))
+  const file=form?.get('image')
+  if(!Number.isSafeInteger(id)||id<1||!(file instanceof File)||file.size<1||file.size>2097152) throw new APIError('INVALID_IMAGE',400)
+  const draft=await req.payload.findByID({collection:'editorial-drafts',id,draft:true,req,overrideAccess:false})
+  if(!draft || typeof draft.stableEntityId!=='string' || !uuid.test(draft.stableEntityId)) throw new APIError('DRAFT_NOT_AVAILABLE',404)
+  const bytes=Buffer.from(await file.arrayBuffer())
+  const type=bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))?'image/png':
+   bytes.subarray(0,3).equals(Buffer.from([255,216,255]))?'image/jpeg':
+   bytes.toString('ascii',0,4)==='RIFF'&&bytes.toString('ascii',8,12)==='WEBP'?'image/webp':null
+  if(!type) throw new APIError('INVALID_IMAGE_FORMAT',400)
+  try {
+   const result=await pool.query('SELECT kg.store_studio_media($1::uuid,$2::text,$3::bytea) AS id',[draft.stableEntityId,type,bytes])
+   return Response.json({path:'/media/'+result.rows[0].id},{headers:{'Cache-Control':'private, no-store'}})
+  } catch { throw new APIError('IMAGE_UPLOAD_FAILED',500) }
+ },
+}

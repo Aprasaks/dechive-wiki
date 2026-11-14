@@ -60,3 +60,6 @@ jobs:
       - run: psql -h 127.0.0.1 -U postgres -d testdb -v ON_ERROR_STOP=1 -c "CREATE ROLE kg_studio_publish"
       - run: psql -h 127.0.0.1 -U postgres -d testdb -v ON_ERROR_STOP=1 -f infra/studio/editorial-management.sql
       - run: psql -h 127.0.0.1 -U postgres -d testdb -v ON_ERROR_STOP=1 -f infra/studio/editorial-management-test.sql
+      - run: psql -h 127.0.0.1 -U postgres -d testdb -v ON_ERROR_STOP=1 -c "CREATE ROLE kg_public_http"
+      - run: psql -h 127.0.0.1 -U postgres -d testdb -v ON_ERROR_STOP=1 -f infra/studio/studio-media.sql
+      - run: psql -h 127.0.0.1 -U postgres -d testdb -v ON_ERROR_STOP=1 -f infra/studio/studio-media-test.sql
