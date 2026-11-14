@@ -3,7 +3,6 @@ import { publicPool } from '../../../lib/public-db'
 import { UUID,domainName,entryTitle,readApproved,listRelatedApproved,safeSourceUrl,type PublicEvidence } from '../../../lib/public-reading'
 import { ArticleBody,articleHeadings } from '../../../lib/article-body'
 import ShareControls from '../share-controls'
-import SiteHeader from '../../site-header'
 import '../../reference-home.css'
 import '../../reading.css'
 export const runtime='nodejs'
@@ -34,7 +33,6 @@ export default async function KnowledgePage({params}:{params:Promise<{id:string}
  for(const e of record.evidence)groups.set(e.claim_key,[...(groups.get(e.claim_key)||[]),e])
  const headings=articleHeadings(body).filter(h=>h.text.toLowerCase()!=='contents')
  return <div className="knowledge-shell">
-  <div className="reference-home knowledge-header"><SiteHeader/></div>
   <div className="knowledge-layout">
   <aside className="knowledge-toc" aria-label="Table of contents"><strong>Contents</strong><ol>{headings.map(h=><li key={h.id}><a href={'#'+h.id}>{h.text}</a></li>)}</ol></aside>
   <article className="reading-page">
@@ -45,7 +43,7 @@ export default async function KnowledgePage({params}:{params:Promise<{id:string}
   {record.summary && <p>{record.summary}</p>}
   <p className="reading-meta">Published revision {record.version} · English · <a href="#claim-sources">Claims &amp; sources</a></p>
   <ShareControls entryId={id} title={record.title || entryTitle(record.body)}/>
-  <ArticleBody body={body}/>
+  <ArticleBody body={body} entityId={id}/>
   <section id="claim-sources" aria-labelledby="sources-heading">
    <h2 id="sources-heading">Claims &amp; sources</h2>
    {groups.size>0 && <p className="reading-note">These references belong to this published revision. Source support, disagreement and uncertainty are shown separately.</p>}

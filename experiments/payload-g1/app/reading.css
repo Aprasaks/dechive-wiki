@@ -45,3 +45,10 @@ body > main:has(> .knowledge-shell){max-width:none!important;margin:0!important;
 @media(max-width:540px){.knowledge-layout{padding:0 20px}.knowledge-toc ol{columns:1}}
 /* Keep the shared navigation in one horizontal row on smaller screens. */
 @media(max-width:1360px){.ref-nav{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}.ref-nav>*{flex:none}}
+
+.reference-home.site-chrome{min-height:0;overflow:visible}
+.site-chrome-header{position:sticky;top:0;z-index:50}
+.site-chrome .ref-footer{color:#233b2c}
+.reading-body figure{margin:28px 0 36px}
+.reading-body figure img{display:block;width:100%;height:auto;border-radius:5px}
+.reading-body figcaption{font:13px/1.6 Arial,sans-serif;color:#58685e;margin-top:9px}

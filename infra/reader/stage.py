@@ -28,6 +28,7 @@ ASSETS = (
     "colosseum.webp", "hero-landscape-v2.webp", "hero.webp",
     "journey-ai.webp", "journey-civilization.webp", "journey-life.webp",
     "maya.webp", "trail-network-v2.webp", "trail.webp",
+    "pompeii-1.webp", "pompeii-2.webp", "pompeii-3.webp",
 )
 
 def stage(destination: Path) -> None:
@@ -45,13 +46,32 @@ def stage(destination: Path) -> None:
         target = destination / filename
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(original, target)
+    # All public routes share identical navigation and footer; the studio remains separate.
+    public_layout = destination / "app/layout.tsx"
+    public_layout.write_text('''import type { ReactNode } from 'react'
+import type { Metadata } from 'next'
+import SiteHeader from './site-header'
+import './reference-home.css'
+import './reading.css'
+export const metadata: Metadata = {
+ title: 'DECHIVE.WIKI — Knowledge Archive',
+ description: 'An independent knowledge archive.',
+ robots: { index: true, follow: true },
+}
+export default function RootLayout({children}:{children:ReactNode}){
+ return <html lang="en"><body style={{margin:0,background:'#FAFAF8',color:'#21251F',fontFamily:'Georgia, serif',lineHeight:1.6}}>
+  <div className="reference-home site-chrome site-chrome-header"><SiteHeader/></div>
+  <main style={{maxWidth:900,padding:'4rem 1.5rem',margin:'0 auto'}}>{children}</main>
+  <div className="reference-home site-chrome"><footer className="ref-footer"><strong>DECHIVE.WIKI</strong><span>One Archive. Infinite Connections.</span><span>English edition</span></footer></div>
+ </body></html>
+}
+''')
     # Only the reader release is indexable; keep the shared private fixture unchanged.
     layout = destination / "app/layout.tsx"
     text = layout.read_text()
     old = "robots: { index: false, follow: false }, // test lab: do not index the preview"
-    if text.count(old) != 1:
+    if text.count("robots: { index: true, follow: true }") != 1:
         raise SystemExit("Unexpected reader robots metadata")
-    layout.write_text(text.replace(old, "robots: { index: true, follow: true },"))
     robots = destination / "app/robots.txt/route.ts"
     robots.write_text("export function GET() { return new Response('User-agent: *\\nAllow: /\\n', { headers: { 'Content-Type': 'text/plain; charset=utf-8' } }) }\n")
     assets = SOURCE / "public" / "reference"

@@ -30,12 +30,20 @@ export function articleHeadings(body:string) {
   .filter(t=>t.type==='heading' && (t.depth===1 || t.depth===2))
   .map((t,i)=>({id:'section-'+(i+1),text:t.text||''}))
 }
-function blocks(tokens:Token[]):ReactNode[] {
+const pompeiiImages:Record<number,{src:string,alt:string,caption:string,href:string}>={
+ 1:{src:'/reference/pompeii-1.webp',alt:'The Forum of Pompeii, with columns in the foreground and Mount Vesuvius beyond.',caption:'The Forum of Pompeii and Mount Vesuvius, 2021. Photo: Commonists / Wikimedia Commons, CC BY-SA 4.0. Resized.',href:'https://commons.wikimedia.org/wiki/File:Forum_(Pompeii)_and_the_Vesuvio.jpg'},
+ 5:{src:'/reference/pompeii-2.webp',alt:'Large stepping stones across a paved street in Pompeii.',caption:'A paved street and stepping stones in Pompeii, 2015. Photo: Jebulon / Wikimedia Commons, CC0. Resized.',href:'https://commons.wikimedia.org/wiki/File:Street_chauss%C3%A9e_Pompeii.jpg'},
+ 12:{src:'/reference/pompeii-3.webp',alt:'An approximately 1875 photograph showing two plaster casts of victims of Pompeii.',caption:'Plaster casts of people from Pompeii, photograph by Giorgio Sommer, c. 1875. The Metropolitan Museum of Art, CC0. Resized.',href:'https://commons.wikimedia.org/wiki/File:-Plaster_Casts_of_Bodies,_Pompeii-_MET_DP262064.jpg'},
+}
+function blocks(tokens:Token[],entityId?:string):ReactNode[] {
  let headingIndex=0
  return tokens.map((t,i)=>{
   switch(t.type){
    case 'space': return null
-   case 'heading': { const children=inline(t.tokens); const id=t.depth===1||t.depth===2?'section-'+(++headingIndex):undefined; switch(t.depth){case 1:return <h2 id={id} key={i}>{children}</h2>;case 2:return <h2 id={id} key={i}>{children}</h2>;case 3:return <h3 key={i}>{children}</h3>;default:return <h4 key={i}>{children}</h4>} }
+   case 'heading': { const children=inline(t.tokens); const id=t.depth===1||t.depth===2?'section-'+(++headingIndex):undefined;
+    const image=(t.depth===1||t.depth===2) && entityId==='31ecf978-4412-4de1-a056-2b83c2533372'?pompeiiImages[headingIndex]:undefined
+    const heading=t.depth===3?<h3>{children}</h3>:t.depth===1||t.depth===2?<h2 id={id}>{children}</h2>:<h4>{children}</h4>
+    return <React.Fragment key={i}>{image && <figure><img src={image.src} alt={image.alt} loading="lazy"/><figcaption>{image.caption} <a href={image.href} target="_blank" rel="noopener noreferrer">Source and licence</a></figcaption></figure>}{heading}</React.Fragment> }
    case 'paragraph': return <p key={i}>{inline(t.tokens)}</p>
    case 'text': return <p key={i}>{t.tokens?inline(t.tokens):t.text}</p>
    case 'blockquote': return <blockquote key={i}>{blocks(t.tokens||[])}</blockquote>
@@ -47,6 +55,6 @@ function blocks(tokens:Token[]):ReactNode[] {
   }
  })
 }
-export function ArticleBody({body}:{body:string}) {
- return <div className="reading-body" data-testid="public-approved-body">{blocks(marked.lexer(body,{gfm:true}) as Token[])}</div>
+export function ArticleBody({body,entityId}:{body:string,entityId?:string}) {
+ return <div className="reading-body" data-testid="public-approved-body">{blocks(marked.lexer(body,{gfm:true}) as Token[],entityId)}</div>
 }

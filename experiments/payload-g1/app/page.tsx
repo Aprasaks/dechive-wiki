@@ -1,5 +1,4 @@
 import ArchiveIcon from './archive-icon'
-import SiteHeader from './site-header'
 import ArchiveSearch from './archive-search'
 import RandomDiscovery from './random-discovery'
 import DomainScroller from './domain-scroller'
@@ -48,7 +47,6 @@ export default async function Home() {
     timeZone:'UTC'}).format(new Date())
 
   return <div className="reference-home" id="top">
-    <SiteHeader/>
 
     <section className="ref-hero" aria-labelledby="reference-title">
       <div className="ref-hero-landscape" aria-hidden="true"/>
@@ -172,10 +170,6 @@ export default async function Home() {
         </div>
       </section>
     </main>
-    <footer className="ref-footer">
-      <strong>DECHIVE.WIKI</strong>
-      <span>An independent archive. No unreviewed submissions are shown as facts.</span>
-      <span>English edition / Isolated design preview</span>
-    </footer>
+
   </div>
 }
