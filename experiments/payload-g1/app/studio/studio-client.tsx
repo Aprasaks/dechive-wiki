@@ -251,10 +251,11 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
     setPublicationState(prev=>({...prev,[key]:{message:'Saving…',busy:true}}))
     try{
       const r=await fetch('/api/editorial-drafts/'+encodeURIComponent(key)+'?draft=true',{method:'PATCH',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:editTitle.trim(),body:editBody.trim(),_status:'draft'})})
+      if(r.status===401||r.status===403)throw new Error('SESSION_OR_ACCESS')
       if(!r.ok)throw new Error('save failed')
       setEditingId(null); await refresh()
       setPublicationState(prev=>({...prev,[key]:{message:'Draft saved. Publish again to update the public article.'}}))
-    }catch{setPublicationState(prev=>({...prev,[key]:{message:'Could not save the draft.'}}))}
+    }catch(error){setPublicationState(prev=>({...prev,[key]:{message:error instanceof Error && error.message==='SESSION_OR_ACCESS'?'Your session may have expired. Copy your changes, then sign in again.':'Could not save the draft. Your changes are still in the editor.'}}))}
   }
   async function uploadImage(draft:Draft,file:File){
     const key=String(draft.id)
