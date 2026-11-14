@@ -44,6 +44,7 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
   const [title,setTitle]=useState('')
   const [body,setBody]=useState('')
   const [status,setStatus]=useState('')
+  const [publicationState,setPublicationState]=useState<Record<string,{message:string,url?:string,busy?:boolean}>>({})
   const [loading,setLoading]=useState(false)
   const [activeEvidenceDraft,setActiveEvidenceDraft]=useState<string|null>(null)
   const [activeSnapshot,setActiveSnapshot]=useState<string|null>(null)
@@ -216,7 +217,8 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
     const summary = String(form.get('summary') || '').trim()
     const domain = String(form.get('domain') || '')
     if (!summary || !domain || !window.confirm('Publish this draft to the public wiki and search?')) return
-    setStatus('')
+    const key=String(draft.id)
+    setPublicationState(prev=>({...prev,[key]:{message:'Publishing…',busy:true}}))
     try {
       const r = await fetch('/api/studio-publish',{
         method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
@@ -224,8 +226,8 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
       })
       if (!r.ok) throw new Error('Publication failed')
       const result = await r.json()
-      setStatus('Published. Public article: /knowledge/'+result.entity_id)
-    } catch { setStatus('Publication failed. The draft is still private.') }
+      setPublicationState(prev=>({...prev,[key]:{message:'Published successfully.',url:'https://dechive.wiki/knowledge/'+result.entity_id}}))
+    } catch { setPublicationState(prev=>({...prev,[key]:{message:'Publication failed. Please try again.'}})) }
   }
 
   async function logout(){
@@ -443,7 +445,8 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
                     <option value="" disabled>Select a category</option>
                     {['science','technology','humanities','philosophy','history','society','economics','health','life','space','earth','arts-culture'].map(x=><option key={x} value={x}>{x}</option>)}
                   </select></label>
-                  <button type="submit" disabled={!hydrated} style={{padding:'10px 16px',background:'#233D34',color:'#fff',border:0}}>Publish to wiki</button>
+                  <button type="submit" disabled={!hydrated||publicationState[String(d.id)]?.busy} style={{padding:'10px 16px',background:'#233D34',color:'#fff',border:0}}>{publicationState[String(d.id)]?.busy?'Publishing…':'Publish to wiki'}</button>
+                  {publicationState[String(d.id)] && <p role="status" style={{padding:14,background:'#F1F3EF',margin:0}}>{publicationState[String(d.id)].message} {publicationState[String(d.id)].url && <a href={publicationState[String(d.id)].url} target="_blank" rel="noopener noreferrer">View public article ↗</a>}</p>}
                 </form>}
 
               </li>)}
