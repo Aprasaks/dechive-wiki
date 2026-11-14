@@ -12,4 +12,7 @@ BEGIN
  OR EXISTS(SELECT 1 FROM kg.public_entries p WHERE p.entity_id=e AND p.body='First body')
  OR NOT EXISTS(SELECT 1 FROM kg.public_revision_metadata p WHERE p.entity_id=e AND p.title='Second title' AND p.primary_domain='science')
  THEN RAISE EXCEPTION 'update failed'; END IF;
+ DELETE FROM kg.studio_public_heads WHERE entity_id=e;
+ SELECT * INTO r FROM kg.publish_studio_draft(e,'Third title','Third body','Third summary','history');
+ IF r.version<>3 OR NOT EXISTS(SELECT 1 FROM kg.public_entries WHERE entity_id=e AND body='Third body') THEN RAISE EXCEPTION 'republish failed'; END IF;
 END $$;

@@ -57,3 +57,6 @@ jobs:
       - run: psql -h 127.0.0.1 -U postgres -d testdb -v ON_ERROR_STOP=1 -f infra/studio/direct-publication-test-setup.sql
       - run: psql -h 127.0.0.1 -U postgres -d testdb -v ON_ERROR_STOP=1 -f infra/studio/direct-publication.sql
       - run: psql -h 127.0.0.1 -U postgres -d testdb -v ON_ERROR_STOP=1 -f infra/studio/direct-publication-test.sql
+      - run: psql -h 127.0.0.1 -U postgres -d testdb -v ON_ERROR_STOP=1 -c "CREATE ROLE kg_studio_publish"
+      - run: psql -h 127.0.0.1 -U postgres -d testdb -v ON_ERROR_STOP=1 -f infra/studio/editorial-management.sql
+      - run: psql -h 127.0.0.1 -U postgres -d testdb -v ON_ERROR_STOP=1 -f infra/studio/editorial-management-test.sql

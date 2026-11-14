@@ -62,8 +62,8 @@ BEGIN
  IF EXISTS(SELECT 1 FROM kg.entities e WHERE e.id=p_entity) THEN
    RAISE EXCEPTION 'EXISTING_KNOWLEDGE_ID';
  END IF;
- SELECT coalesce(h.version,0)+1 INTO new_version
-   FROM (SELECT 1) x LEFT JOIN kg.studio_public_heads h ON h.entity_id=p_entity;
+ SELECT coalesce(max(r.version),0)+1 INTO new_version
+   FROM kg.studio_public_revisions r WHERE r.entity_id=p_entity;
  INSERT INTO kg.studio_public_revisions(entity_id,version,title,body,summary,primary_domain)
  VALUES(p_entity,new_version,btrim(p_title),p_body,p_summary,p_domain) RETURNING studio_public_revisions.revision_id INTO new_revision;
  INSERT INTO kg.studio_public_heads(entity_id,revision_id,version)

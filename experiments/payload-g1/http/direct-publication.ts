@@ -35,3 +35,23 @@ export const directPublicationEndpoint: Endpoint = {
     }
   },
 }
+
+export const studioManageEndpoint: Endpoint = {
+ path: '/studio-manage', method: 'post',
+ handler: async req => {
+  if (!req.user || req.user.collection !== 'staff' || req.user.role !== 'editor') throw new APIError('EDITOR_REQUIRED',403)
+  const data=await req.json?.().catch(()=>null)
+  const id=Number(data?.draftId)
+  if (!Number.isSafeInteger(id) || id<1 || !['status','unpublish'].includes(data?.action)) throw new APIError('INVALID_REQUEST',400)
+  const draft=await req.payload.findByID({collection:'editorial-drafts',id,draft:true,req,overrideAccess:false})
+  if (!draft || typeof draft.stableEntityId!=='string' || !uuid.test(draft.stableEntityId)) throw new APIError('DRAFT_NOT_AVAILABLE',404)
+  try {
+   if(data.action==='unpublish'){
+    const result=await pool.query('SELECT kg.unpublish_studio_draft($1::uuid) AS removed',[draft.stableEntityId])
+    return Response.json({removed:result.rows[0].removed},{headers:{'Cache-Control':'private, no-store'}})
+   }
+   const result=await pool.query('SELECT * FROM kg.studio_public_state($1::uuid)',[draft.stableEntityId])
+   return Response.json({published:result.rowCount===1, entity_id:draft.stableEntityId, ...result.rows[0]},{headers:{'Cache-Control':'private, no-store'}})
+  } catch { throw new APIError('MANAGEMENT_FAILED',500) }
+ },
+}

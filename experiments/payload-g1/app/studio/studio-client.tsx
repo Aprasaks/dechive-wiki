@@ -46,6 +46,10 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
   const [status,setStatus]=useState('')
   const [publicationState,setPublicationState]=useState<Record<string,{message:string,url?:string,busy?:boolean}>>({})
   const [loading,setLoading]=useState(false)
+  const [editingId,setEditingId]=useState<string|null>(null)
+  const [editTitle,setEditTitle]=useState('')
+  const [editBody,setEditBody]=useState('')
+  const [publicInfo,setPublicInfo]=useState<Record<string,{published:boolean,entity_id?:string,summary?:string,primary_domain?:string}>>({})
   const [activeEvidenceDraft,setActiveEvidenceDraft]=useState<string|null>(null)
   const [activeSnapshot,setActiveSnapshot]=useState<string|null>(null)
   const [sourceUrl,setSourceUrl]=useState('')
@@ -75,10 +79,18 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
       })
       if(!response.ok)throw new Error('Draft list unavailable')
       const json=await response.json()
-      setDrafts(Array.isArray(json.docs)?json.docs:[])
+      const docs:Draft[]=Array.isArray(json.docs)?json.docs:[]
+      setDrafts(docs)
+      if(role==='editor'){
+        const results=await Promise.all(docs.map(async d=>{
+          const res=await fetch('/api/studio-manage',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({draftId:d.id,action:'status'})})
+          return [String(d.id),res.ok?await res.json():null] as const
+        }))
+        setPublicInfo(Object.fromEntries(results.filter(([,v])=>v!==null)))
+      }
     }catch{setStatus('Could not refresh your private drafts. Please sign in again.')}
     finally{setRefreshing(false)}
-  },[canRead])
+  },[canRead,role])
   useEffect(()=>{void refresh()},[refresh])
   const refreshReviewQueue=useCallback(async()=>{
     if(role!=='reviewer')return
@@ -226,10 +238,33 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
       })
       if (!r.ok) throw new Error('Publication failed')
       const result = await r.json()
+      setPublicInfo(prev=>({...prev,[key]:{published:true,entity_id:result.entity_id,summary,primary_domain:domain}}))
       setPublicationState(prev=>({...prev,[key]:{message:'Published successfully.',url:'https://dechive.wiki/knowledge/'+result.entity_id}}))
     } catch { setPublicationState(prev=>({...prev,[key]:{message:'Publication failed. Please try again.'}})) }
   }
 
+  async function saveEdit(e:FormEvent<HTMLFormElement>,draft:Draft){
+    e.preventDefault()
+    const key=String(draft.id)
+    setPublicationState(prev=>({...prev,[key]:{message:'Saving…',busy:true}}))
+    try{
+      const r=await fetch('/api/editorial-drafts/'+encodeURIComponent(key)+'?draft=true',{method:'PATCH',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:editTitle.trim(),body:editBody.trim(),_status:'draft'})})
+      if(!r.ok)throw new Error('save failed')
+      setEditingId(null); await refresh()
+      setPublicationState(prev=>({...prev,[key]:{message:'Draft saved. Publish again to update the public article.'}}))
+    }catch{setPublicationState(prev=>({...prev,[key]:{message:'Could not save the draft.'}}))}
+  }
+  async function unpublishDraft(draft:Draft){
+    if(!window.confirm('Remove this article from the public wiki and search? You can publish it again later.'))return
+    const key=String(draft.id)
+    setPublicationState(prev=>({...prev,[key]:{message:'Removing from public view…',busy:true}}))
+    try{
+      const r=await fetch('/api/studio-manage',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({draftId:draft.id,action:'unpublish'})})
+      if(!r.ok)throw new Error('unpublish failed')
+      await refresh()
+      setPublicationState(prev=>({...prev,[key]:{message:'Removed from the public wiki. The private draft remains available.'}}))
+    }catch{setPublicationState(prev=>({...prev,[key]:{message:'Could not remove the article from public view.'}}))}
+  }
   async function logout(){
     setStatus('')
     try {
@@ -439,13 +474,23 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
   </li>)}</ul>
 </section>}</>}
                 </div>}
+                {role==='editor' && <div>
+                  <p>{publicInfo[String(d.id)]?.published ? <>Public · <a href={'https://dechive.wiki/knowledge/'+publicInfo[String(d.id)]?.entity_id} target="_blank" rel="noopener noreferrer">View article ↗</a></> : 'Not currently public'}</p>
+                  {editingId===String(d.id) ? <form onSubmit={e=>void saveEdit(e,d)} style={{display:'grid',gap:10}}>
+                    <label>Title <input required value={editTitle} onChange={e=>setEditTitle(e.target.value)} style={ui.field}/></label>
+                    <label>Content <textarea required rows={18} value={editBody} onChange={e=>setEditBody(e.target.value)} style={ui.field}/></label>
+                    <button type="submit" disabled={publicationState[String(d.id)]?.busy}>Save changes privately</button>
+                    <button type="button" onClick={()=>setEditingId(null)}>Cancel</button>
+                  </form> : <button type="button" onClick={()=>{setEditingId(String(d.id));setEditTitle(d.title??'');setEditBody(d.body??'')}}>Edit draft</button>}
+                  {publicInfo[String(d.id)]?.published && <button type="button" disabled={publicationState[String(d.id)]?.busy} onClick={()=>void unpublishDraft(d)} style={{marginLeft:12}}>Remove from public wiki</button>}
+                </div>}
                 {role==='editor' && <form onSubmit={e=>void publishDraft(e,d)} aria-label={'Publish '+(d.title??'draft')} style={{display:'grid',gap:12,margin:'16px 0'}}>
-                  <label>Public summary <textarea name="summary" required maxLength={1000} rows={2} style={ui.field}/></label>
-                  <label>Category <select name="domain" required defaultValue="" style={ui.field}>
+                  <label>Public summary <textarea key={publicInfo[String(d.id)]?.summary??'empty'} name="summary" required maxLength={1000} rows={2} defaultValue={publicInfo[String(d.id)]?.summary??''} style={ui.field}/></label>
+                  <label>Category <select key={publicInfo[String(d.id)]?.primary_domain??'empty'} name="domain" required defaultValue={publicInfo[String(d.id)]?.primary_domain??''} style={ui.field}>
                     <option value="" disabled>Select a category</option>
                     {['science','technology','humanities','philosophy','history','society','economics','health','life','space','earth','arts-culture'].map(x=><option key={x} value={x}>{x}</option>)}
                   </select></label>
-                  <button type="submit" disabled={!hydrated||publicationState[String(d.id)]?.busy} style={{padding:'10px 16px',background:'#233D34',color:'#fff',border:0}}>{publicationState[String(d.id)]?.busy?'Publishing…':'Publish to wiki'}</button>
+                  <button type="submit" disabled={!hydrated||publicationState[String(d.id)]?.busy} style={{padding:'10px 16px',background:'#233D34',color:'#fff',border:0}}>{publicationState[String(d.id)]?.busy?'Publishing…':publicInfo[String(d.id)]?.published?'Update published article':'Publish to wiki'}</button>
                   {publicationState[String(d.id)] && <p role="status" style={{padding:14,background:'#F1F3EF',margin:0}}>{publicationState[String(d.id)].message} {publicationState[String(d.id)].url && <a href={publicationState[String(d.id)].url} target="_blank" rel="noopener noreferrer">View public article ↗</a>}</p>}
                 </form>}
 
