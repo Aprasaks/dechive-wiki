@@ -24,21 +24,25 @@ export default async function KnowledgePage({params}:{params:Promise<{id:string}
  const record=await readApproved(reader,id)
  if(!record)notFound()
  const related=await listRelatedApproved(reader,id)
+ const title=record.title || entryTitle(record.body)
+ const firstLine=record.body.match(/^\s*#\s+([^\n]+)\r?\n+/)
+ const body=firstLine && firstLine[1].trim().toLocaleLowerCase()===title.trim().toLocaleLowerCase()
+   ? record.body.slice(firstLine[0].length) : record.body
  const groups=new Map<string,PublicEvidence[]>()
  for(const e of record.evidence)groups.set(e.claim_key,[...(groups.get(e.claim_key)||[]),e])
  return <article className="reading-page">
   <nav className="reading-links" aria-label="Archive navigation"><a href="/">← DECHIVE.WIKI</a><a href="/search">Search the archive</a></nav>
-  <p className="reading-eyebrow">DECHIVE.WIKI / VERIFIED KNOWLEDGE</p>
+  <p className="reading-eyebrow">DECHIVE.WIKI / KNOWLEDGE ARCHIVE</p>
   {record.primary_domain && domainName(record.primary_domain) && <p><a href={'/domains/'+record.primary_domain}>{domainName(record.primary_domain)}</a></p>}
-  <h1>{record.title || entryTitle(record.body)}</h1>
+  <h1>{title}</h1>
   {record.summary && <p>{record.summary}</p>}
   <p className="reading-meta">Published revision {record.version} · English · <a href="#claim-sources">Claims &amp; sources</a></p>
   <ShareControls entryId={id} title={record.title || entryTitle(record.body)}/>
-  <ArticleBody body={record.body}/>
+  <ArticleBody body={body}/>
   <section id="claim-sources" aria-labelledby="sources-heading">
    <h2 id="sources-heading">Claims &amp; sources</h2>
-   <p className="reading-note">These references belong to this published revision. Source support, disagreement and uncertainty are shown separately.</p>
-   {!groups.size?<p>No public source details are available for this revision.</p>:
+   {groups.size>0 && <p className="reading-note">These references belong to this published revision. Source support, disagreement and uncertainty are shown separately.</p>}
+   {!groups.size?<p>No separate source details have been added.</p>:
     [...groups].map(([key,evidence])=><section className="reading-claim" key={key} id={'claim-'+encodeURIComponent(key)}>
      <h3>{evidence[0].statement}</h3>
      <small>Claim location: {evidence[0].anchor}</small>
