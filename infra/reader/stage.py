@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "experiments" / "payload-g1"
 FILES = (
     "package.json", "package-lock.json",
-    "app/layout.tsx", "app/page.tsx", "app/archive-icon.tsx",
+    "app/layout.tsx", "app/page.tsx", "app/archive-icon.tsx", "app/site-header.tsx",
     "app/archive-search.tsx", "app/domain-scroller.tsx",
     "app/random-discovery.tsx", "app/reference-home.css",
     "app/reading.css", "app/search/page.tsx",

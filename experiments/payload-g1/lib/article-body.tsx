@@ -25,11 +25,17 @@ function inline(tokens:Token[]|undefined):ReactNode[] {
   }
  })
 }
+export function articleHeadings(body:string) {
+ return (marked.lexer(body,{gfm:true}) as Token[])
+  .filter(t=>t.type==='heading' && (t.depth===1 || t.depth===2))
+  .map((t,i)=>({id:'section-'+(i+1),text:t.text||''}))
+}
 function blocks(tokens:Token[]):ReactNode[] {
+ let headingIndex=0
  return tokens.map((t,i)=>{
   switch(t.type){
    case 'space': return null
-   case 'heading': { const children=inline(t.tokens); switch(t.depth){case 1:return <h2 key={i}>{children}</h2>;case 2:return <h2 key={i}>{children}</h2>;case 3:return <h3 key={i}>{children}</h3>;default:return <h4 key={i}>{children}</h4>} }
+   case 'heading': { const children=inline(t.tokens); const id=t.depth===1||t.depth===2?'section-'+(++headingIndex):undefined; switch(t.depth){case 1:return <h2 id={id} key={i}>{children}</h2>;case 2:return <h2 id={id} key={i}>{children}</h2>;case 3:return <h3 key={i}>{children}</h3>;default:return <h4 key={i}>{children}</h4>} }
    case 'paragraph': return <p key={i}>{inline(t.tokens)}</p>
    case 'text': return <p key={i}>{t.tokens?inline(t.tokens):t.text}</p>
    case 'blockquote': return <blockquote key={i}>{blocks(t.tokens||[])}</blockquote>

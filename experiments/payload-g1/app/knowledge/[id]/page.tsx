@@ -1,8 +1,10 @@
 import { notFound } from 'next/navigation'
 import { publicPool } from '../../../lib/public-db'
 import { UUID,domainName,entryTitle,readApproved,listRelatedApproved,safeSourceUrl,type PublicEvidence } from '../../../lib/public-reading'
-import { ArticleBody } from '../../../lib/article-body'
+import { ArticleBody,articleHeadings } from '../../../lib/article-body'
 import ShareControls from '../share-controls'
+import SiteHeader from '../../site-header'
+import '../../reference-home.css'
 import '../../reading.css'
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
@@ -30,7 +32,12 @@ export default async function KnowledgePage({params}:{params:Promise<{id:string}
    ? record.body.slice(firstLine[0].length) : record.body
  const groups=new Map<string,PublicEvidence[]>()
  for(const e of record.evidence)groups.set(e.claim_key,[...(groups.get(e.claim_key)||[]),e])
- return <article className="reading-page">
+ const headings=articleHeadings(body).filter(h=>h.text.toLowerCase()!=='contents')
+ return <div className="knowledge-shell">
+  <div className="reference-home knowledge-header"><SiteHeader/></div>
+  <div className="knowledge-layout">
+  <aside className="knowledge-toc" aria-label="Table of contents"><strong>Contents</strong><ol>{headings.map(h=><li key={h.id}><a href={'#'+h.id}>{h.text}</a></li>)}</ol></aside>
+  <article className="reading-page">
   <nav className="reading-links" aria-label="Archive navigation"><a href="/">← DECHIVE.WIKI</a><a href="/search">Search the archive</a></nav>
   <p className="reading-eyebrow">DECHIVE.WIKI / KNOWLEDGE ARCHIVE</p>
   {record.primary_domain && domainName(record.primary_domain) && <p><a href={'/domains/'+record.primary_domain}>{domainName(record.primary_domain)}</a></p>}
@@ -60,4 +67,6 @@ export default async function KnowledgePage({params}:{params:Promise<{id:string}
   </section>
   <footer className="reading-revision"><strong>Revision record</strong><p>Version {record.version}</p><p>Revision ID: <code>{record.revision_id}</code></p><p>Content checksum: <code>{record.checksum}</code></p></footer>
  </article>
+ </div>
+ </div>
 }

@@ -32,3 +32,16 @@
 .reading-share-status:empty{display:none}
 .reading-share-fallback{flex-basis:100%;max-width:100%;display:grid;gap:7px}
 .reading-share-fallback input{width:100%;min-width:0;padding:11px 12px;border:1px solid #9fb1a3;border-radius:6px;background:#fff;color:#25372b;font:14px Arial,sans-serif}
+
+body > main:has(> .knowledge-shell){max-width:none!important;margin:0!important;padding:0!important;width:100%}
+.knowledge-header.reference-home{min-height:0;overflow:visible}
+.knowledge-header .ref-header{position:sticky;top:0}
+.knowledge-layout{max-width:1240px;margin:40px auto 90px;padding:0 24px;display:grid;grid-template-columns:220px minmax(0,760px);justify-content:center;gap:56px}
+.knowledge-toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow:auto;font:13px/1.55 Arial,sans-serif;color:#344b3e}
+.knowledge-toc strong{font-size:14px}.knowledge-toc ol{list-style:none;padding:0;margin:14px 0}
+.knowledge-toc li{margin:0 0 12px}.knowledge-toc a{color:inherit;text-decoration:none}.knowledge-toc a:hover{text-decoration:underline}
+.reading-page h2[id]{scroll-margin-top:24px}
+@media(max-width:900px){.knowledge-layout{display:block;max-width:800px;margin:24px auto 70px}.knowledge-toc{position:static;max-height:none;border-block:1px solid #dce2d9;padding:14px 0;margin-bottom:30px}.knowledge-toc ol{columns:2}.knowledge-toc li{break-inside:avoid}}
+@media(max-width:540px){.knowledge-layout{padding:0 20px}.knowledge-toc ol{columns:1}}
+/* Keep the shared navigation in one horizontal row on smaller screens. */
+@media(max-width:1360px){.ref-nav{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}.ref-nav>*{flex:none}}
