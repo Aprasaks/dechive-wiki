@@ -43,7 +43,7 @@ jobs:
           for file in 006_public_evidence.sql 007_revision_metadata.sql 012_public_related_entries.sql; do psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -U postgres -d member_test -f "experiments/payload-g1/sql/$file"; done
       - name: Test reader HTTP flows
         env:
-          PUBLIC_DATABASE_URL: postgres://postgres:synthetic-ci-only@127.0.0.1:5432/member_test
+          PUBLIC_DATABASE_URL: postgres://kg_public_http:synthetic@127.0.0.1:5432/member_test
         run: |
           python3 infra/reader/stage.py "$RUNNER_TEMP/member-reader"
           ln -s "$GITHUB_WORKSPACE/experiments/payload-g1/node_modules" "$RUNNER_TEMP/member-reader/node_modules"
