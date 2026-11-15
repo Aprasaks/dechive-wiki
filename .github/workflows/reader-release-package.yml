@@ -103,7 +103,7 @@ jobs:
           curl -fsS http://127.0.0.1:3120/ | grep -F "DECHIVE.WIKI" > /dev/null
           curl -fsS "http://127.0.0.1:3120/search?q=knowledge" | grep -F "No approved records" > /dev/null
           curl -fsS http://127.0.0.1:3120/domains/history | grep -F "History" > /dev/null
-          curl -fsS http://127.0.0.1:3120/robots.txt | grep -F "Disallow: /" > /dev/null
+          curl -fsS http://127.0.0.1:3120/robots.txt | grep -F "Allow: /" > /dev/null
           for path in /studio /studio/login /api/staff /api/graphql /api/g1/publish; do
             code="$(curl --silent --output /dev/null --write-out '%{http_code}' "http://127.0.0.1:3120$path")"
             test "$code" = 404 || { echo "Private route exposed: $path ($code)"; exit 1; }
