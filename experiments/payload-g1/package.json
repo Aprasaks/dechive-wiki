@@ -16,6 +16,7 @@
     "test:next-prod": "tsx tests/next-production-smoke.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-sesv2": "3.1169.0",
     "@payloadcms/db-postgres": "3.92.1",
     "@payloadcms/next": "3.92.1",
     "@payloadcms/richtext-lexical": "3.92.1",

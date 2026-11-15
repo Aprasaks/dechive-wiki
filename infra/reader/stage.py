@@ -22,6 +22,7 @@ FILES = (
     "app/knowledge/[id]/page.tsx",
     "app/knowledge/share-controls.tsx", "app/media/[id]/route.ts",
     "app/knowledge/bookmark-button.tsx", "app/member/page.tsx", "app/bookmarks/page.tsx",
+    "app/member/reset/page.tsx",
     "app/api/member/auth/[...all]/route.ts", "app/api/member/bookmarks/route.ts",
     "lib/member-auth.ts", "lib/member-auth-client.ts",
     "app/robots.txt/route.ts",

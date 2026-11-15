@@ -21,5 +21,6 @@ export default function MemberPage(){
  <label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength={12} autoComplete={signup?'new-password':'current-password'}/></label>
  {signup&&<small>Use at least 12 characters.</small>}{error&&<p role="alert">{error}</p>}
  <button disabled={busy}>{busy?'Please wait…':signup?'Create account':'Sign in'}</button></form>
+ {!signup&&<p><a href="/member/reset">Forgot your password?</a></p>}
  <button type="button" onClick={()=>{setSignup(!signup);setError('')}}>{signup?'Already have an account? Sign in':'New here? Create an account'}</button></main>
 }
