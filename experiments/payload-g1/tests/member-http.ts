@@ -2,10 +2,13 @@ import assert from 'node:assert/strict'
 import {randomUUID} from 'node:crypto'
 import {Pool} from 'pg'
 const db=new Pool({connectionString:process.env.DATABASE_URL})
-const id=randomUUID(),revision=randomUUID()
+const id=randomUUID(),revision=randomUUID(),source=randomUUID()
 await db.query('INSERT INTO kg.entities(id,kind,name) VALUES($1,$2,$3)',[id,'concept','HTTP test article'])
 await db.query('INSERT INTO kg.revisions(id,entity_id,locale,body) VALUES($1,$2,$3,$4)',[revision,id,'en','# HTTP test article'])
 await db.query('INSERT INTO kg.revision_reader_metadata(revision_id,title,summary,primary_domain) VALUES($1,$2,$3,$4)',[revision,'HTTP test article','A test article','history'])
+await db.query('INSERT INTO kg.claims(revision_id,claim_key,anchor,statement) VALUES($1,$2,$3,$4)',[revision,'test-claim','intro','HTTP test article'])
+await db.query('INSERT INTO kg.sources(id,locator,description) VALUES($1,$2,$3)',[source,'https://example.invalid/'+source,'Synthetic source'])
+await db.query('INSERT INTO kg.claim_evidence(revision_id,claim_key,source_id,stance,pinpoint,reviewer) VALUES($1,$2,$3,$4,$5,$6)',[revision,'test-claim',source,'supports','Test paragraph','synthetic reviewer'])
 await db.query('INSERT INTO kg.approvals(revision_id,reviewer) VALUES($1,$2)',[revision,'synthetic reviewer'])
 await db.query('SELECT kg.publish($1,$2,0)',[id,revision])
 await db.query('SELECT kg.project_event(id) FROM kg.outbox WHERE entity_id=$1',[id])
