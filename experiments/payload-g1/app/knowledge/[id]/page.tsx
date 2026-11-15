@@ -3,6 +3,7 @@ import { publicPool } from '../../../lib/public-db'
 import { UUID,domainName,entryTitle,readApproved,listRelatedApproved,safeSourceUrl,type PublicEvidence } from '../../../lib/public-reading'
 import { ArticleBody,articleHeadings } from '../../../lib/article-body'
 import ShareControls from '../share-controls'
+import BookmarkButton from '../bookmark-button'
 import '../../reference-home.css'
 import '../../reading.css'
 export const runtime='nodejs'
@@ -43,6 +44,7 @@ export default async function KnowledgePage({params}:{params:Promise<{id:string}
   {record.summary && <p>{record.summary}</p>}
   <p className="reading-meta">Published revision {record.version} · English · <a href="#claim-sources">Claims &amp; sources</a></p>
   <ShareControls entryId={id} title={record.title || entryTitle(record.body)}/>
+  <BookmarkButton entityId={id}/>
   <ArticleBody body={body} entityId={id}/>
   <section id="claim-sources" aria-labelledby="sources-heading">
    <h2 id="sources-heading">Claims &amp; sources</h2>

@@ -56,7 +56,8 @@ jobs:
           echo "READER_STAGE=$RUNNER_TEMP/dechive-public-reader" >> "$GITHUB_ENV"
           python3 infra/reader/stage.py "$RUNNER_TEMP/dechive-public-reader"
           test ! -d "$RUNNER_TEMP/dechive-public-reader/app/studio"
-          test ! -d "$RUNNER_TEMP/dechive-public-reader/app/api"
+          test ! -d "$RUNNER_TEMP/dechive-public-reader/app/api/staff"
+          test -f "$RUNNER_TEMP/dechive-public-reader/app/api/member/bookmarks/route.ts"
           test ! -e "$RUNNER_TEMP/dechive-public-reader/native-auth.config.ts"
           test -f "$RUNNER_TEMP/dechive-public-reader/app/knowledge/share-controls.tsx"
           test -f "$RUNNER_TEMP/dechive-public-reader/app/domains/[code]/page.tsx"
@@ -82,7 +83,7 @@ jobs:
           npm --prefix "$READER_STAGE" run build:next
           test -f "$READER_STAGE/.next/standalone/server.js"
           test ! -d "$READER_STAGE/.next/standalone/.next/server/app/studio"
-          test ! -d "$READER_STAGE/.next/standalone/.next/server/app/api"
+          test ! -d "$READER_STAGE/.next/standalone/.next/server/app/api/staff"
           cp -R "$READER_STAGE/public" "$READER_STAGE/.next/standalone/public"
           mkdir -p "$READER_STAGE/.next/standalone/.next"
           cp -R "$READER_STAGE/.next/static" "$READER_STAGE/.next/standalone/.next/static"

@@ -33,9 +33,9 @@ export default function SiteHeader(){
       </nav>
       <div className="ref-header-split ref-header-split-right" aria-hidden="true"/>
       <div className="ref-tools" aria-label="Additional features in development">
-        <span title="Bookmarks: not yet available"><ArchiveIcon name="bookmark" size={21}/></span>
+        <a href="/bookmarks" aria-label="Saved articles" title="Saved articles"><ArchiveIcon name="bookmark" size={21}/></a>
         <span title="Notifications: not yet available"><ArchiveIcon name="bell" size={21}/></span>
-        <span title="Account: staff-only access in this preview"><ArchiveIcon name="user" size={21}/></span>
+        <a href="/member" aria-label="Reader account" title="Reader account"><ArchiveIcon name="user" size={21}/></a>
       </div>
     </header>
 
