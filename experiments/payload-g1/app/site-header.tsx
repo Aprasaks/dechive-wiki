@@ -2,7 +2,7 @@ import ArchiveIcon from './archive-icon'
 const navigation = [
   {label:'Explore',icon:'compass',href:'#explore'},
   {label:'Categories',icon:'grid',href:'#domains'},
-  {label:'Timeline',icon:'timeline',href:'#today'},
+  {label:'Featured',icon:'timeline',href:'#today'},
   {label:'Books',icon:'book'},
   {label:'Papers',icon:'paper'},
   {label:'People',icon:'people'},

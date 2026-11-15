@@ -34,8 +34,7 @@ export default async function Home() {
   const approved=res.rows as Record[]
   // Random choice only among independently approved public entries.
   const randomApproved=approved.length ? approved[Math.floor(Math.random()*approved.length)] : null
-  const date=new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric',
-    timeZone:'UTC'}).format(new Date())
+  const featured=approved[0] ?? null
 
   return <div className="reference-home" id="top">
 
@@ -84,21 +83,21 @@ export default async function Home() {
 
         <section className="ref-today ref-panel" id="today" aria-labelledby="today-title">
           <div className="ref-panel-head">
-            <h2 id="today-title"><ArchiveIcon name="calendar" size={24}/>Today in the Archive</h2>
-            <span className="ref-date">{date} · UTC</span>
+            <h2 id="today-title"><ArchiveIcon name="book" size={24}/>From the Archive</h2>
+            <span className="ref-date">Published article</span>
           </div>
           <div className="ref-today-story">
-            <div className="ref-colosseum" role="img" aria-label="Illustrative photograph of the Roman Colosseum"/>
+            {featured && entryImage(featured.body,featured.entity_id) && <div className="ref-featured-photo" aria-hidden="true" style={{backgroundImage:`url('${entryImage(featured.body,featured.entity_id)}')`}}/>}
             <div className="ref-today-story-text">
-              <span className="ref-eyebrow">ON THIS DAY · AWAITING REVIEW</span>
-              <h3>History worth revisiting.</h3>
-              <p>Historical entries will appear after their dates, sources, and claims have been reviewed.</p>
+              {featured ? <><span className="ref-eyebrow">DISCOVER THE ARCHIVE</span>
+              <h3><a href={'/knowledge/'+featured.entity_id}>{featured.title?.trim() || entryTitle(featured.body)}</a></h3>
+              <p>{featured.summary?.trim() || 'Explore this published article.'}</p>
+              {entryImage(featured.body,featured.entity_id)==='/reference/pompeii-1.webp' && <small>Photo: Commonists / Wikimedia Commons · CC BY-SA 4.0 · Resized</small>}</> : <p>Published articles will appear here.</p>}
             </div>
           </div>
           <div className="ref-today-links">
-            <p><ArchiveIcon name="leaf" size={16}/><strong>In Science</strong><span>Verified discoveries will appear here</span></p>
-            <p><ArchiveIcon name="book" size={16}/><strong>In Ideas</strong><span>Evidence-based milestones belong here</span></p>
-            <p><ArchiveIcon name="people" size={16}/><strong>In People</strong><span>Reviewed biographies will appear here</span></p>
+            {approved.slice(1,3).map(r=><p key={r.entity_id}><ArchiveIcon name="book" size={16}/><a href={'/knowledge/'+r.entity_id}>{r.title?.trim() || entryTitle(r.body)}</a></p>)}
+            <p><ArchiveIcon name="compass" size={16}/><a href="/search">Explore the archive</a></p>
           </div>
         </section>
       </div>
