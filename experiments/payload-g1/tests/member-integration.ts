@@ -17,6 +17,8 @@ assert.equal(signed.user.id,first.user.id)
 await admin.query('CREATE ROLE wiki_member_ci LOGIN PASSWORD \'member-ci-only\'')
 await admin.query('GRANT USAGE ON SCHEMA reader_member TO wiki_member_ci')
 await admin.query('GRANT SELECT, INSERT, DELETE ON reader_member.bookmarks TO wiki_member_ci')
+await admin.query('GRANT USAGE ON SCHEMA public TO wiki_member_ci')
+await admin.query('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO wiki_member_ci')
 const scoped=new Pool({connectionString:process.env.MEMBER_BOOKMARK_TEST_URL})
 async function withUser<T>(id:string,fn:(client:import('pg').PoolClient)=>Promise<T>){const c=await scoped.connect();try{await c.query('BEGIN');await c.query("SELECT set_config('reader_member.user_id',$1,true)",[id]);const value=await fn(c);await c.query('COMMIT');return value}catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}}
 const article='31ecf978-4412-4de1-a056-2b83c2533372'

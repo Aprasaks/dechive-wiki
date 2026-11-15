@@ -23,7 +23,7 @@ async function withUser<T>(id:string,fn:(client:import('pg').PoolClient)=>Promis
 export async function GET(){
  const id=await userId()
  if(!id)return Response.json({error:'Sign in required'},{status:401})
- const saved=await withUser(id,c=>c.query('SELECT entity_id,created_at FROM reader_member.bookmarks ORDER BY created_at DESC LIMIT 500'))
+ const saved=await withUser(id,c=>c.query('SELECT entity_id,created_at FROM reader_member.bookmarks WHERE user_id=$1 ORDER BY created_at DESC LIMIT 500',[id]))
  const ids=saved.rows.map(row=>row.entity_id)
  if(!ids.length)return Response.json({bookmarks:[]},{headers:{'Cache-Control':'private, no-store'}})
  const result=await publicPool().query("SELECT p.entity_id,m.title,m.summary,m.primary_domain FROM kg.public_entries p JOIN kg.public_revision_metadata m ON m.entity_id=p.entity_id AND m.locale=p.locale AND m.revision_id=p.revision_id AND m.version=p.version WHERE p.locale='en' AND p.entity_id=ANY($1::uuid[])",[ids])
