@@ -3,7 +3,7 @@ import ArchiveSearch from './archive-search'
 import RandomDiscovery from './random-discovery'
 import DomainScroller from './domain-scroller'
 import { publicPool } from '../lib/public-db'
-import { entryImage, entryTitle } from '../lib/public-reading'
+import { domainName, entryImage, entryTitle } from '../lib/public-reading'
 import './reference-home.css'
 
 export const runtime = 'nodejs'
@@ -19,11 +19,6 @@ const domains = [
   { name:'Life',icon:'leaf' },{ name:'Space',icon:'planet' },
   { name:'Earth',icon:'mountain' },{ name:'Arts & Culture',icon:'grid' },
 ]
-const crossovers=[
-  ['AI & Society','cpu'],['History & Technology','timeline'],
-  ['Mind & Consciousness','atom'],['Nature & Humanity','leaf'],
-  ['Ethics & the Future','globe'],
-]
 
 export default async function Home() {
   // Only a restricted read-only PostgreSQL role and public head projection.
@@ -32,6 +27,11 @@ export default async function Home() {
     "SELECT p.entity_id,p.body,p.version,m.title,m.summary FROM kg.public_entries p LEFT JOIN kg.public_revision_metadata m ON m.entity_id=p.entity_id AND m.locale=p.locale AND m.version=p.version AND m.revision_id=p.revision_id WHERE p.locale='en' ORDER BY p.entity_id DESC LIMIT 6"
   )
   const approved=res.rows as Record[]
+  const domainResult=await publicPool().query(
+    "SELECT m.primary_domain,COUNT(*)::int AS article_count FROM kg.public_entries p JOIN kg.public_revision_metadata m ON m.entity_id=p.entity_id AND m.locale=p.locale AND m.version=p.version AND m.revision_id=p.revision_id WHERE p.locale='en' AND m.primary_domain IS NOT NULL GROUP BY m.primary_domain ORDER BY COUNT(*) DESC,m.primary_domain LIMIT 12"
+  )
+  const publishedDomains=(domainResult.rows as {primary_domain:string;article_count:number}[])
+    .filter(d=>domainName(d.primary_domain))
   // Random choice only among independently approved public entries.
   const randomApproved=approved.length ? approved[Math.floor(Math.random()*approved.length)] : null
   const featured=approved[0] ?? null
@@ -70,15 +70,13 @@ export default async function Home() {
         <section className="ref-knowledge-trail" aria-labelledby="knowledge-web-title">
           <div className="ref-trail-image" aria-hidden="true"/>
           <div className="ref-trail-content">
-            <span className="ref-trail-kicker">CONNECTED KNOWLEDGE TRAIL</span>
+            <span className="ref-trail-kicker">EXPLORE THE ARCHIVE</span>
             <h2 id="knowledge-web-title">The Web of Knowledge</h2>
-            <p>Follow living connections across ideas, people, events, and discoveries —
-              from AI to history, from philosophy to the future.</p>
+            <p>Discover published articles and explore the subjects that bring knowledge together.</p>
             <a href="#journeys" className="ref-light-cta">
-              Explore the Trail <ArchiveIcon name="arrow" size={17}/>
+              Explore Articles <ArchiveIcon name="arrow" size={17}/>
             </a>
           </div>
-          <p className="ref-trail-caption">Illustrative pathways, not verified publications.</p>
         </section>
 
         <section className="ref-today ref-panel" id="today" aria-labelledby="today-title">
@@ -150,14 +148,15 @@ export default async function Home() {
 
       <section className="ref-crossroads" aria-labelledby="crossroads-title">
         <h2 id="crossroads-title"><ArchiveIcon name="layers" size={28}/>
-          From AI to History to Philosophy</h2>
-        <p>Explore across domains, follow unexpected links,<br/>and discover how ideas connect.</p>
+          Explore by Subject</h2>
+        <p>Browse subjects with published articles.</p>
         <div className="ref-crossroads-items">
-          {crossovers.map(([label,icon])=><a href="#domains" key={label}>
-            <ArchiveIcon name={icon} size={28}/>
-            <span>{label}</span>
+          {publishedDomains.map(d=><a href={'/domains/'+d.primary_domain} key={d.primary_domain}>
+            <ArchiveIcon name={domains.find(item=>item.name===domainName(d.primary_domain))?.icon || 'book'} size={28}/>
+            <span>{domainName(d.primary_domain)} <small>({d.article_count})</small></span>
             <ArchiveIcon name="arrow" size={15}/>
           </a>)}
+          {!publishedDomains.length && <a href="/search">Search the archive <ArchiveIcon name="arrow" size={15}/></a>}
         </div>
       </section>
     </main>
