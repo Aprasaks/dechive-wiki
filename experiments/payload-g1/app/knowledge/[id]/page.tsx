@@ -65,6 +65,14 @@ export default async function KnowledgePage({params}:{params:Promise<{id:string}
   </section>
   <footer className="reading-revision"><strong>Revision record</strong><p>Version {record.version}</p><p>Revision ID: <code>{record.revision_id}</code></p><p>Content checksum: <code>{record.checksum}</code></p></footer>
  </article>
+ {related.length>0 && <aside className="knowledge-connections" aria-labelledby="connections-heading">
+  <h2 id="connections-heading">Connected knowledge</h2>
+  <p>Continue exploring related published entries.</p>
+  <ul>{related.map(item=><li key={item.related_entity_id}>
+   <a href={'/knowledge/'+item.related_entity_id}>{item.title}<span aria-hidden="true"> →</span></a>
+   <small>{domainName(item.primary_domain)||'Knowledge'}</small>
+  </li>)}</ul>
+ </aside>}
  </div>
  </div>
 }
