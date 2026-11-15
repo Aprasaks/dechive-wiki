@@ -3,13 +3,14 @@ import ArchiveSearch from './archive-search'
 import RandomDiscovery from './random-discovery'
 import DomainScroller from './domain-scroller'
 import { publicPool } from '../lib/public-db'
+import { entryTitle } from '../lib/public-reading'
 import './reference-home.css'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-type Record = { entity_id: string; body: string; version: number }
+type Record = { entity_id: string; body: string; version: number; title: string | null; summary: string | null }
 const domains = [
   { name:'Science', icon:'atom' },{ name:'Technology',icon:'cpu' },
   { name:'Humanities',icon:'book' },{ name:'Philosophy',icon:'pillar' },
@@ -38,7 +39,7 @@ export default async function Home() {
   // Only a restricted read-only PostgreSQL role and public head projection.
   // No Payload draft, submitted source, rejection or reviewer metadata is read.
   const res=await publicPool().query(
-    "SELECT entity_id,body,version FROM kg.public_entries WHERE locale='en' ORDER BY entity_id DESC LIMIT 6"
+    "SELECT p.entity_id,p.body,p.version,m.title,m.summary FROM kg.public_entries p LEFT JOIN kg.public_revision_metadata m ON m.entity_id=p.entity_id AND m.locale=p.locale AND m.version=p.version AND m.revision_id=p.revision_id WHERE p.locale='en' ORDER BY p.entity_id DESC LIMIT 6"
   )
   const approved=res.rows as Record[]
   // Random choice only among independently approved public entries.
@@ -141,7 +142,7 @@ export default async function Home() {
               <a className="ref-verified-row" href={'/knowledge/'+r.entity_id} key={r.entity_id}>
                 <span className={'ref-thumb ref-thumb-'+i} aria-hidden="true"><ArchiveIcon name="book" size={22}/></span>
                 <span className="ref-verified-description">
-                  <strong>{r.body.slice(0,65)}{r.body.length>65?'…':''}</strong>
+                <strong>{r.title?.trim() || entryTitle(r.body)}</strong>
                   <small>Approved public revision · Version {r.version}</small>
                 </span>
                 <ArchiveIcon name="arrow" size={15}/>

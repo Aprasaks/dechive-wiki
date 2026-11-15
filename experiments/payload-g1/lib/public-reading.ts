@@ -31,7 +31,7 @@ export function safeSourceUrl(value:string):string|null {
  }catch{return null}
 }
 export function entryTitle(body:string):string {
- const first=body.trim().split(/\r?\n/)[0]||'Knowledge record'
+ const first=(body.trim().split(/\r?\n/)[0]||'Knowledge record').replace(/^#{1,6}\s+/, '').replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1').trim()||'Knowledge record'
  return first.length>110?first.slice(0,107)+'…':first
 }
 export async function searchApproved(reader:Reader,term:string,after?:string){

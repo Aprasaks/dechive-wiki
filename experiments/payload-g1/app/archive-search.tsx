@@ -1,6 +1,6 @@
 'use client'
 import {useEffect,useRef,useState} from 'react'
-export type SearchRecord={entity_id:string;body:string;version:number}
+export type SearchRecord={entity_id:string;body:string;version:number;title?:string|null;summary?:string|null}
 const suggestions=['Artificial Intelligence','Ancient Civilizations','Consciousness','Climate Change','Meaning of Life','Space Exploration']
 export default function ArchiveSearch(){
  const inputRef=useRef<HTMLInputElement>(null)
