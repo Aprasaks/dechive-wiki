@@ -23,7 +23,7 @@ jobs:
       DATABASE_URL: postgres://postgres:synthetic-ci-only@127.0.0.1:5432/member_test
       MEMBER_DATABASE_URL: postgres://postgres:synthetic-ci-only@127.0.0.1:5432/member_test
       MEMBER_BOOKMARK_TEST_URL: postgres://wiki_member_ci:member-ci-only@127.0.0.1:5432/member_test
-      MEMBER_AUTH_URL: http://localhost:3000
+      MEMBER_AUTH_URL: http://127.0.0.1:3120
       MEMBER_AUTH_SECRET: synthetic-ci-secret-only-not-for-production-123456789
       PGPASSWORD: synthetic-ci-only
     steps:
@@ -36,3 +36,21 @@ jobs:
       - run: psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -U postgres -d member_test -f infra/reader/member-bookmarks.sql
       - run: npx tsx tests/member-integration.ts
         working-directory: experiments/payload-g1
+      - name: Prepare public article fixtures
+        run: |
+          for migration in db/00[1-4]_*.sql; do psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -U postgres -d member_test -f "$migration"; done
+          psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -U postgres -d member_test -v reader_password=synthetic -f experiments/payload-g1/sql/001_http_reader.sql
+          for file in 006_public_evidence.sql 007_revision_metadata.sql 012_public_related_entries.sql; do psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -U postgres -d member_test -f "experiments/payload-g1/sql/$file"; done
+      - name: Test reader HTTP flows
+        env:
+          PUBLIC_DATABASE_URL: postgres://postgres:synthetic-ci-only@127.0.0.1:5432/member_test
+        run: |
+          python3 infra/reader/stage.py "$RUNNER_TEMP/member-reader"
+          ln -s "$GITHUB_WORKSPACE/experiments/payload-g1/node_modules" "$RUNNER_TEMP/member-reader/node_modules"
+          npm --prefix "$RUNNER_TEMP/member-reader" run build:next
+          PORT=3120 HOSTNAME=127.0.0.1 npm --prefix "$RUNNER_TEMP/member-reader" run start:next > "$RUNNER_TEMP/member-reader.log" 2>&1 &
+          server=$!
+          trap 'kill "$server" || true' EXIT
+          for i in $(seq 1 60); do if curl -fsS http://127.0.0.1:3120/robots.txt >/dev/null; then break; fi; sleep 1; done
+          cd experiments/payload-g1
+          npx tsx tests/member-http.ts || { cat "$RUNNER_TEMP/member-reader.log"; exit 1; }
