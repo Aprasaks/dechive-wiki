@@ -1,0 +1,8 @@
+[Unit]
+Description=Daily DECHIVE.WIKI database backup
+[Timer]
+OnCalendar=*-*-* 18:20:00 UTC
+Persistent=true
+RandomizedDelaySec=300
+[Install]
+WantedBy=timers.target
