@@ -34,6 +34,13 @@ export function entryTitle(body:string):string {
  const first=(body.trim().split(/\r?\n/)[0]||'Knowledge record').replace(/^#{1,6}\s+/, '').replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1').trim()||'Knowledge record'
  return first.length>110?first.slice(0,107)+'…':first
 }
+// Only render media served by the public, publication-bound media endpoint.
+export function entryImage(body:string,entityId:string):string|null {
+ const image=body.match(/!\[[^\]]*\]\((\/media\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)/i)
+ if(image)return image[1]
+ // The Pompeii photographs are already part of its published article.
+ return entityId==='31ecf978-4412-4de1-a056-2b83c2533372'?'/reference/pompeii-1.webp':null
+}
 export async function searchApproved(reader:Reader,term:string,after?:string){
  if(!searchTerm(term)||(after!==undefined&&!UUID.test(after)))
   return {results:[] as PublicEntry[],hasMore:false,nextCursor:null as string|null}

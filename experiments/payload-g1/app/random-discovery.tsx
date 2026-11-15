@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import ArchiveIcon from './archive-icon'
 import type { SearchRecord } from './archive-search'
-import { entryTitle } from '../lib/public-reading'
+import { entryImage, entryTitle } from '../lib/public-reading'
 
 type Props = {
   records: SearchRecord[]
@@ -35,12 +35,13 @@ export default function RandomDiscovery({ records, initialId }: Props) {
         <ArchiveIcon name="refresh" size={18}/>
       </button>
     </div>
-    <div className="ref-random-landscape" role="img"
-      aria-label="Illustrative landscape photograph of ancient temple ruins"/>
+    {current && entryImage(current.body,current.entity_id) && <div className="ref-random-landscape" aria-hidden="true"
+      style={{backgroundImage:`url('${entryImage(current.body,current.entity_id)}')`}}/>}
     <div className="ref-random-content" aria-live="polite">
       {current ? <>
         <h3>{current.title?.trim() || entryTitle(current.body)}</h3>
         <p>{current.summary?.trim() || 'Discover a published article from the archive.'}</p>
+        {entryImage(current.body,current.entity_id)==='/reference/pompeii-1.webp' && <small>Photo: Commonists / Wikimedia Commons · CC BY-SA 4.0 · Resized</small>}
         <a href={'/knowledge/'+current.entity_id}
           aria-label="Read this approved record"><ArchiveIcon name="arrow" size={18}/></a>
       </> : <>

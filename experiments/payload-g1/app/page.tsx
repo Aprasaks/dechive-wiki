@@ -3,7 +3,7 @@ import ArchiveSearch from './archive-search'
 import RandomDiscovery from './random-discovery'
 import DomainScroller from './domain-scroller'
 import { publicPool } from '../lib/public-db'
-import { entryTitle } from '../lib/public-reading'
+import { entryImage, entryTitle } from '../lib/public-reading'
 import './reference-home.css'
 
 export const runtime = 'nodejs'
@@ -18,16 +18,6 @@ const domains = [
   { name:'Economics',icon:'chart' },{ name:'Health',icon:'heart' },
   { name:'Life',icon:'leaf' },{ name:'Space',icon:'planet' },
   { name:'Earth',icon:'mountain' },{ name:'Arts & Culture',icon:'grid' },
-]
-const journeys = [
-  {title:'The Path of AI',subtitle:'From ideas to intelligence and a changing world.',
-    image:'journey-ai',topic:'Science'},
-  {title:'The Rise and Fall of Civilizations',
-    subtitle:'Patterns, people, and forces across history.',
-    image:'journey-civilization',topic:'History'},
-  {title:'The Question of a Good Life',
-    subtitle:'An interdisciplinary journey through philosophy.',
-    image:'journey-life',topic:'Philosophy'},
 ]
 const crossovers=[
   ['AI & Society','cpu'],['History & Technology','timeline'],
@@ -117,18 +107,19 @@ export default async function Home() {
         <section className="ref-journeys" id="journeys" aria-labelledby="journeys-title">
           <div className="ref-section-head">
             <h2 id="journeys-title"><ArchiveIcon name="nodes" size={23}/>
-              Featured Knowledge Journeys</h2>
-            <span className="ref-section-note">Illustrative journeys</span>
+              Explore the Archive</h2>
+            <span className="ref-section-note">Published articles</span>
           </div>
           <div className="ref-journey-grid">
-            {journeys.map(j=><article className={'ref-journey ref-'+j.image} key={j.title}>
-              <div className="ref-journey-photo" aria-hidden="true"/>
+            {approved.slice(0,3).map(r=><a className="ref-journey" href={'/knowledge/'+r.entity_id} key={r.entity_id}>
+              {entryImage(r.body,r.entity_id) && <div className="ref-journey-photo" aria-hidden="true" style={{backgroundImage:`url('${entryImage(r.body,r.entity_id)}')`}}/>}
               <div className="ref-journey-bottom">
-                <h3>{j.title}</h3>
-                <p>{j.subtitle}</p>
+                <h3>{r.title?.trim() || entryTitle(r.body)}</h3>
+                <p>{r.summary?.trim()}</p>
+                {entryImage(r.body,r.entity_id)==='/reference/pompeii-1.webp' && <small>Photo: Commonists / Wikimedia Commons · CC BY-SA 4.0 · Resized</small>}
               </div>
-              <span className="ref-journey-example">Design example</span>
-            </article>)}
+            </a>)}
+            {!approved.length && <p>Published articles will appear here.</p>}
           </div>
         </section>
 
