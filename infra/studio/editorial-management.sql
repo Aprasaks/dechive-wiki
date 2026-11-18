@@ -9,7 +9,9 @@ BEGIN
    RAISE EXCEPTION 'INVALID_PUBLICATION';
  END IF;
  PERFORM pg_advisory_xact_lock(hashtextextended(p_entity::text, 5311));
- IF EXISTS(SELECT 1 FROM kg.entities e WHERE e.id=p_entity) THEN
+ IF EXISTS(SELECT 1 FROM kg.entities e WHERE e.id=p_entity)
+    AND (NOT EXISTS(SELECT 1 FROM kg.studio_public_revisions s WHERE s.entity_id=p_entity)
+         OR EXISTS(SELECT 1 FROM kg.heads h WHERE h.entity_id=p_entity AND h.locale='en')) THEN
    RAISE EXCEPTION 'EXISTING_KNOWLEDGE_ID';
  END IF;
  SELECT coalesce(max(r.version),0)+1 INTO new_version

@@ -15,3 +15,7 @@ DO $$ BEGIN
  IF EXISTS(SELECT 1 FROM kg.approvals WHERE revision_id='55555555-5555-4555-8555-555555555555') THEN RAISE EXCEPTION 'staged revision approved'; END IF;
  BEGIN INSERT INTO kg.approvals(revision_id,reviewer) VALUES('55555555-5555-4555-8555-555555555555','reviewer'); RAISE EXCEPTION 'unsafe approval allowed'; EXCEPTION WHEN check_violation THEN NULL; END;
 END $$;
+DO $$ DECLARE v record; BEGIN
+ SELECT * INTO v FROM kg.publish_studio_draft('44444444-4444-4444-8444-444444444444','Stage updated','Updated body.','Summary','science');
+ IF v.version<>2 THEN RAISE EXCEPTION 'staged evidence blocks future publication'; END IF;
+END $$;
