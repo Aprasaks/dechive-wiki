@@ -428,7 +428,7 @@ try{
     const r=await fetchRaw('/knowledge/'+entity)
     assert.equal(r.status,200,r.text.slice(0,650))
     assert.ok(r.text.includes(original))
-    assert.ok(r.text.includes('VERIFIED KNOWLEDGE'))
+    assert.ok(r.text.includes('public-approved-body'))
     assert.match(r.headers.get('cache-control')??'',/no-store/)
   })
   await check('Next.js sitemap includes only approved knowledge after publish',async()=>{
