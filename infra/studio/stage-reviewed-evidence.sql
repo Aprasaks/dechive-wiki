@@ -108,6 +108,13 @@ BEGIN
  VALUES(r,sr.revision_id,(v->>'reviewId')::bigint,(v->>'reviewerId')::bigint,(v->>'editorId')::bigint,v_digest,v);
  RETURN r;
 END $$;
+CREATE FUNCTION kg.studio_reviewed_stage_context(p_review bigint,p_reviewer bigint)
+RETURNS TABLE(revision_id uuid,payload jsonb) LANGUAGE sql SECURITY DEFINER SET search_path=pg_catalog,kg,pg_temp AS $$
+ SELECT s.revision_id,s.payload FROM kg.studio_reviewed_evidence_staged s
+ WHERE session_user='kg_g1_candidate_probe' AND s.review_id=p_review AND s.reviewer_id=p_reviewer
+$$;
+REVOKE ALL ON FUNCTION kg.studio_reviewed_stage_context(bigint,bigint) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION kg.studio_reviewed_stage_context(bigint,bigint) TO kg_g1_candidate_probe;
 GRANT USAGE ON SCHEMA kg TO kg_g1_candidate_probe;
 REVOKE ALL ON FUNCTION kg.stage_studio_reviewed_evidence(text,text,text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION kg.stage_studio_reviewed_evidence(text,text,text) TO kg_g1_candidate_probe;

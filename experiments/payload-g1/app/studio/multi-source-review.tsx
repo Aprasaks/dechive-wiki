@@ -50,7 +50,7 @@ export function MultiSourceReviewer({draftId}:{draftId:string|number}){
  const [decisions,setDecisions]=useState<Record<string,Decision>>({}),[media,setMedia]=useState<Record<string,{checked:boolean;note:string}>>({})
  const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[reviewId,setReviewId]=useState<number|null>(null),[revision,setRevision]=useState('')
  const key=(c:string,s:string)=>JSON.stringify([c,s])
- async function load(){setBusy(true);setMessage('');try{const r=await fetch('/api/studio-review-package?draftId='+encodeURIComponent(String(draftId)),{credentials:'same-origin',cache:'no-store'});if(!r.ok)throw Error();const j=await r.json();setPack(j.package);setHash(j.snapshotHash);setIssues(j.issues);setDecisions({});setMedia({});setReviewId(null);setRevision('')}catch{setMessage('No complete source package is available for review.')}finally{setBusy(false)}}
+ async function load(){setBusy(true);setMessage('');try{const r=await fetch('/api/studio-review-package?draftId='+encodeURIComponent(String(draftId)),{credentials:'same-origin',cache:'no-store'});if(!r.ok)throw Error();const j=await r.json();setPack(j.package);setHash(j.snapshotHash);setIssues(j.issues);setDecisions({});setMedia({});setReviewId(j.currentReviewId?Number(j.currentReviewId):null);setRevision('')}catch{setMessage('No complete source package is available for review.')}finally{setBusy(false)}}
  async function record(){if(!pack)return;setBusy(true);setMessage('');try{
   const evidence=pack.claims.flatMap(c=>c.sourceIds.map(s=>{const d=decisions[key(c.id,s)];return {claimId:c.id,sourceId:s,verdict:'verified',note:d?.note||'',pinpoint:d?.pinpoint||''}}))
   const rights=pack.media.map(m=>({mediaId:m.id,verdict:'cleared',note:media[m.id]?.note||''}))

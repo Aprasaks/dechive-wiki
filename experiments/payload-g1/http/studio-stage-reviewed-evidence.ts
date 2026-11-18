@@ -1,6 +1,7 @@
 import { APIError, type Endpoint } from 'payload'
 import { createHmac, createHash, randomBytes, randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
+import { isDeepStrictEqual } from 'node:util'
 import { preparePublicationEvidence, type PublicationReview } from '../lib/publication-evidence'
 import type { EditorialPackage } from '../lib/editorial-package'
 import type { EvidenceDecision, MediaDecision } from '../lib/multi-source-review'
@@ -35,7 +36,20 @@ export const studioStageReviewedEvidence: Endpoint = {
      evidence:decisions,media:review.media as MediaDecision[]} satisfies PublicationReview,
     decisions.map(d=>({claimId:d.claimId,sourceId:d.sourceId,pinpoint:d.pinpoint})))
   } catch { throw new APIError('REVIEW_STALE_OR_INCOMPLETE',409) }
-  const secret = process.env.G1_CANDIDATE_SECRET ?? ''
+  const existing=async()=>{
+  const found=await pool.query('SELECT * FROM kg.studio_reviewed_stage_context($1::bigint,$2::bigint)',[id,reviewer])
+  const row=found.rows[0],p=row?.payload
+  if(!p)return null
+  if(p.entityId!==draft.stableEntityId||p.reviewId!==id||p.reviewerId!==reviewer||p.editorId!==String(editor)||
+   p.title!==draft.title||p.body!==draft.body||p.snapshotHash!==prepared.snapshotHash||
+   !isDeepStrictEqual(p.rows,prepared.rows)||!isDeepStrictEqual(p.reviewSnapshot,review.snapshot)||
+   !isDeepStrictEqual(p.reviewEvidence,review.evidence)||!isDeepStrictEqual(p.reviewMedia,review.media)||
+   typeof row.revision_id!=='string'||p.revisionId!==row.revision_id)throw new APIError('STAGED_REVIEW_MISMATCH',409)
+  return row.revision_id as string
+ }
+ const stagedRevision=await existing()
+ if(stagedRevision)return Response.json({staged:true,revisionId:stagedRevision,approved:false,published:false},{headers:{'Cache-Control':'private, no-store'}})
+ const secret = process.env.G1_CANDIDATE_SECRET ?? ''
   if (!/^[a-f0-9]{64}$/i.test(secret)) throw new APIError('SEAL_SERVICE_UNAVAILABLE',503)
   const revision = randomUUID(), nonce = randomBytes(16).toString('hex')
   const payload = JSON.stringify({entityId:draft.stableEntityId,revisionId:revision,reviewId:id,reviewerId:reviewer,
@@ -43,7 +57,11 @@ export const studioStageReviewedEvidence: Endpoint = {
   const digest = createHash('sha256').update(payload,'utf8').digest('hex')
   const signature = createHmac('sha256',Buffer.from(secret,'hex')).update(['studio-reviewed-stage-v1',digest,nonce].join('|'),'utf8').digest('hex')
   try { await pool.query('SELECT kg.stage_studio_reviewed_evidence($1::text,$2::text,$3::text)',[payload,nonce,signature]) }
-  catch { throw new APIError('EVIDENCE_STAGE_REJECTED',409) }
+  catch {
+  const stagedRevision=await existing()
+  if(stagedRevision)return Response.json({staged:true,revisionId:stagedRevision,approved:false,published:false},{headers:{'Cache-Control':'private, no-store'}})
+  throw new APIError('EVIDENCE_STAGE_REJECTED',409)
+ }
   return Response.json({staged:true,revisionId:revision,approved:false,published:false},{status:201,headers:{'Cache-Control':'private, no-store'}})
  }
 }

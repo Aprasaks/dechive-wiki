@@ -25,10 +25,10 @@ BEGIN
 END $$;
 
 CREATE FUNCTION kg.studio_reviewed_approval_context(p_revision uuid,p_reviewer bigint)
-RETURNS TABLE(payload jsonb,payload_digest text) LANGUAGE sql SECURITY DEFINER SET search_path=pg_catalog,kg,pg_temp AS $$
- SELECT s.payload,s.payload_digest FROM kg.studio_reviewed_evidence_staged s
+RETURNS TABLE(payload jsonb,payload_digest text,approved boolean) LANGUAGE sql SECURITY DEFINER SET search_path=pg_catalog,kg,pg_temp AS $$
+ SELECT s.payload,s.payload_digest,EXISTS(SELECT 1 FROM kg.approvals a WHERE a.revision_id=s.revision_id) FROM kg.studio_reviewed_evidence_staged s
  WHERE session_user='kg_g1_reviewer_probe' AND s.revision_id=p_revision AND s.reviewer_id=p_reviewer
- AND NOT EXISTS(SELECT 1 FROM kg.approvals a WHERE a.revision_id=s.revision_id)
+
 $$;
 
 CREATE FUNCTION kg.approve_studio_reviewed_evidence(p_revision uuid,p_reviewer bigint,p_nonce text,p_signature text)

@@ -17,7 +17,11 @@ export const studioReviewPackage:Endpoint={path:'/studio-review-package',method:
  const pack={title:draft.title,body:draft.body,sources:extra.sources,claims:extra.claims,media:extra.media} as EditorialPackage
  try{
   const inspection=inspectEditorialPackage(pack)
-  return Response.json({draftId:id,snapshotHash:packageHash(pack),package:pack,issues:inspection.issues},
+  const snapshotHash=packageHash(pack)
+  const prior=await req.payload.find({collection:'multi-source-reviews',req,overrideAccess:false,
+   where:{and:[{draftId:{equals:id}},{reviewerId:{equals:String(user.id)}},{snapshotHash:{equals:snapshotHash}}]},
+   limit:1,sort:'-createdAt'})
+  return Response.json({draftId:id,snapshotHash,package:pack,issues:inspection.issues,currentReviewId:prior.docs[0]?.id??null},
    {headers:{'Cache-Control':'private, no-store','X-Robots-Tag':'noindex'}})
  }catch{throw new APIError('PACKAGE_INVALID',409)}
 }}

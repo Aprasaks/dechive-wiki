@@ -37,11 +37,16 @@ export const studioApproveReviewedEvidence:Endpoint={path:'/studio-approve-revie
   !isDeepStrictEqual(p.rows,prepared.rows)||!isDeepStrictEqual(p.reviewSnapshot,review.snapshot)||
   !isDeepStrictEqual(p.reviewEvidence,review.evidence)||!isDeepStrictEqual(p.reviewMedia,review.media)||
   typeof row.payload_digest!=='string'||!/^[a-f0-9]{64}$/.test(row.payload_digest))throw new APIError('STAGED_REVIEW_MISMATCH',409)
+ if(row.approved===true)return Response.json({approved:true,revisionId:revision},{headers:{'Cache-Control':'private, no-store'}})
  const secret=process.env.G1_REVIEW_ATTESTATION_SECRET??''
  if(!/^[a-f0-9]{64}$/i.test(secret))throw new APIError('APPROVAL_SERVICE_UNAVAILABLE',503)
  const nonce=randomBytes(16).toString('hex')
  const signature=createHmac('sha256',Buffer.from(secret,'hex')).update(['studio-reviewed-approval-v1',revision,String(reviewer),row.payload_digest,nonce].join('|'),'utf8').digest('hex')
  try{await pool.query('SELECT kg.approve_studio_reviewed_evidence($1::uuid,$2::bigint,$3::text,$4::text)',[revision,reviewer,nonce,signature])}
- catch{throw new APIError('REVIEW_APPROVAL_REJECTED',409)}
+ catch{
+  const retry=await pool.query('SELECT * FROM kg.studio_reviewed_approval_context($1::uuid,$2::bigint)',[revision,reviewer])
+  if(retry.rows[0]?.approved===true && retry.rows[0]?.payload_digest===row.payload_digest)return Response.json({approved:true,revisionId:revision},{headers:{'Cache-Control':'private, no-store'}})
+  throw new APIError('REVIEW_APPROVAL_REJECTED',409)
+ }
  return Response.json({approved:true,revisionId:revision},{headers:{'Cache-Control':'private, no-store'}})
 }}
