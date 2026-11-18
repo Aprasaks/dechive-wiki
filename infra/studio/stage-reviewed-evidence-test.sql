@@ -16,6 +16,20 @@ DO $$ BEGIN
  IF EXISTS(SELECT 1 FROM kg.approvals WHERE revision_id='55555555-5555-4555-8555-555555555555') THEN RAISE EXCEPTION 'staged revision approved'; END IF;
  BEGIN INSERT INTO kg.approvals(revision_id,reviewer) VALUES('55555555-5555-4555-8555-555555555555','reviewer'); RAISE EXCEPTION 'unsafe approval allowed'; EXCEPTION WHEN check_violation THEN NULL; END;
 END $$;
+-- Even a republish with identical title and body is a new publication revision.
+BEGIN;
+INSERT INTO kg.studio_public_revisions(revision_id,entity_id,version,title,body,summary,primary_domain)
+VALUES('66666666-6666-4666-8666-666666666666','44444444-4444-4444-8444-444444444444',2,'Stage','A staged fact.','Summary','science');
+UPDATE kg.studio_public_heads SET revision_id='66666666-6666-4666-8666-666666666666',version=2 WHERE entity_id='44444444-4444-4444-8444-444444444444';
+SET SESSION AUTHORIZATION kg_g1_reviewer_probe;
+DO $$ DECLARE dig text; nonce text:=repeat('c',32); sig text;
+BEGIN
+ SELECT payload_digest INTO STRICT dig FROM kg.studio_reviewed_approval_context('55555555-5555-4555-8555-555555555555',2);
+ sig:=encode(public.hmac(convert_to('studio-reviewed-approval-v1|55555555-5555-4555-8555-555555555555|2|'||dig||'|'||nonce,'UTF8'),decode(repeat('c',64),'hex'),'sha256'),'hex');
+ BEGIN PERFORM kg.approve_studio_reviewed_evidence('55555555-5555-4555-8555-555555555555',2,nonce,sig); RAISE EXCEPTION 'changed publication was approved'; EXCEPTION WHEN check_violation THEN NULL; END;
+END $$;
+RESET SESSION AUTHORIZATION;
+ROLLBACK;
 SET SESSION AUTHORIZATION kg_g1_reviewer_probe;
 DO $$ DECLARE dig text; nonce text:=repeat('c',32); sig text;
 BEGIN
