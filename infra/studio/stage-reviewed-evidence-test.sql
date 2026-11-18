@@ -50,7 +50,10 @@ DO $$ BEGIN
  IF (SELECT count(*) FROM kg.public_claim_sources WHERE entity_id='44444444-4444-4444-8444-444444444444')<>1 THEN RAISE EXCEPTION 'approved evidence not public'; END IF;
 END $$;
 DO $$ DECLARE v record; BEGIN
- SELECT * INTO v FROM kg.publish_studio_draft('44444444-4444-4444-8444-444444444444','Stage updated','Updated body.','Summary','science');
+ SELECT * INTO v FROM kg.publish_studio_draft('44444444-4444-4444-8444-444444444444','Stage','A staged fact.','Republished summary','science');
  IF v.version<>2 THEN RAISE EXCEPTION 'staged evidence blocks future publication'; END IF;
+ IF EXISTS(SELECT 1 FROM kg.public_claim_sources WHERE entity_id='44444444-4444-4444-8444-444444444444') THEN RAISE EXCEPTION 'approval transferred to a new revision'; END IF;
+ SELECT * INTO v FROM kg.publish_studio_draft('44444444-4444-4444-8444-444444444444','Stage updated','Updated body.','Summary','science');
+ IF v.version<>3 THEN RAISE EXCEPTION 'later publication failed'; END IF;
 END $$;
 DO $$ BEGIN IF EXISTS(SELECT 1 FROM kg.public_claim_sources WHERE entity_id='44444444-4444-4444-8444-444444444444') THEN RAISE EXCEPTION 'previous evidence leaked after edit'; END IF; END $$;

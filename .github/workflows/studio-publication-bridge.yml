@@ -100,6 +100,7 @@ jobs:
       - run: psql -v ON_ERROR_STOP=1 -f infra/studio/studio-media-info.sql
       - run: psql -v ON_ERROR_STOP=1 -f infra/studio/studio-media-info-test.sql
       - run: psql -v ON_ERROR_STOP=1 -f infra/studio/stage-reviewed-evidence.sql
+      - run: psql -v ON_ERROR_STOP=1 -f infra/studio/bind-exact-studio-revision.sql
       - run: psql -v ON_ERROR_STOP=1 -c "CREATE ROLE kg_g1_reviewer_probe LOGIN"
       - run: psql -v ON_ERROR_STOP=1 -c "CREATE TABLE kg.attestation_private_key (id integer primary key, secret_key bytea not null); INSERT INTO kg.attestation_private_key VALUES (1,decode(repeat('c',64),'hex'))"
       - run: psql -v ON_ERROR_STOP=1 -f infra/studio/approve-reviewed-evidence.sql
@@ -154,5 +155,6 @@ jobs:
       - run: psql -v ON_ERROR_STOP=1 -f infra/studio/studio-media-info.sql
       - run: psql -v ON_ERROR_STOP=1 -f infra/studio/approved-evidence-bridge.sql
       - run: psql -v ON_ERROR_STOP=1 -f infra/studio/stage-reviewed-evidence.sql
+      - run: psql -v ON_ERROR_STOP=1 -f infra/studio/bind-exact-studio-revision.sql
       - run: psql -v ON_ERROR_STOP=1 -f infra/studio/approve-reviewed-evidence.sql
       - run: cd experiments/payload-g1 && timeout --signal=SIGTERM --kill-after=10s 240s node --import tsx tests/studio-multisource-http.ts
