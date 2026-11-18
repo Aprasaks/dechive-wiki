@@ -13,6 +13,8 @@ BEGIN
 
  r:=kg.stage_studio_reviewed_evidence(p,nonce,sig);
  IF r<>'55555555-5555-4555-8555-555555555555'::uuid THEN RAISE EXCEPTION 'incorrect stage revision'; END IF;
+ IF (SELECT revision_id FROM kg.studio_reviewed_stage_context(5,2))<>r THEN RAISE EXCEPTION 'cannot recover staged review'; END IF;
+ IF EXISTS(SELECT 1 FROM kg.studio_reviewed_stage_context(5,3)) THEN RAISE EXCEPTION 'another reviewer accessed stage'; END IF;
 END $$;
 RESET SESSION AUTHORIZATION;
 DO $$ BEGIN
@@ -41,6 +43,7 @@ BEGIN
  sig:=encode(public.hmac(convert_to('studio-reviewed-approval-v1|55555555-5555-4555-8555-555555555555|2|'||dig||'|'||nonce,'UTF8'),decode(repeat('c',64),'hex'),'sha256'),'hex');
  BEGIN PERFORM kg.approve_studio_reviewed_evidence('55555555-5555-4555-8555-555555555555',2,nonce,repeat('0',64)); RAISE EXCEPTION 'forged approval accepted'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
  PERFORM kg.approve_studio_reviewed_evidence('55555555-5555-4555-8555-555555555555',2,nonce,sig);
+ IF NOT (SELECT approved FROM kg.studio_reviewed_approval_context('55555555-5555-4555-8555-555555555555',2)) THEN RAISE EXCEPTION 'cannot recover approved review'; END IF;
 END $$;
 RESET SESSION AUTHORIZATION;
 DO $$ BEGIN
