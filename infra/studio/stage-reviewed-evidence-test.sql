@@ -12,6 +12,7 @@ BEGIN
 END $$;
 RESET SESSION AUTHORIZATION;
 DO $$ BEGIN
+ BEGIN DELETE FROM kg.claim_evidence WHERE revision_id='55555555-5555-4555-8555-555555555555'; RAISE EXCEPTION 'staged evidence was mutable'; EXCEPTION WHEN check_violation THEN NULL; END;
  IF EXISTS(SELECT 1 FROM kg.approvals WHERE revision_id='55555555-5555-4555-8555-555555555555') THEN RAISE EXCEPTION 'staged revision approved'; END IF;
  BEGIN INSERT INTO kg.approvals(revision_id,reviewer) VALUES('55555555-5555-4555-8555-555555555555','reviewer'); RAISE EXCEPTION 'unsafe approval allowed'; EXCEPTION WHEN check_violation THEN NULL; END;
 END $$;

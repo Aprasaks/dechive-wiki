@@ -17,6 +17,24 @@ CREATE TRIGGER studio_reviewed_evidence_staged_immutable BEFORE UPDATE OR DELETE
  ON kg.studio_reviewed_evidence_staged FOR EACH ROW EXECUTE FUNCTION kg.no_change();
 REVOKE ALL ON kg.studio_reviewed_evidence_staged FROM PUBLIC,kg_public_http,kg_g1_candidate_probe;
 
+-- Freeze staged claim and source associations, including against concurrent edits.
+CREATE FUNCTION kg.lock_studio_staged_evidence() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE target uuid;
+BEGIN
+ target:=CASE WHEN TG_OP='DELETE' THEN OLD.revision_id ELSE NEW.revision_id END;
+ IF TG_OP='UPDATE' AND OLD.revision_id IS DISTINCT FROM NEW.revision_id THEN
+  RAISE EXCEPTION 'REVISION_CHANGE_FORBIDDEN' USING ERRCODE='23514'; END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended(target::text,7007));
+ IF EXISTS(SELECT 1 FROM kg.studio_reviewed_evidence_staged WHERE revision_id=target) THEN
+  RAISE EXCEPTION 'STUDIO_STAGED_EVIDENCE_IMMUTABLE' USING ERRCODE='23514'; END IF;
+ IF TG_OP='DELETE' THEN RETURN OLD; END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER studio_staged_claim_lock BEFORE INSERT OR UPDATE OR DELETE ON kg.claims
+ FOR EACH ROW EXECUTE FUNCTION kg.lock_studio_staged_evidence();
+CREATE TRIGGER studio_staged_evidence_lock BEFORE INSERT OR UPDATE OR DELETE ON kg.claim_evidence
+ FOR EACH ROW EXECUTE FUNCTION kg.lock_studio_staged_evidence();
+
 -- This staging step must never become approval through an older DB entry point.
 CREATE FUNCTION kg.block_unapproved_studio_review() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
@@ -46,6 +64,9 @@ BEGIN
  OR jsonb_array_length(v->'rows')>500 OR jsonb_typeof(v->'reviewSnapshot') IS DISTINCT FROM 'object'
  OR jsonb_typeof(v->'reviewEvidence') IS DISTINCT FROM 'array' OR jsonb_typeof(v->'reviewMedia') IS DISTINCT FROM 'array'
  THEN RAISE EXCEPTION 'INVALID_STAGE_PAYLOAD' USING ERRCODE='23514'; END IF;
+ -- Serialize against studio publication and against evidence edits.
+ PERFORM pg_advisory_xact_lock(hashtextextended(e::text,5311));
+ PERFORM pg_advisory_xact_lock(hashtextextended(r::text,7007));
  -- Only the exact current studio publication may receive this staged record.
  SELECT s.* INTO STRICT sr FROM kg.studio_public_heads h JOIN kg.studio_public_revisions s
  ON (h.entity_id,h.revision_id,h.version)=(s.entity_id,s.revision_id,s.version)
