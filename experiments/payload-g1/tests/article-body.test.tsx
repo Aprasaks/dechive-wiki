@@ -18,7 +18,7 @@ Text with **emphasis** and [source](https://example.org/source) and [bad](javasc
 
 <script>alert(1)</script>`
 const html=renderToStaticMarkup(<ArticleBody body={body}/> )
-assert.match(html,/<h2>Daily life<\/h2>/)
+assert.match(html,/<h2 id="section-1">Daily life<\/h2>/)
 assert.match(html,/<strong>emphasis<\/strong>/)
 assert.match(html,/<table>/)
 assert.match(html,/<th scope="col">Subject<\/th>/)
