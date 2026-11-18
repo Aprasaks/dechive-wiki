@@ -9,6 +9,7 @@ BEGIN
  INSERT INTO kg.claims(revision_id,claim_key,anchor,statement) VALUES(approved,'c1','paragraph 1','A fact.');
  INSERT INTO kg.claim_evidence(revision_id,claim_key,source_id,stance,pinpoint,reviewer) VALUES(approved,'c1',src,'supports','Section 1','reviewer');
  BEGIN PERFORM kg.link_studio_approved_evidence(studio,approved); RAISE EXCEPTION 'unapproved allowed'; EXCEPTION WHEN check_violation THEN NULL; END;
+ INSERT INTO kg.revision_reader_metadata(revision_id,title,summary,primary_domain) VALUES(approved,'Test','Summary','science');
  INSERT INTO kg.approvals(revision_id,reviewer) VALUES(approved,'reviewer');
  BEGIN PERFORM kg.link_studio_approved_evidence(studio,unapproved); RAISE EXCEPTION 'mismatch allowed'; EXCEPTION WHEN check_violation THEN NULL; END;
  IF (SELECT count(*) FROM kg.public_claim_sources WHERE revision_id=studio)<>1 THEN RAISE EXCEPTION 'missing evidence'; END IF;

@@ -17,6 +17,7 @@ BEGIN
   SELECT 1 FROM kg.studio_public_revisions s
   JOIN kg.revisions r ON r.id=p_approved_revision AND r.entity_id=s.entity_id AND r.locale='en' AND r.body=s.body
   JOIN kg.approvals a ON a.revision_id=r.id
+  JOIN kg.revision_reader_metadata m ON m.revision_id=r.id AND m.title=s.title
   WHERE s.revision_id=p_studio_revision
  ) THEN RAISE EXCEPTION 'APPROVED_REVISION_MISMATCH' USING ERRCODE='23514'; END IF;
  IF NOT EXISTS (SELECT 1 FROM kg.claims c JOIN kg.claim_evidence e
@@ -46,6 +47,7 @@ BEGIN
  FROM kg.studio_public_revisions s
  JOIN kg.revisions r ON r.entity_id=s.entity_id AND r.locale='en' AND r.body=s.body
  JOIN kg.approvals a ON a.revision_id=r.id
+ JOIN kg.revision_reader_metadata m ON m.revision_id=r.id AND m.title=s.title
  WHERE s.entity_id=target_entity AND EXISTS (
   SELECT 1 FROM kg.claims c JOIN kg.claim_evidence e
   ON e.revision_id=c.revision_id AND e.claim_key=c.claim_key
