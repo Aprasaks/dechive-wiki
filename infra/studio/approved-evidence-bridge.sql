@@ -30,6 +30,36 @@ END $$;
 REVOKE ALL ON FUNCTION kg.link_studio_approved_evidence(uuid,uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION kg.link_studio_approved_evidence(uuid,uuid) TO kg_studio_publish;
 
+-- Associate only when the exact entity and body have exactly one approved
+-- source revision. Ambiguous matches remain unattached for editorial review.
+CREATE FUNCTION kg.auto_link_studio_approved_evidence() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,kg,pg_temp AS $$
+DECLARE target_entity uuid;
+BEGIN
+ IF TG_TABLE_NAME='approvals' THEN
+  SELECT entity_id INTO STRICT target_entity FROM kg.revisions WHERE id=NEW.revision_id;
+ ELSE target_entity:=NEW.entity_id;
+ END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended(target_entity::text,5311));
+ INSERT INTO kg.studio_approved_evidence_links(studio_revision_id,approved_revision_id)
+ SELECT s.revision_id,(array_agg(r.id ORDER BY r.id))[1]
+ FROM kg.studio_public_revisions s
+ JOIN kg.revisions r ON r.entity_id=s.entity_id AND r.locale='en' AND r.body=s.body
+ JOIN kg.approvals a ON a.revision_id=r.id
+ WHERE s.entity_id=target_entity AND EXISTS (
+  SELECT 1 FROM kg.claims c JOIN kg.claim_evidence e
+  ON e.revision_id=c.revision_id AND e.claim_key=c.claim_key
+  WHERE c.revision_id=r.id)
+ GROUP BY s.revision_id HAVING count(*)=1
+ ON CONFLICT(studio_revision_id) DO NOTHING;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER studio_revision_auto_evidence AFTER INSERT ON kg.studio_public_revisions
+ FOR EACH ROW EXECUTE FUNCTION kg.auto_link_studio_approved_evidence();
+CREATE TRIGGER studio_approval_auto_evidence AFTER INSERT ON kg.approvals
+ FOR EACH ROW EXECUTE FUNCTION kg.auto_link_studio_approved_evidence();
+REVOKE ALL ON FUNCTION kg.auto_link_studio_approved_evidence() FROM PUBLIC;
+
 CREATE OR REPLACE VIEW kg.public_claim_sources WITH (security_barrier=true) AS
  SELECT p.entity_id,p.locale,p.version,p.revision_id,
   c.claim_key,c.anchor,c.statement,s.id AS source_id,

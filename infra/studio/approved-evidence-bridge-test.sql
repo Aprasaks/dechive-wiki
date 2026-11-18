@@ -11,7 +11,6 @@ BEGIN
  BEGIN PERFORM kg.link_studio_approved_evidence(studio,approved); RAISE EXCEPTION 'unapproved allowed'; EXCEPTION WHEN check_violation THEN NULL; END;
  INSERT INTO kg.approvals(revision_id,reviewer) VALUES(approved,'reviewer');
  BEGIN PERFORM kg.link_studio_approved_evidence(studio,unapproved); RAISE EXCEPTION 'mismatch allowed'; EXCEPTION WHEN check_violation THEN NULL; END;
- PERFORM kg.link_studio_approved_evidence(studio,approved);
  IF (SELECT count(*) FROM kg.public_claim_sources WHERE revision_id=studio)<>1 THEN RAISE EXCEPTION 'missing evidence'; END IF;
  BEGIN DELETE FROM kg.studio_approved_evidence_links WHERE studio_revision_id=studio; RAISE EXCEPTION 'delete allowed'; EXCEPTION WHEN check_violation THEN NULL; END;
  INSERT INTO kg.studio_public_revisions(entity_id,version,title,body,summary,primary_domain) VALUES(e,2,'Test','Changed.','Summary','science') RETURNING revision_id INTO newer;
