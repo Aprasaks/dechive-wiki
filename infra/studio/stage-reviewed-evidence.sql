@@ -49,7 +49,7 @@ CREATE TRIGGER studio_review_approval_block BEFORE INSERT ON kg.approvals
 CREATE FUNCTION kg.stage_studio_reviewed_evidence(p_payload text,p_nonce text,p_signature text)
 RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,kg,pg_temp AS $$
 DECLARE v jsonb; v_digest text; v_key bytea; v_signature text; e uuid; r uuid;
- sr kg.studio_public_revisions%ROWTYPE; item jsonb; source_id uuid; claim_ids text[]:=ARRAY[]::text[];
+ sr kg.studio_public_revisions%ROWTYPE; item jsonb; asset jsonb; source_id uuid; claim_ids text[]:=ARRAY[]::text[];
 BEGIN
  IF session_user<>'kg_g1_candidate_probe' OR p_payload IS NULL OR length(p_payload)>1000000
  OR coalesce(p_nonce,'') !~ '^[a-f0-9]{32}$' OR coalesce(p_signature,'') !~ '^[a-f0-9]{64}$'
@@ -72,6 +72,17 @@ BEGIN
  SELECT s.* INTO STRICT sr FROM kg.studio_public_heads h JOIN kg.studio_public_revisions s
  ON (h.entity_id,h.revision_id,h.version)=(s.entity_id,s.revision_id,s.version)
  WHERE h.entity_id=e AND s.title=v->>'title' AND s.body=v->>'body';
+ -- Bind reviewed image checksums to the actual immutable media bytes.
+ IF jsonb_typeof(v->'reviewSnapshot'->'media') IS DISTINCT FROM 'array' THEN
+  RAISE EXCEPTION 'INVALID_MEDIA_SNAPSHOT' USING ERRCODE='23514'; END IF;
+ FOR asset IN SELECT value FROM jsonb_array_elements(v->'reviewSnapshot'->'media') LOOP
+  IF coalesce(asset->>'objectKey','') !~ '^media/[0-9a-fA-F-]{36}$' OR
+   coalesce(asset->>'sha256','') !~ '^[0-9a-fA-F]{64}$' OR NOT EXISTS (
+    SELECT 1 FROM kg.studio_media m WHERE m.entity_id=e
+     AND m.id=substring(asset->>'objectKey' FROM 7)::uuid
+     AND encode(public.digest(m.data,'sha256'),'hex')=lower(asset->>'sha256'))
+  THEN RAISE EXCEPTION 'REVIEWED_IMAGE_MISMATCH' USING ERRCODE='23514'; END IF;
+ END LOOP;
  INSERT INTO kg.entities(id,kind,name) VALUES(e,'concept',v->>'title') ON CONFLICT(id) DO NOTHING;
  INSERT INTO kg.revisions(id,entity_id,locale,body) VALUES(r,e,'en',v->>'body');
  INSERT INTO kg.revision_reader_metadata(revision_id,title,summary,primary_domain) VALUES(r,sr.title,sr.summary,sr.primary_domain);
