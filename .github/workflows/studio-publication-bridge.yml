@@ -63,3 +63,32 @@ jobs:
       - run: psql -h 127.0.0.1 -U postgres -d testdb -v ON_ERROR_STOP=1 -c "CREATE ROLE kg_public_http"
       - run: psql -h 127.0.0.1 -U postgres -d testdb -v ON_ERROR_STOP=1 -f infra/studio/studio-media.sql
       - run: psql -h 127.0.0.1 -U postgres -d testdb -v ON_ERROR_STOP=1 -f infra/studio/studio-media-test.sql
+
+  approved-evidence:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: testdb
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d testdb"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      PGPASSWORD: test-only
+      PGHOST: 127.0.0.1
+      PGUSER: postgres
+      PGDATABASE: testdb
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: psql -v ON_ERROR_STOP=1 -f db/001_knowledge_core_p0.sql
+      - run: psql -v ON_ERROR_STOP=1 -f db/002_review_integrity_p0.sql
+      - run: psql -v ON_ERROR_STOP=1 -v reader_password=synthetic -f experiments/payload-g1/sql/001_http_reader.sql
+      - run: psql -v ON_ERROR_STOP=1 -f experiments/payload-g1/sql/006_public_evidence.sql
+      - run: psql -v ON_ERROR_STOP=1 -f experiments/payload-g1/sql/007_revision_metadata.sql
+      - run: psql -v ON_ERROR_STOP=1 -f infra/studio/direct-publication.sql
+      - run: psql -v ON_ERROR_STOP=1 -c 'CREATE ROLE kg_studio_publish'
+      - run: psql -v ON_ERROR_STOP=1 -f infra/studio/approved-evidence-bridge.sql
+      - run: psql -v ON_ERROR_STOP=1 -f infra/studio/approved-evidence-bridge-test.sql
