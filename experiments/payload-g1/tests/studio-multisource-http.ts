@@ -9,15 +9,15 @@ const admin=new Pool({connectionString:process.env.DATABASE_URL})
 const base='http://127.0.0.1:3188'
 const password=randomBytes(24).toString('hex')
 const editor='editor-'+randomUUID()+'@example.invalid',reviewer='reviewer-'+randomUUID()+'@example.invalid'
+const timeout=setTimeout(()=>{console.error('HTTP_TEST_TIMEOUT');process.exit(124)},180000)
 const payload=await getPayload({config})
 for(const [email,role] of [[editor,'editor'],[reviewer,'reviewer']] as const){
  await payload.create({collection:'staff',overrideAccess:true,data:{email,password,role}})
 }
-await payload.db.destroy?.()
+await Promise.race([payload.db.destroy?.(),new Promise(resolve=>setTimeout(resolve,4000))])
 const child=spawn(process.execPath,['./node_modules/next/dist/bin/next','dev','--webpack','--hostname','127.0.0.1','--port','3188'],
  {cwd:process.cwd(),env:{...process.env,NEXT_TELEMETRY_DISABLED:'1',NODE_ENV:'development'},stdio:['ignore','pipe','pipe'],detached:true})
 let log='';child.stdout.on('data',p=>{log=(log+p).slice(-8000)});child.stderr.on('data',p=>{log=(log+p).slice(-8000)})
-const timeout=setTimeout(()=>{console.error('HTTP_TEST_TIMEOUT');process.exit(124)},180000)
 async function call(path:string,method='GET',body?:unknown,token?:string){
  const r=await fetch(base+path,{method,headers:{...(body===undefined?{}:{'Content-Type':'application/json'}),...(token?{Authorization:'JWT '+token}:{})},...(body===undefined?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(15000)})
  const text=await r.text();let data:any;try{data=JSON.parse(text)}catch{data=null};return {status:r.status,text,data}
