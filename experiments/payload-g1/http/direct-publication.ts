@@ -77,3 +77,17 @@ export const studioImageEndpoint: Endpoint = {
   } catch { throw new APIError('IMAGE_UPLOAD_FAILED',500) }
  },
 }
+
+export const studioImageInfoEndpoint: Endpoint = {
+ path:'/studio-image-info', method:'post', handler:async req=>{
+  if(!req.user||req.user.collection!=='staff'||req.user.role!=='editor')throw new APIError('EDITOR_REQUIRED',403)
+  const input=await req.json?.().catch(()=>null)
+  const id=Number(input?.draftId),mediaId=input?.mediaId
+  if(!Number.isSafeInteger(id)||id<1||typeof mediaId!=='string'||!uuid.test(mediaId))throw new APIError('INVALID_REQUEST',400)
+  const draft=await req.payload.findByID({collection:'editorial-drafts',id,draft:true,req,overrideAccess:false})
+  if(!draft||typeof draft.stableEntityId!=='string'||!uuid.test(draft.stableEntityId))throw new APIError('DRAFT_NOT_AVAILABLE',404)
+  const result=await pool.query('SELECT * FROM kg.studio_media_info($1::uuid,$2::uuid)',[draft.stableEntityId,mediaId])
+  if(result.rowCount!==1)throw new APIError('IMAGE_NOT_AVAILABLE',404)
+  return Response.json({sha256:result.rows[0].sha256},{headers:{'Cache-Control':'private, no-store'}})
+ },
+}

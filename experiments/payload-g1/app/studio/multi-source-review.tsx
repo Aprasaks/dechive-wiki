@@ -28,6 +28,13 @@ export function MultiSourceEditor({draftId,initial,onSaved}:{draftId:string|numb
    const r=await fetch(url,{method:'PATCH',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({supplementalEvidence:{...latest,sources,claims,media}})})
    if(!r.ok)throw Error('session');base.current={sources,claims,media};setMessage('Saved privately. A reviewer must inspect each source and image.');onSaved()
   }catch(e){setMessage(e instanceof Error&&e.message==='changed'?'Sources changed in another session. Refresh the page and review the latest version.':'Could not save. Please check your session and try again.')}finally{setBusy(false)}}
+ async function checkImage(m:Media){
+  const match=/^media\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.exec(m.objectKey.trim())
+  if(!match){setMessage('Enter an image path from this article first.');return}
+  setBusy(true);setMessage('')
+  try{const r=await fetch('/api/studio-image-info',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({draftId,mediaId:match[1]})});if(!r.ok)throw Error();const j=await r.json();if(!/^[a-f0-9]{64}$/.test(j.sha256))throw Error();setMedia(v=>v.map(x=>x.id===m.id&&x.objectKey===m.objectKey?{...x,sha256:j.sha256}:x));setMessage('Image matched to this article.')}
+  catch{setMessage('Image could not be matched to this article.')}finally{setBusy(false)}
+ }
  return <form onSubmit={save} style={{display:'grid',gap:14,marginTop:16}}>
   <p>Add sources, then select which sources support each exact statement. Changes are private until reviewed.</p>
   <h4>Sources</h4>{sources.map((s,i)=><fieldset key={s.id}><legend>Source {i+1}</legend>
@@ -45,7 +52,8 @@ export function MultiSourceEditor({draftId,initial,onSaved}:{draftId:string|numb
   <button type="button" onClick={()=>setClaims(v=>[...v,{id:id('claim'),statement:'',anchor:'',sourceIds:[]}])}>Add statement</button>
   <h4>Images</h4><p>Include every image displayed in the article and its rights details.</p>
   {media.map((m,i)=><fieldset key={m.id}><legend>Image {i+1}</legend>
-   {(['objectKey','sha256','alt','credit'] as const).map(key=><label key={key} style={{display:'block'}}>{{objectKey:'Image path (without leading slash)',sha256:'Image SHA-256',alt:'Alternative text',credit:'Credit and rights source'}[key]}<input required style={field} value={m[key]} onChange={e=>setMedia(v=>v.map(x=>x.id===m.id?{...x,[key]:e.target.value}:x))}/></label>)}
+   {(['objectKey','alt','credit'] as const).map(key=><label key={key} style={{display:'block'}}>{{objectKey:'Image path (without leading slash)',alt:'Alternative text',credit:'Credit and rights source'}[key]}<input required style={field} value={m[key]} onChange={e=>setMedia(v=>v.map(x=>x.id===m.id?{...x,[key]:e.target.value,...(key==='objectKey'?{sha256:''}:{})}:x))}/></label>)}
+   <button type="button" disabled={busy} onClick={()=>void checkImage(m)}>Match image to this article</button> <span>{m.sha256?'Image matched':'Image not yet matched'}</span>
    <button type="button" onClick={()=>setMedia(v=>v.filter(x=>x.id!==m.id))}>Remove image</button>
   </fieldset>)}
   <button type="button" onClick={()=>setMedia(v=>[...v,{id:id('image'),objectKey:'',sha256:'',alt:'',credit:'',rightsStatus:'pending'}])}>Add image</button>
@@ -75,7 +83,7 @@ export function MultiSourceReviewer({draftId}:{draftId:string|number}){
     <label><input type="checkbox" checked={d.checked} onChange={e=>setDecisions(v=>({...v,[k]:{...d,checked:e.target.checked}}))}/> I inspected this source and verified it supports the statement.</label>
     <label>Exact location in source<input style={field} value={d.pinpoint} onChange={e=>setDecisions(v=>({...v,[k]:{...d,pinpoint:e.target.value}}))}/></label>
     <label>Review note<textarea rows={2} style={field} value={d.note} onChange={e=>setDecisions(v=>({...v,[k]:{...d,note:e.target.value}}))}/></label></fieldset>}))}
-   {pack.media.map(m=>{const d=media[m.id]||{checked:false,note:''};return <fieldset key={m.id}><legend>Image rights</legend><p>{m.alt} · {m.objectKey}</p><p>Credit: {m.credit}</p><p>SHA-256: {m.sha256}</p><label><input type="checkbox" checked={d.checked} onChange={e=>setMedia(v=>({...v,[m.id]:{...d,checked:e.target.checked}}))}/> I checked the image, its reuse rights and credit.</label><label>Rights review note<textarea rows={2} style={field} value={d.note} onChange={e=>setMedia(v=>({...v,[m.id]:{...d,note:e.target.value}}))}/></label></fieldset>})}
+   {pack.media.map(m=>{const d=media[m.id]||{checked:false,note:''};return <fieldset key={m.id}><legend>Image rights</legend><p>{m.alt} · {m.objectKey}</p>{/^media\/[0-9a-f-]{36}$/i.test(m.objectKey)&&<p><a href={'https://dechive.wiki/'+m.objectKey} target="_blank" rel="noopener noreferrer">Open published image</a></p>}<p>Credit: {m.credit}</p><p>SHA-256: {m.sha256}</p><label><input type="checkbox" checked={d.checked} onChange={e=>setMedia(v=>({...v,[m.id]:{...d,checked:e.target.checked}}))}/> I checked the image, its reuse rights and credit.</label><label>Rights review note<textarea rows={2} style={field} value={d.note} onChange={e=>setMedia(v=>({...v,[m.id]:{...d,note:e.target.value}}))}/></label></fieldset>})}
    <button type="button" disabled={!ready||busy||!!reviewId} onClick={()=>void record()}>Record review</button>
    {reviewId&&!revision&&<button type="button" disabled={busy} onClick={()=>void stage()}>Prepare reviewed evidence</button>}
    {revision&&<button type="button" disabled={busy} onClick={()=>void approve()}>Approve reviewed evidence</button>}
