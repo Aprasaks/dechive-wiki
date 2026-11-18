@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { marked } from 'marked'
 
 // Private, in-memory preparation only. This does not write to the CMS or approve
 // a manuscript. Source associations and media rights are editorial assertions.
@@ -37,6 +38,13 @@ export function inspectEditorialPackage(p:EditorialPackage):PackageInspection {
   if(!nonempty(claim.anchor))issues.push(`claim ${claim.id}: anchor required`)
   if(!claim.sourceIds.length||new Set(claim.sourceIds).size!==claim.sourceIds.length||claim.sourceIds.some(id=>!sources.has(id)))issues.push(`claim ${claim.id}: source references missing, duplicate or unknown`)
  }
+ // Images the reader can actually display must be represented in the package;
+ // otherwise a reviewer could approve an empty media list without checking them.
+ const represented=new Set(p.media.map(m=>'/'+m.objectKey.replace(/^\/+/,'')))
+ marked.walkTokens(marked.lexer(p.body,{gfm:true}),token=>{
+  if(token.type==='image' && /^\/media\/[0-9a-f-]{36}$/i.test(token.href) && !represented.has(token.href))
+   issues.push(`image ${token.href}: review record required`)
+ })
  for(const media of p.media){
   if(!KEY.test(media.objectKey)||media.objectKey.split('/').some(part=>part==='..'||part==='.'))issues.push(`media ${media.id}: invalid object key`)
   if(!SHA.test(media.sha256)||!nonempty(media.alt)||!nonempty(media.credit)||!['pending','cleared'].includes(media.rightsStatus))issues.push(`media ${media.id}: checksum, alt text, credit and rights status required`)

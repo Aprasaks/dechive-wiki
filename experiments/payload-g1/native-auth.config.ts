@@ -12,6 +12,7 @@ import { multiReviewStatus } from './http/multi-review-status'
 import { sealMultiReview } from './http/seal-multi-review'
 import { studioStageReviewedEvidence } from './http/studio-stage-reviewed-evidence'
 import { studioApproveReviewedEvidence } from './http/studio-approve-reviewed-evidence'
+import { studioReviewPackage } from './http/studio-review-package'
 
 // Isolated G1 security test config: separate from the existing P0/G1 fixture.
 // IMPORTANT: never deploy this disposable database-push config to production.
@@ -155,7 +156,7 @@ export default buildConfig({
   admin: { user: 'staff' },
   editor: lexicalEditor(),
   collections: [Staff, EditorialDrafts, MultiSourceReviews],
-  endpoints: [directPublicationEndpoint,studioManageEndpoint,studioImageEndpoint,...g1WorkflowEndpoints,candidateEndpoint,...reviewerDecisionEndpoints,multiReviewStatus,sealMultiReview,studioStageReviewedEvidence,studioApproveReviewedEvidence],
+  endpoints: [directPublicationEndpoint,studioManageEndpoint,studioImageEndpoint,...g1WorkflowEndpoints,candidateEndpoint,...reviewerDecisionEndpoints,multiReviewStatus,sealMultiReview,studioStageReviewedEvidence,studioApproveReviewedEvidence,studioReviewPackage],
   db: postgresAdapter({
     pool: { connectionString: process.env.DATABASE_URL ?? '' },
     push: true, // ONLY this disposable GitHub-hosted G1 fixture database

@@ -16,3 +16,7 @@ assert.equal(bad.issues.length,3)
 assert.ok(inspectEditorialPackage({...draft,sources:[...draft.sources,draft.sources[0]]}).issues.length)
 assert.ok(inspectEditorialPackage({...draft,sources:[{...draft.sources[0],url:'https://name:password@example.org'}]}).issues.length)
 console.log('Private editorial package checks passed')
+
+const imageBody='A documented statement.\n\n![Example](/media/11111111-1111-4111-8111-111111111111)'
+assert.ok(inspectEditorialPackage({...draft,body:imageBody,media:[]}).issues.some(x=>x.includes('review record required')))
+assert.ok(!inspectEditorialPackage({...draft,body:imageBody,media:[{...draft.media[0],objectKey:'media/11111111-1111-4111-8111-111111111111'}]}).issues.some(x=>x.includes('review record required')))
