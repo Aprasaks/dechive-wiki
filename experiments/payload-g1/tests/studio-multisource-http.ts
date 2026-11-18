@@ -23,6 +23,7 @@ async function call(path:string,method='GET',body?:unknown,token?:string){
  const text=await r.text();let data:any;try{data=JSON.parse(text)}catch{data=null};return {status:r.status,text,data}
 }
 function success(r:{status:number;text:string}){assert.ok(r.status>=200&&r.status<300,`${r.status} ${r.text.slice(0,500)}`)}
+let successStatus=false
 try{
  let ready=false
  for(let i=0;i<100;i++){try{if((await fetch(base+'/',{signal:AbortSignal.timeout(1000)})).ok){ready=true;break}}catch{}await new Promise(r=>setTimeout(r,1000))}
@@ -54,6 +55,7 @@ try{
  r=await call('/api/editorial-drafts/'+draftId+'?draft=true','PATCH',{body:'Updated article.'},editorToken);success(r)
  r=await call('/api/studio-publish','POST',{draftId,summary:'Updated summary',domain:'science'},editorToken);success(r)
  count=await admin.query('SELECT count(*)::int n FROM kg.public_claim_sources WHERE entity_id=$1',[entity]);assert.equal(count.rows[0].n,0)
- console.log('Authenticated multi-source publication flow passed')
-}catch(e){console.error('STUDIO_HTTP_FAILURE_CONTEXT',log.slice(-5000));throw e}
+ console.log('Authenticated multi-source publication flow passed');successStatus=true
+}catch(e){console.error('STUDIO_HTTP_FAILURE_CONTEXT',log.slice(-5000));console.error(e)}
 finally{clearTimeout(timeout);try{process.kill(-child.pid!,'SIGTERM')}catch{}await admin.end()}
+process.exit(successStatus?0:1)
