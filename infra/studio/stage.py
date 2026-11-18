@@ -22,7 +22,7 @@ FILES = (
     "proxy.ts",
     "http/candidate-endpoint.ts", "http/workflow-endpoints.ts", "http/direct-publication.ts",
     "http/reviewer-decision-endpoints.ts", "http/multi-review-status.ts",
-    "http/seal-multi-review.ts", "http/studio-stage-reviewed-evidence.ts",
+    "http/seal-multi-review.ts", "http/studio-stage-reviewed-evidence.ts", "http/studio-approve-reviewed-evidence.ts",
     "lib/article-body.tsx", "lib/editorial-package.ts",
     "lib/multi-source-review.ts", "lib/multi-source-projection.ts", "lib/publication-evidence.ts",
 )
