@@ -16,7 +16,20 @@ DO $$ BEGIN
  IF EXISTS(SELECT 1 FROM kg.approvals WHERE revision_id='55555555-5555-4555-8555-555555555555') THEN RAISE EXCEPTION 'staged revision approved'; END IF;
  BEGIN INSERT INTO kg.approvals(revision_id,reviewer) VALUES('55555555-5555-4555-8555-555555555555','reviewer'); RAISE EXCEPTION 'unsafe approval allowed'; EXCEPTION WHEN check_violation THEN NULL; END;
 END $$;
+SET SESSION AUTHORIZATION kg_g1_reviewer_probe;
+DO $$ DECLARE dig text; nonce text:=repeat('c',32); sig text;
+BEGIN
+ SELECT payload_digest INTO STRICT dig FROM kg.studio_reviewed_approval_context('55555555-5555-4555-8555-555555555555',2);
+ sig:=encode(public.hmac(convert_to('studio-reviewed-approval-v1|55555555-5555-4555-8555-555555555555|2|'||dig||'|'||nonce,'UTF8'),decode(repeat('c',64),'hex'),'sha256'),'hex');
+ BEGIN PERFORM kg.approve_studio_reviewed_evidence('55555555-5555-4555-8555-555555555555',2,nonce,repeat('0',64)); RAISE EXCEPTION 'forged approval accepted'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+ PERFORM kg.approve_studio_reviewed_evidence('55555555-5555-4555-8555-555555555555',2,nonce,sig);
+END $$;
+RESET SESSION AUTHORIZATION;
+DO $$ BEGIN
+ IF (SELECT count(*) FROM kg.public_claim_sources WHERE entity_id='44444444-4444-4444-8444-444444444444')<>1 THEN RAISE EXCEPTION 'approved evidence not public'; END IF;
+END $$;
 DO $$ DECLARE v record; BEGIN
  SELECT * INTO v FROM kg.publish_studio_draft('44444444-4444-4444-8444-444444444444','Stage updated','Updated body.','Summary','science');
  IF v.version<>2 THEN RAISE EXCEPTION 'staged evidence blocks future publication'; END IF;
 END $$;
+DO $$ BEGIN IF EXISTS(SELECT 1 FROM kg.public_claim_sources WHERE entity_id='44444444-4444-4444-8444-444444444444') THEN RAISE EXCEPTION 'previous evidence leaked after edit'; END IF; END $$;
