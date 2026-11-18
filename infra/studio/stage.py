@@ -24,7 +24,7 @@ FILES = (
     "http/reviewer-decision-endpoints.ts", "http/multi-review-status.ts",
     "http/seal-multi-review.ts",
     "lib/article-body.tsx", "lib/editorial-package.ts",
-    "lib/multi-source-review.ts", "lib/multi-source-projection.ts",
+    "lib/multi-source-review.ts", "lib/multi-source-projection.ts", "lib/publication-evidence.ts",
 )
 
 def replace_once(value: str, before: str, after: str) -> str:
