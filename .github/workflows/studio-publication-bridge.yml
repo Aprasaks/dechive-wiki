@@ -93,3 +93,7 @@ jobs:
       - run: psql -v ON_ERROR_STOP=1 -f infra/studio/approved-evidence-existing-test.sql
       - run: psql -v ON_ERROR_STOP=1 -f infra/studio/approved-evidence-bridge.sql
       - run: psql -v ON_ERROR_STOP=1 -f infra/studio/approved-evidence-bridge-test.sql
+      - run: psql -v ON_ERROR_STOP=1 -c "CREATE ROLE kg_g1_candidate_probe LOGIN"
+      - run: psql -v ON_ERROR_STOP=1 -c "CREATE TABLE kg.candidate_private_key (id integer primary key, secret_key bytea not null); INSERT INTO kg.candidate_private_key VALUES (1,decode(repeat('a',64),'hex'))"
+      - run: psql -v ON_ERROR_STOP=1 -f infra/studio/stage-reviewed-evidence.sql
+      - run: psql -v ON_ERROR_STOP=1 -f infra/studio/stage-reviewed-evidence-test.sql

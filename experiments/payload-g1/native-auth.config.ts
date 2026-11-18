@@ -10,6 +10,7 @@ import type { EditorialPackage } from './lib/editorial-package'
 import { prepareMultiSourceProjection } from './lib/multi-source-projection'
 import { multiReviewStatus } from './http/multi-review-status'
 import { sealMultiReview } from './http/seal-multi-review'
+import { studioStageReviewedEvidence } from './http/studio-stage-reviewed-evidence'
 
 // Isolated G1 security test config: separate from the existing P0/G1 fixture.
 // IMPORTANT: never deploy this disposable database-push config to production.
@@ -153,7 +154,7 @@ export default buildConfig({
   admin: { user: 'staff' },
   editor: lexicalEditor(),
   collections: [Staff, EditorialDrafts, MultiSourceReviews],
-  endpoints: [directPublicationEndpoint,studioManageEndpoint,studioImageEndpoint,...g1WorkflowEndpoints,candidateEndpoint,...reviewerDecisionEndpoints,multiReviewStatus,sealMultiReview],
+  endpoints: [directPublicationEndpoint,studioManageEndpoint,studioImageEndpoint,...g1WorkflowEndpoints,candidateEndpoint,...reviewerDecisionEndpoints,multiReviewStatus,sealMultiReview,studioStageReviewedEvidence],
   db: postgresAdapter({
     pool: { connectionString: process.env.DATABASE_URL ?? '' },
     push: true, // ONLY this disposable GitHub-hosted G1 fixture database
