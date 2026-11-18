@@ -1,5 +1,5 @@
 'use client'
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 
 type Source={id:string;url:string;description:string}
 type Claim={id:string;statement:string;anchor:string;sourceIds:string[]}
@@ -16,10 +16,18 @@ export function MultiSourceEditor({draftId,initial,onSaved}:{draftId:string|numb
  const [claims,setClaims]=useState<Claim[]>(Array.isArray(existing.claims)?existing.claims as Claim[]:[])
  const [media,setMedia]=useState<Media[]>(Array.isArray(existing.media)?existing.media as Media[]:[])
  const [busy,setBusy]=useState(false),[message,setMessage]=useState('')
+ const base=useRef({sources,claims,media})
  async function save(event:FormEvent){event.preventDefault();setBusy(true);setMessage('')
-  try{const r=await fetch('/api/editorial-drafts/'+encodeURIComponent(String(draftId))+'?draft=true',{method:'PATCH',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({supplementalEvidence:{...existing,sources,claims,media}})})
-   if(!r.ok)throw Error();setMessage('Saved privately. A reviewer must inspect each source and image.');onSaved()
-  }catch{setMessage('Could not save. Please check your session and try again.')}finally{setBusy(false)}}
+  try{
+   const url='/api/editorial-drafts/'+encodeURIComponent(String(draftId))+'?draft=true'
+   const get=await fetch(url,{credentials:'same-origin',cache:'no-store'});if(!get.ok)throw Error('session')
+   const response=await get.json(),doc=response.doc??response
+   const latest=doc.supplementalEvidence&&typeof doc.supplementalEvidence==='object'&&!Array.isArray(doc.supplementalEvidence)?doc.supplementalEvidence:{}
+   const current={sources:Array.isArray(latest.sources)?latest.sources:[],claims:Array.isArray(latest.claims)?latest.claims:[],media:Array.isArray(latest.media)?latest.media:[]}
+   if(JSON.stringify(current)!==JSON.stringify(base.current))throw Error('changed')
+   const r=await fetch(url,{method:'PATCH',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({supplementalEvidence:{...latest,sources,claims,media}})})
+   if(!r.ok)throw Error('session');base.current={sources,claims,media};setMessage('Saved privately. A reviewer must inspect each source and image.');onSaved()
+  }catch(e){setMessage(e instanceof Error&&e.message==='changed'?'Sources changed in another session. Refresh the page and review the latest version.':'Could not save. Please check your session and try again.')}finally{setBusy(false)}}
  return <form onSubmit={save} style={{display:'grid',gap:14,marginTop:16}}>
   <p>Add sources, then select which sources support each exact statement. Changes are private until reviewed.</p>
   <h4>Sources</h4>{sources.map((s,i)=><fieldset key={s.id}><legend>Source {i+1}</legend>
