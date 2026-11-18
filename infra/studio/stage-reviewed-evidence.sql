@@ -19,7 +19,7 @@ CREATE TRIGGER studio_reviewed_evidence_staged_immutable BEFORE UPDATE OR DELETE
 REVOKE ALL ON kg.studio_reviewed_evidence_staged FROM PUBLIC,kg_public_http,kg_g1_candidate_probe;
 
 -- Freeze staged claim and source associations, including against concurrent edits.
-CREATE FUNCTION kg.lock_studio_staged_evidence() RETURNS trigger LANGUAGE plpgsql AS $$
+CREATE FUNCTION kg.lock_studio_staged_evidence() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,kg,pg_temp AS $$
 DECLARE target uuid;
 BEGIN
  target:=CASE WHEN TG_OP='DELETE' THEN OLD.revision_id ELSE NEW.revision_id END;
@@ -37,7 +37,7 @@ CREATE TRIGGER studio_staged_evidence_lock BEFORE INSERT OR UPDATE OR DELETE ON 
  FOR EACH ROW EXECUTE FUNCTION kg.lock_studio_staged_evidence();
 
 -- This staging step must never become approval through an older DB entry point.
-CREATE FUNCTION kg.block_unapproved_studio_review() RETURNS trigger LANGUAGE plpgsql AS $$
+CREATE FUNCTION kg.block_unapproved_studio_review() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,kg,pg_temp AS $$
 BEGIN
  IF EXISTS(SELECT 1 FROM kg.studio_reviewed_evidence_staged WHERE revision_id=NEW.revision_id)
  THEN RAISE EXCEPTION 'STUDIO_EVIDENCE_APPROVAL_NOT_IMPLEMENTED' USING ERRCODE='23514'; END IF;

@@ -14,7 +14,7 @@ CREATE TRIGGER studio_reviewed_approval_immutable BEFORE UPDATE OR DELETE ON kg.
  FOR EACH ROW EXECUTE FUNCTION kg.no_change();
 REVOKE ALL ON kg.studio_reviewed_approval_attestations FROM PUBLIC,kg_public_http,kg_g1_candidate_probe,kg_g1_reviewer_probe;
 
-CREATE OR REPLACE FUNCTION kg.block_unapproved_studio_review() RETURNS trigger LANGUAGE plpgsql AS $$
+CREATE OR REPLACE FUNCTION kg.block_unapproved_studio_review() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,kg,pg_temp AS $$
 BEGIN
  IF EXISTS(SELECT 1 FROM kg.studio_reviewed_evidence_staged WHERE revision_id=NEW.revision_id)
  AND NOT EXISTS(SELECT 1 FROM kg.studio_reviewed_approval_attestations a
