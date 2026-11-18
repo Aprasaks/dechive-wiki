@@ -46,7 +46,7 @@ BEGIN
  ON (h.entity_id,h.revision_id,h.version)=(s.entity_id,s.revision_id,s.version)
  JOIN kg.revisions r ON r.id=p_revision AND r.entity_id=s.entity_id AND r.body=s.body
  JOIN kg.revision_reader_metadata m ON m.revision_id=r.id AND m.title=s.title
- WHERE h.entity_id=entity)
+ WHERE h.entity_id=entity AND s.revision_id=stage.studio_revision_id)
  THEN RAISE EXCEPTION 'PUBLICATION_CHANGED_SINCE_REVIEW' USING ERRCODE='23514'; END IF;
  SELECT secret_key INTO STRICT v_key FROM kg.attestation_private_key WHERE id=1;
  expected:=encode(public.hmac(convert_to('studio-reviewed-approval-v1|'||p_revision::text||'|'||p_reviewer::text||'|'||stage.payload_digest||'|'||p_nonce,'UTF8'),v_key,'sha256'),'hex');

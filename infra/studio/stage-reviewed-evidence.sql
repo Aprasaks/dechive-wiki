@@ -6,6 +6,7 @@
 BEGIN;
 CREATE TABLE kg.studio_reviewed_evidence_staged (
  revision_id uuid PRIMARY KEY REFERENCES kg.revisions(id),
+ studio_revision_id uuid NOT NULL REFERENCES kg.studio_public_revisions(revision_id),
  review_id bigint NOT NULL UNIQUE CHECK(review_id>0),
  reviewer_id bigint NOT NULL CHECK(reviewer_id>0),
  editor_id bigint NOT NULL CHECK(editor_id>0 AND editor_id<>reviewer_id),
@@ -92,8 +93,8 @@ BEGIN
   INSERT INTO kg.claim_evidence(revision_id,claim_key,source_id,stance,pinpoint,reviewer)
   VALUES(r,item->>'claimKey',source_id,'supports',item->>'pinpoint',v->>'reviewerId');
  END LOOP;
- INSERT INTO kg.studio_reviewed_evidence_staged(revision_id,review_id,reviewer_id,editor_id,payload_digest,payload)
- VALUES(r,(v->>'reviewId')::bigint,(v->>'reviewerId')::bigint,(v->>'editorId')::bigint,v_digest,v);
+ INSERT INTO kg.studio_reviewed_evidence_staged(revision_id,studio_revision_id,review_id,reviewer_id,editor_id,payload_digest,payload)
+ VALUES(r,sr.revision_id,(v->>'reviewId')::bigint,(v->>'reviewerId')::bigint,(v->>'editorId')::bigint,v_digest,v);
  RETURN r;
 END $$;
 GRANT USAGE ON SCHEMA kg TO kg_g1_candidate_probe;
