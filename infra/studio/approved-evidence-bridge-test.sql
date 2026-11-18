@@ -1,4 +1,7 @@
 \set ON_ERROR_STOP on
+DO $$ BEGIN
+ IF (SELECT count(*) FROM kg.public_claim_sources WHERE entity_id='11111111-1111-4111-8111-111111111111')<>1 THEN RAISE EXCEPTION 'existing evidence not linked'; END IF;
+END $$;
 DO $$
 DECLARE e uuid:=gen_random_uuid(); studio uuid; approved uuid:=gen_random_uuid(); unapproved uuid:=gen_random_uuid(); src uuid:=gen_random_uuid(); newer uuid;
 BEGIN

@@ -90,5 +90,6 @@ jobs:
       - run: psql -v ON_ERROR_STOP=1 -f experiments/payload-g1/sql/007_revision_metadata.sql
       - run: psql -v ON_ERROR_STOP=1 -f infra/studio/direct-publication.sql
       - run: psql -v ON_ERROR_STOP=1 -c 'CREATE ROLE kg_studio_publish'
+      - run: psql -v ON_ERROR_STOP=1 -f infra/studio/approved-evidence-existing-test.sql
       - run: psql -v ON_ERROR_STOP=1 -f infra/studio/approved-evidence-bridge.sql
       - run: psql -v ON_ERROR_STOP=1 -f infra/studio/approved-evidence-bridge-test.sql
