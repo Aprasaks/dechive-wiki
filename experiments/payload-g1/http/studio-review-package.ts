@@ -5,7 +5,7 @@ import { packageHash } from '../lib/multi-source-review'
 // Reviewers see the server-loaded draft and its hash; no decision is made here.
 export const studioReviewPackage:Endpoint={path:'/studio-review-package',method:'get',handler:async req=>{
  const user=req.user
- if(!user||user.collection!=='staff'||user.role!=='reviewer')throw new APIError('REVIEWER_REQUIRED',403)
+ if(!user||user.collection!=='staff'||!['reviewer','editor'].includes(String(user.role)))throw new APIError('REVIEWER_REQUIRED',403)
  const raw=req.query?.draftId
  const id=typeof raw==='string'&&/^[1-9][0-9]*$/.test(raw)?Number(raw):NaN
  if(!Number.isSafeInteger(id))throw new APIError('INVALID_DRAFT_ID',400)
@@ -13,7 +13,7 @@ export const studioReviewPackage:Endpoint={path:'/studio-review-package',method:
  const extra=draft?.supplementalEvidence as Record<string,unknown>|null
  const editor=typeof draft?.createdBy==='object'?draft.createdBy?.id:draft?.createdBy
  if(!draft||!extra||!Array.isArray(extra.sources)||!Array.isArray(extra.claims)||!Array.isArray(extra.media))throw new APIError('PACKAGE_NOT_READY',409)
- if(!editor||String(editor)===String(user.id))throw new APIError('INDEPENDENT_REVIEWER_REQUIRED',403)
+ if(!editor || (user.role==='reviewer' && String(editor)===String(user.id)) || (user.role==='editor' && String(editor)!==String(user.id)))throw new APIError('REVIEWER_NOT_ALLOWED',403)
  const pack={title:draft.title,body:draft.body,sources:extra.sources,claims:extra.claims,media:extra.media} as EditorialPackage
  try{
   const inspection=inspectEditorialPackage(pack)

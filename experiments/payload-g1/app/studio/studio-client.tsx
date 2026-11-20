@@ -495,7 +495,7 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
 </section>}</>}
                 </div>}
                 {role==='editor' && <details><summary>Sources and evidence</summary><MultiSourceEditor draftId={d.id} initial={d.supplementalEvidence} onSaved={()=>void refresh()}/></details>}
-                {role==='reviewer' && <details><summary>Review sources and images</summary><MultiSourceReviewer draftId={d.id}/></details>}
+                {(role==='reviewer'||role==='editor') && <details><summary>{role==='editor'?'Operator review of sources and images':'Independent review of sources and images'}</summary><MultiSourceReviewer draftId={d.id}/></details>}
                 {role==='editor' && <div>
                   <p>{publicInfo[String(d.id)]?.published ? <>Public · <a href={'https://dechive.wiki/knowledge/'+publicInfo[String(d.id)]?.entity_id} target="_blank" rel="noopener noreferrer">View article ↗</a></> : 'Not currently public'}</p>
                   {editingId===String(d.id) ? <form onSubmit={e=>void saveEdit(e,d)} style={{display:'grid',gap:10}}>

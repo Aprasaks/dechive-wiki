@@ -25,6 +25,7 @@ const isEditor = (user: unknown) =>
   actor(user)?.collection === 'staff' && actor(user)?.role === 'editor'
 const isReviewer = (user: unknown) =>
   actor(user)?.collection === 'staff' && actor(user)?.role === 'reviewer'
+const canReview = (user: unknown) => isReviewer(user) || isEditor(user)
 
 const Staff: CollectionConfig = {
   slug: 'staff',
@@ -112,10 +113,10 @@ const EditorialDrafts: CollectionConfig = {
 // Capture the reviewed snapshot so a later editor change cannot rewrite history.
 const MultiSourceReviews: CollectionConfig = {
   slug:'multi-source-reviews',
-  access:{create:({req})=>isReviewer(req.user),read:({req})=>isReviewer(req.user),
+  access:{create:({req})=>canReview(req.user),read:({req})=>canReview(req.user),
     update:()=>false,delete:()=>false},
   hooks:{beforeChange:[async({data,req,operation})=>{
-    if(operation!=='create'||!isReviewer(req.user))throw new APIError('REVIEWER_REQUIRED',403)
+    if(operation!=='create'||!canReview(req.user))throw new APIError('REVIEWER_REQUIRED',403)
     const draftId=Number(data?.draftId)
     if(!Number.isSafeInteger(draftId)||draftId<1||typeof data?.snapshotHash!=='string'||
       !Array.isArray(data?.evidence)||!Array.isArray(data?.media))throw new APIError('INVALID_REVIEW',400)
@@ -125,17 +126,20 @@ const MultiSourceReviews: CollectionConfig = {
     const p={title:draft.title,body:draft.body,sources:extra.sources,claims:extra.claims,media:extra.media} as EditorialPackage
     const editor=typeof draft.createdBy==='object' ? draft.createdBy?.id : draft.createdBy
     const reviewer=actor(req.user)?.id
-    if(!editor||!reviewer||String(editor)===String(reviewer))throw new APIError('INDEPENDENT_REVIEWER_REQUIRED',403)
+    if(!editor||!reviewer)throw new APIError('REVIEWER_REQUIRED',403)
+    const reviewMode = isEditor(req.user) && String(editor)===String(reviewer) ? 'operator' : 'independent'
+    if(isEditor(req.user) && reviewMode!=='operator') throw new APIError('DRAFT_OWNER_REQUIRED',403)
+    if(isReviewer(req.user) && String(editor)===String(reviewer))throw new APIError('INDEPENDENT_REVIEWER_REQUIRED',403)
     try {
       if(data.snapshotHash!==packageHash(p))throw new Error('stale')
-      const assessment=assessMultiSourceReview(p,{snapshotHash:data.snapshotHash,editorId:String(editor),reviewerId:String(reviewer),evidence:data.evidence,media:data.media})
+      const assessment=assessMultiSourceReview(p,{snapshotHash:data.snapshotHash,editorId:String(editor),reviewerId:String(reviewer),reviewMode,evidence:data.evidence,media:data.media})
       if(!assessment.readyForHumanGate)throw new Error('incomplete')
-      prepareMultiSourceProjection(p,{snapshotHash:data.snapshotHash,editorId:String(editor),reviewerId:String(reviewer),evidence:data.evidence,media:data.media},data.evidence.map((d:any)=>({claimId:d.claimId,sourceId:d.sourceId,pinpoint:d.pinpoint})))
+      prepareMultiSourceProjection(p,{snapshotHash:data.snapshotHash,editorId:String(editor),reviewerId:String(reviewer),reviewMode,evidence:data.evidence,media:data.media},data.evidence.map((d:any)=>({claimId:d.claimId,sourceId:d.sourceId,pinpoint:d.pinpoint})))
     } catch { throw new APIError('REVIEW_INVALID_STALE_OR_INCOMPLETE',400) }
     // Discard client-provided identity or snapshot; set both from trusted server state.
     if(typeof draft.stableEntityId!=='string')throw new APIError('DRAFT_IDENTITY_INVALID',400)
     return {draftId,snapshotHash:data.snapshotHash,snapshot:p,evidence:data.evidence,media:data.media,
-      snapshotEntityId:draft.stableEntityId,reviewerId:String(reviewer),editorId:String(editor)}
+      snapshotEntityId:draft.stableEntityId,reviewerId:String(reviewer),editorId:String(editor),reviewMode}
   }]},
   fields:[
     {name:'draftId',type:'number',required:true},
@@ -145,6 +149,7 @@ const MultiSourceReviews: CollectionConfig = {
     {name:'evidence',type:'json',required:true},
     {name:'media',type:'json',required:true},
     {name:'reviewerId',type:'text',required:true},
+    {name:'reviewMode',type:'select',options:['independent','operator'],defaultValue:'independent',required:true},
     {name:'editorId',type:'text',required:true},
   ],
 }
