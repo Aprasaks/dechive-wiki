@@ -1,7 +1,7 @@
 import {headers} from 'next/headers'
 import {memberAuth,memberDatabase} from '../../../../lib/member-auth'
 import {publicPool} from '../../../../lib/public-db'
-import {UUID} from '../../../../lib/public-reading'
+import {UUID,entryImage} from '../../../../lib/public-reading'
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
 
@@ -26,8 +26,8 @@ export async function GET(){
  const saved=await withUser(id,c=>c.query('SELECT entity_id,created_at FROM reader_member.bookmarks WHERE user_id=$1 ORDER BY created_at DESC LIMIT 500',[id]))
  const ids=saved.rows.map(row=>row.entity_id)
  if(!ids.length)return Response.json({bookmarks:[],connections:[]},{headers:{'Cache-Control':'private, no-store'}})
- const result=await publicPool().query("SELECT p.entity_id,m.title,m.summary,m.primary_domain FROM kg.public_entries p JOIN kg.public_revision_metadata m ON m.entity_id=p.entity_id AND m.locale=p.locale AND m.revision_id=p.revision_id AND m.version=p.version WHERE p.locale='en' AND p.entity_id=ANY($1::uuid[])",[ids])
- const byId=new Map(result.rows.map(row=>[row.entity_id,row]))
+ const result=await publicPool().query("SELECT p.entity_id,p.body,m.title,m.summary,m.primary_domain FROM kg.public_entries p JOIN kg.public_revision_metadata m ON m.entity_id=p.entity_id AND m.locale=p.locale AND m.revision_id=p.revision_id AND m.version=p.version WHERE p.locale='en' AND p.entity_id=ANY($1::uuid[])",[ids])
+ const byId=new Map(result.rows.map(({body,...row})=>[row.entity_id,{...row,image:entryImage(body,row.entity_id)}]))
  const related=await publicPool().query('SELECT DISTINCT entity_id,related_entity_id FROM kg.public_related_entries WHERE entity_id=ANY($1::uuid[]) AND related_entity_id=ANY($1::uuid[]) ORDER BY entity_id,related_entity_id',[ids])
  return Response.json({bookmarks:ids.flatMap(id=>byId.has(id)?[byId.get(id)]:[]),connections:related.rows},{headers:{'Cache-Control':'private, no-store'}})
 }
