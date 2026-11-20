@@ -5,7 +5,8 @@ import { inspectEditorialPackage, type EditorialPackage } from './editorial-pack
 // A real gate must bind separately authenticated decisions to immutable content.
 export type EvidenceDecision={claimId:string;sourceId:string;verdict:'verified'|'unverified'|'disputed';note:string}
 export type MediaDecision={mediaId:string;verdict:'cleared'|'not-cleared';note:string}
-export type ReviewInputs={snapshotHash:string;reviewerId:string;editorId:string;evidence:EvidenceDecision[];media:MediaDecision[]}
+export type ReviewMode = 'independent' | 'operator'
+export type ReviewInputs={snapshotHash:string;reviewerId:string;editorId:string;evidence:EvidenceDecision[];media:MediaDecision[];reviewMode?:ReviewMode}
 function sha(value:string){return createHash('sha256').update(value,'utf8').digest('hex')}
 export function packageHash(p:EditorialPackage):string {
  // Fixed keys and order avoid relying on the input object's property order.
@@ -17,7 +18,11 @@ export function packageHash(p:EditorialPackage):string {
 export function assessMultiSourceReview(p:EditorialPackage,r:ReviewInputs){
  const issues=[...inspectEditorialPackage(p).issues]
  if(!p.claims.length)issues.push('At least one claim must be identified for review')
- if(!r.reviewerId.trim()||!r.editorId.trim()||r.reviewerId===r.editorId)issues.push('An independent reviewer is required')
+ const reviewMode = r.reviewMode ?? 'independent'
+ if(!['independent','operator'].includes(reviewMode))issues.push('Invalid review mode')
+ if(!r.reviewerId.trim()||!r.editorId.trim())issues.push('Editor and reviewer identities are required')
+ else if(reviewMode==='independent'&&r.reviewerId===r.editorId)issues.push('An independent reviewer is required')
+ else if(reviewMode==='operator'&&r.reviewerId!==r.editorId)issues.push('Operator review must identify the editor as the operator')
  if(r.snapshotHash!==packageHash(p))issues.push('Draft changed after the review snapshot')
  const expected=new Set(p.claims.flatMap(c=>c.sourceIds.map(s=>JSON.stringify([c.id,s]))))
  const seen=new Set<string>()
@@ -35,5 +40,5 @@ export function assessMultiSourceReview(p:EditorialPackage,r:ReviewInputs){
   if(d.verdict!=='cleared'||!d.note.trim())issues.push('Each image needs a rights decision and note')
  }
  for(const id of assets)if(!seenAssets.has(id))issues.push('An image rights decision is missing')
- return {issues,readyForHumanGate:issues.length===0,status:'not-approved' as const}
+ return {issues,reviewMode,readyForHumanGate:issues.length===0,status:'not-approved' as const}
 }
