@@ -107,8 +107,8 @@ jobs:
           # No node_modules, test credentials or live environment files.
           tar -C "$STUDIO_STAGE" --exclude='./node_modules' --exclude='./.next' \
             -czf studio-package/studio-operations-src.tgz .
-          tar -tzf studio-package/studio-operations-src.tgz | grep -qx './migrations/index.ts'
-          tar -tzf studio-package/studio-operations-src.tgz | grep -qx './scripts/bootstrap-staff.ts'
+          tar -tzf studio-package/studio-operations-src.tgz | grep -x './migrations/index.ts' > /dev/null
+          tar -tzf studio-package/studio-operations-src.tgz | grep -x './scripts/bootstrap-staff.ts' > /dev/null
           printf 'commit=%s\nbranch=%s\nstatus=private-editor-build-only\nMIGRATIONS_NOT_APPLIED=true\nAWS_NOT_DEPLOYED=true\n' "$GITHUB_SHA" "$GITHUB_REF_NAME" > studio-package/BUILD_INFO.txt
           (cd studio-package && sha256sum studio-standalone.tgz studio-operations-src.tgz > SHA256SUMS)
       - name: Preserve private studio build artifact
