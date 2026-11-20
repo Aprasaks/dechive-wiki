@@ -2,7 +2,7 @@ name: Reader account and bookmark checks
 on:
   workflow_dispatch:
   push:
-    branches: [work/reader-account-bookmarks]
+    branches: [work/reader-account-bookmarks, work/reader-bookmark-connections]
 permissions:
   contents: read
 jobs:
