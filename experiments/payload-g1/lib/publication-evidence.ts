@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { packageHash, type ReviewInputs } from './multi-source-review'
+import { packageHash, type ReviewInputs, type ReviewMode } from './multi-source-review'
 import { prepareMultiSourceProjection, type EvidenceLocation } from './multi-source-projection'
 import type { EditorialPackage } from './editorial-package'
 
@@ -10,6 +10,7 @@ export type PublicationReview = {
   snapshot: EditorialPackage
   editorId: string
   reviewerId: string
+  reviewMode?: ReviewMode
   evidence: ReviewInputs['evidence']
   media: ReviewInputs['media']
 }
@@ -43,6 +44,7 @@ export function preparePublicationEvidence(
   }))
   return {
     snapshotHash: projection.snapshotHash,
+    reviewMode: record.reviewMode ?? 'independent',
     bodySha256: createHash('sha256').update(draft.body, 'utf8').digest('hex'),
     rows, status: 'private-preparation' as const,
   }

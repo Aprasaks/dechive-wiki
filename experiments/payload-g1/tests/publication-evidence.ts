@@ -15,6 +15,11 @@ const review={draftId:draft.id,snapshotEntityId:draft.entityId,snapshotHash:pack
 const locations=[{claimId:'c1',sourceId:'s1',pinpoint:'Section 1'}]
 const result=preparePublicationEvidence(draft,pack,review,locations)
 assert.equal(result.status,'private-preparation')
+assert.equal(result.reviewMode,'independent')
+const operatorReview={...review,reviewerId:'editor',reviewMode:'operator' as const}
+assert.equal(preparePublicationEvidence(draft,pack,operatorReview,locations).reviewMode,'operator')
+assert.throws(()=>preparePublicationEvidence(draft,pack,{...operatorReview,evidence:[]},locations),/REVIEW_INCOMPLETE_OR_STALE/)
+assert.throws(()=>preparePublicationEvidence({...draft,body:draft.body+' changed'},pack,operatorReview,locations),/PUBLICATION_REVIEW_MISMATCH/)
 assert.equal(result.rows[0].pinpoint,'Section 1')
 assert.throws(()=>preparePublicationEvidence({...draft,body:draft.body+' changed'},pack,review,locations),/PUBLICATION_REVIEW_MISMATCH/)
 assert.throws(()=>preparePublicationEvidence({...draft,id:'5'},pack,review,locations),/PUBLICATION_REVIEW_MISMATCH/)
