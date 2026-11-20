@@ -113,7 +113,7 @@ const EditorialDrafts: CollectionConfig = {
 // Capture the reviewed snapshot so a later editor change cannot rewrite history.
 const MultiSourceReviews: CollectionConfig = {
   slug:'multi-source-reviews',
-  access:{create:({req})=>canReview(req.user),read:({req})=>canReview(req.user),
+  access:{create:({req})=>canReview(req.user),read:({req})=>isReviewer(req.user)?true:isEditor(req.user)?{editorId:{equals:String(actor(req.user)?.id)}}:false,
     update:()=>false,delete:()=>false},
   hooks:{beforeChange:[async({data,req,operation})=>{
     if(operation!=='create'||!canReview(req.user))throw new APIError('REVIEWER_REQUIRED',403)

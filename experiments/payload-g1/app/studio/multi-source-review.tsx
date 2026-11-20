@@ -61,7 +61,7 @@ export function MultiSourceEditor({draftId,initial,onSaved}:{draftId:string|numb
  </form>
 }
 
-export function MultiSourceReviewer({draftId}:{draftId:string|number}){
+export function MultiSourceReviewer({draftId, mode='independent'}:{draftId:string|number;mode?:'independent'|'operator'}){
  const [pack,setPack]=useState<Pack|null>(null),[hash,setHash]=useState(''),[issues,setIssues]=useState<string[]>([])
  const [decisions,setDecisions]=useState<Record<string,Decision>>({}),[media,setMedia]=useState<Record<string,{checked:boolean;note:string}>>({})
  const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[reviewId,setReviewId]=useState<number|null>(null),[revision,setRevision]=useState('')
@@ -76,14 +76,15 @@ export function MultiSourceReviewer({draftId}:{draftId:string|number}){
  async function approve(){if(!reviewId||!revision)return;setBusy(true);setMessage('');try{const r=await fetch('/api/studio-approve-reviewed-evidence',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({reviewId,revisionId:revision})});if(!r.ok)throw Error();const j=await r.json();if(!j.approved)throw Error();setMessage('Approved. The verified sources can now appear with this published revision.')}catch{setMessage('Approval was refused. The published article or review may have changed.')}finally{setBusy(false)}}
  const ready=!!pack&&issues.length===0&&pack.claims.length>0&&pack.claims.every(c=>c.sourceIds.length>0&&c.sourceIds.every(s=>{const d=decisions[key(c.id,s)];return !!d?.checked&&!!d.note.trim()&&!!d.pinpoint.trim()}))&&pack.media.every(m=>!!media[m.id]?.checked&&!!media[m.id]?.note.trim())
  return <section aria-label="Multiple source review" style={{marginTop:16,display:'grid',gap:12}}>
+  {mode==='operator'&&<p>Operator review is not independent. Record AI assistance in the review notes when used.</p>}
   <button type="button" onClick={()=>void load()} disabled={busy}>Open source package for review</button>
   {pack&&<><h4>{pack.title}</h4><p style={{whiteSpace:'pre-wrap'}}>{pack.body}</p>
    {issues.length>0&&<div role="alert"><p>Package needs correction:</p><ul>{issues.map((x,i)=><li key={i}>{x}</li>)}</ul></div>}
    {pack.claims.flatMap(c=>c.sourceIds.map(sid=>{const s=pack.sources.find(x=>x.id===sid),k=key(c.id,sid),d=decisions[k]||{checked:false,note:'',pinpoint:''};return <fieldset key={k}><legend>Statement and source</legend><p>{c.statement}</p><p>Article location: {c.anchor}</p><p>{s?.description}: {s&&safeUrl(s.url)?<a href={safeUrl(s.url)} target="_blank" rel="noopener noreferrer">Open source</a>:'Invalid source link'}</p>
-    <label><input type="checkbox" checked={d.checked} onChange={e=>setDecisions(v=>({...v,[k]:{...d,checked:e.target.checked}}))}/> I inspected this source and verified it supports the statement.</label>
+    <label><input type="checkbox" checked={d.checked} onChange={e=>setDecisions(v=>({...v,[k]:{...d,checked:e.target.checked}}))}/> The source was checked and supports the statement.</label>
     <label>Exact location in source<input style={field} value={d.pinpoint} onChange={e=>setDecisions(v=>({...v,[k]:{...d,pinpoint:e.target.value}}))}/></label>
     <label>Review note<textarea rows={2} style={field} value={d.note} onChange={e=>setDecisions(v=>({...v,[k]:{...d,note:e.target.value}}))}/></label></fieldset>}))}
-   {pack.media.map(m=>{const d=media[m.id]||{checked:false,note:''};return <fieldset key={m.id}><legend>Image rights</legend><p>{m.alt} · {m.objectKey}</p>{/^media\/[0-9a-f-]{36}$/i.test(m.objectKey)&&<p><a href={'https://dechive.wiki/'+m.objectKey} target="_blank" rel="noopener noreferrer">Open published image</a></p>}<p>Credit: {m.credit}</p><p>SHA-256: {m.sha256}</p><label><input type="checkbox" checked={d.checked} onChange={e=>setMedia(v=>({...v,[m.id]:{...d,checked:e.target.checked}}))}/> I checked the image, its reuse rights and credit.</label><label>Rights review note<textarea rows={2} style={field} value={d.note} onChange={e=>setMedia(v=>({...v,[m.id]:{...d,note:e.target.value}}))}/></label></fieldset>})}
+   {pack.media.map(m=>{const d=media[m.id]||{checked:false,note:''};return <fieldset key={m.id}><legend>Image rights</legend><p>{m.alt} · {m.objectKey}</p>{/^media\/[0-9a-f-]{36}$/i.test(m.objectKey)&&<p><a href={'https://dechive.wiki/'+m.objectKey} target="_blank" rel="noopener noreferrer">Open published image</a></p>}<p>Credit: {m.credit}</p><p>SHA-256: {m.sha256}</p><label><input type="checkbox" checked={d.checked} onChange={e=>setMedia(v=>({...v,[m.id]:{...d,checked:e.target.checked}}))}/> The image, its reuse rights and credit were checked.</label><label>Rights review note<textarea rows={2} style={field} value={d.note} onChange={e=>setMedia(v=>({...v,[m.id]:{...d,note:e.target.value}}))}/></label></fieldset>})}
    <button type="button" disabled={!ready||busy||!!reviewId} onClick={()=>void record()}>Record review</button>
    {reviewId&&!revision&&<button type="button" disabled={busy} onClick={()=>void stage()}>Prepare reviewed evidence</button>}
    {revision&&<button type="button" disabled={busy} onClick={()=>void approve()}>Approve reviewed evidence</button>}
