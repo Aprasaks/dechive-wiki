@@ -16,7 +16,7 @@ function Evidence({e}:{e:PublicEvidence}){
   <strong>{url?<a href={url} target="_blank" rel="noopener noreferrer">{e.description||'Open source'}</a>:<span>{e.description||'Source reference'} <small>(no safe web link)</small></span>}</strong>
   <p><span className={'reading-stance stance-'+e.stance}>{stanceLabel[e.stance]}</span></p>
   <p>Location: {e.pinpoint}</p>
-  <small>Checked {new Date(e.checked_at).toISOString().slice(0,10)}</small>
+  <small>Checked by DECHIVE {new Date(e.checked_at).toISOString().slice(0,10)}</small>
  </li>
 }
 export default async function KnowledgePage({params}:{params:Promise<{id:string}>}){
