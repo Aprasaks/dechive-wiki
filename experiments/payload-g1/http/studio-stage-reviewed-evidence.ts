@@ -57,9 +57,10 @@ export const studioStageReviewedEvidence: Endpoint = {
   const digest = createHash('sha256').update(payload,'utf8').digest('hex')
   const signature = createHmac('sha256',Buffer.from(secret,'hex')).update(['studio-reviewed-stage-v1',digest,nonce].join('|'),'utf8').digest('hex')
   try { await pool.query('SELECT kg.stage_studio_reviewed_evidence($1::text,$2::text,$3::text)',[payload,nonce,signature]) }
-  catch {
+  catch (e) {
   const stagedRevision=await existing()
   if(stagedRevision)return Response.json({staged:true,revisionId:stagedRevision,approved:false,published:false},{headers:{'Cache-Control':'private, no-store'}})
+  if (e instanceof Error && e.message.includes('SOURCE_TITLE_CONFLICT')) throw new APIError('SOURCE_TITLE_CONFLICT',409)
   throw new APIError('EVIDENCE_STAGE_REJECTED',409)
  }
   return Response.json({staged:true,revisionId:revision,approved:false,published:false},{status:201,headers:{'Cache-Control':'private, no-store'}})
