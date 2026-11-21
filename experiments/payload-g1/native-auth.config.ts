@@ -2,7 +2,7 @@ import { APIError, buildConfig, type CollectionConfig } from 'payload'
 import { postgresAdapter } from '@payloadcms/db-postgres'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { g1WorkflowEndpoints } from './http/workflow-endpoints'
-import { directPublicationEndpoint, studioManageEndpoint, studioImageEndpoint, studioImageInfoEndpoint } from './http/direct-publication'
+import { directPublicationEndpoint, studioManageEndpoint, studioImageEndpoint, studioImageInfoEndpoint, studioSourceLookupEndpoint } from './http/direct-publication'
 import { candidateEndpoint } from './http/candidate-endpoint'
 import { reviewerDecisionEndpoints } from './http/reviewer-decision-endpoints'
 import { assessMultiSourceReview, packageHash } from './lib/multi-source-review'
@@ -161,7 +161,7 @@ export default buildConfig({
   admin: { user: 'staff' },
   editor: lexicalEditor(),
   collections: [Staff, EditorialDrafts, MultiSourceReviews],
-  endpoints: [directPublicationEndpoint,studioManageEndpoint,studioImageEndpoint,studioImageInfoEndpoint,...g1WorkflowEndpoints,candidateEndpoint,...reviewerDecisionEndpoints,multiReviewStatus,sealMultiReview,studioStageReviewedEvidence,studioApproveReviewedEvidence,studioReviewPackage],
+  endpoints: [directPublicationEndpoint,studioManageEndpoint,studioImageEndpoint,studioImageInfoEndpoint,studioSourceLookupEndpoint,...g1WorkflowEndpoints,candidateEndpoint,...reviewerDecisionEndpoints,multiReviewStatus,sealMultiReview,studioStageReviewedEvidence,studioApproveReviewedEvidence,studioReviewPackage],
   db: postgresAdapter({
     pool: { connectionString: process.env.DATABASE_URL ?? '' },
     push: true, // ONLY this disposable GitHub-hosted G1 fixture database

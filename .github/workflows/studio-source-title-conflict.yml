@@ -73,3 +73,5 @@ jobs:
       - run: psql -v ON_ERROR_STOP=1 -f infra/studio/operator-review-migration.sql
       - run: psql -v ON_ERROR_STOP=1 -f infra/studio/source-title-conflict-migration.sql
       - run: psql -v ON_ERROR_STOP=1 -f infra/studio/source-title-conflict-migration-test.sql
+      - run: psql -v ON_ERROR_STOP=1 -f infra/studio/source-title-lookup.sql
+      - run: psql -v ON_ERROR_STOP=1 -f infra/studio/source-title-lookup-test.sql

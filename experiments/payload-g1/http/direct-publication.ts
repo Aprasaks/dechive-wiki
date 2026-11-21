@@ -91,3 +91,16 @@ export const studioImageInfoEndpoint: Endpoint = {
   return Response.json({sha256:result.rows[0].sha256},{headers:{'Cache-Control':'private, no-store'}})
  },
 }
+
+// Exact-match only: reuse an existing citation title without changing the source.
+export const studioSourceLookupEndpoint: Endpoint = {
+ path:'/studio-source-lookup', method:'post', handler:async req=>{
+  if(!req.user||req.user.collection!=='staff'||req.user.role!=='editor')throw new APIError('EDITOR_REQUIRED',403)
+  const input=await req.json?.().catch(()=>null), locator=input?.url
+  if(typeof locator!=='string'||locator.length>2048||locator!==locator.trim())throw new APIError('INVALID_SOURCE_URL',400)
+  try{const u=new URL(locator);if(u.protocol!=='https:'||u.username||u.password)throw Error()}catch{throw new APIError('INVALID_SOURCE_URL',400)}
+  try{const result=await pool.query('SELECT * FROM kg.studio_source_by_locator($1::text)',[locator])
+   return Response.json({found:result.rowCount===1,title:result.rows[0]?.description??null},{headers:{'Cache-Control':'private, no-store'}})
+  }catch{throw new APIError('SOURCE_LOOKUP_FAILED',500)}
+ },
+}

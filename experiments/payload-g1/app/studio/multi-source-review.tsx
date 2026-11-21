@@ -28,6 +28,15 @@ export function MultiSourceEditor({draftId,initial,onSaved}:{draftId:string|numb
    const r=await fetch(url,{method:'PATCH',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({supplementalEvidence:{...latest,sources,claims,media}})})
    if(!r.ok)throw Error('session');base.current={sources,claims,media};setMessage('Saved privately. A reviewer must inspect each source and image.');onSaved()
   }catch(e){setMessage(e instanceof Error&&e.message==='changed'?'Sources changed in another session. Refresh the page and review the latest version.':'Could not save. Please check your session and try again.')}finally{setBusy(false)}}
+ async function reuseSourceTitle(s:Source){
+  if(!safeUrl(s.url)){setMessage('Enter a valid HTTPS source link first.');return}
+  setBusy(true);setMessage('')
+  try{const r=await fetch('/api/studio-source-lookup',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:s.url})});if(!r.ok)throw Error();const j=await r.json();
+   if(!j.found){setMessage('No existing source was found for this exact URL.');return}
+   if(typeof j.title!=='string'||!j.title.trim())throw Error()
+   setSources(v=>v.map(x=>x.id===s.id&&x.url===s.url?{...x,description:j.title}:x));setMessage('Existing source title added. Save the source package before review.')
+  }catch{setMessage('Could not check the existing source. Please try again.')}finally{setBusy(false)}
+ }
  async function checkImage(m:Media){
   const match=/^media\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.exec(m.objectKey.trim())
   if(!match){setMessage('Enter an image path from this article first.');return}
@@ -40,6 +49,7 @@ export function MultiSourceEditor({draftId,initial,onSaved}:{draftId:string|numb
   <h4>Sources</h4>{sources.map((s,i)=><fieldset key={s.id}><legend>Source {i+1}</legend>
    <label>Source title<input required style={field} value={s.description} onChange={e=>setSources(v=>v.map(x=>x.id===s.id?{...x,description:e.target.value}:x))}/></label>
    <label>HTTPS link<input type="url" required style={field} value={s.url} onChange={e=>setSources(v=>v.map(x=>x.id===s.id?{...x,url:e.target.value}:x))}/></label>
+   <button type="button" disabled={busy} onClick={()=>void reuseSourceTitle(s)}>Use existing source title</button>
    <button type="button" onClick={()=>{setSources(v=>v.filter(x=>x.id!==s.id));setClaims(v=>v.map(x=>({...x,sourceIds:x.sourceIds.filter(k=>k!==s.id)})))}}>Remove source</button>
   </fieldset>)}
   <button type="button" onClick={()=>setSources(v=>[...v,{id:id('source'),url:'',description:''}])}>Add source</button>
