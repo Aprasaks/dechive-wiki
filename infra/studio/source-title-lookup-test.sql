@@ -2,6 +2,7 @@
 DO $$ BEGIN
  IF has_function_privilege('kg_g1_candidate_probe','kg.studio_source_by_locator(text)','EXECUTE') THEN RAISE EXCEPTION 'public lookup access'; END IF;
 END $$;
+GRANT USAGE ON SCHEMA kg TO kg_studio_publish;
 SET SESSION AUTHORIZATION kg_studio_publish;
 DO $$ BEGIN
  IF (SELECT description FROM kg.studio_source_by_locator('https://example.org/solo')) IS DISTINCT FROM 'Synthetic source' THEN RAISE EXCEPTION 'existing title lookup failed'; END IF;
