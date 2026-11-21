@@ -1,5 +1,5 @@
 \set ON_ERROR_STOP on
-INSERT INTO kg.entity_types(kind) VALUES ('concept');
+INSERT INTO kg.entity_types(kind) VALUES ('concept') ON CONFLICT DO NOTHING;
 INSERT INTO kg.candidate_private_key(id,secret_key) VALUES(1,decode(repeat('a',64),'hex'));
 INSERT INTO kg.attestation_private_key(id,secret_key) VALUES(1,decode(repeat('c',64),'hex'));
 SELECT * FROM kg.publish_studio_draft('44444444-4444-4444-8444-444444444444','Synthetic solo article','A documented fact.','Summary','history');
