@@ -1,0 +1,75 @@
+name: Studio source title conflict verification
+on:
+  push:
+    branches: [fix/studio-source-title-conflict]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-editor:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: '1'
+      STUDIO_CI_SYNTHETIC: 'true'
+      G1_TRUSTED_ORIGIN: https://studio.example.invalid
+      G1_COOKIE_SECURE: 'true'
+      DATABASE_URL: postgres://kg_studio_ci:synthetic@127.0.0.1:5432/dechive_studio_ci
+      PAYLOAD_SECRET: synthetic-secret-value-at-least-32-bytes
+      G1_REVIEWER_DATABASE_URL: postgres://reviewer:synthetic@127.0.0.1:5432/test
+      G1_PUBLISHER_DATABASE_URL: postgres://publisher:synthetic@127.0.0.1:5432/test
+      G1_CANDIDATE_DATABASE_URL: postgres://candidate:synthetic@127.0.0.1:5432/test
+      G1_REVIEW_ATTESTATION_SECRET: abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd
+      G1_CANDIDATE_SECRET: abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd
+      STUDIO_PUBLICATION_DATABASE_URL: postgres://publisher:synthetic@127.0.0.1:5432/test
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.23.4'
+      - run: python3 infra/studio/stage.py /tmp/studio-bridge
+      - run: npm ci --prefix /tmp/studio-bridge --no-audit --no-fund
+      - run: npm --prefix /tmp/studio-bridge run build:next
+  approved-evidence:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: testdb
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d testdb"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      PGPASSWORD: test-only
+      PGHOST: 127.0.0.1
+      PGUSER: postgres
+      PGDATABASE: testdb
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: psql -v ON_ERROR_STOP=1 -f db/001_knowledge_core_p0.sql
+      - run: psql -v ON_ERROR_STOP=1 -f db/002_review_integrity_p0.sql
+      - run: psql -v ON_ERROR_STOP=1 -v reader_password=synthetic -f experiments/payload-g1/sql/001_http_reader.sql
+      - run: psql -v ON_ERROR_STOP=1 -f experiments/payload-g1/sql/006_public_evidence.sql
+      - run: psql -v ON_ERROR_STOP=1 -f experiments/payload-g1/sql/007_revision_metadata.sql
+      - run: psql -v ON_ERROR_STOP=1 -f infra/studio/direct-publication.sql
+      - run: psql -v ON_ERROR_STOP=1 -c 'CREATE ROLE kg_studio_publish'
+      - run: psql -v ON_ERROR_STOP=1 -f infra/studio/approved-evidence-bridge.sql
+      - run: psql -v ON_ERROR_STOP=1 -c "CREATE ROLE kg_g1_candidate_probe LOGIN"
+      - run: psql -v ON_ERROR_STOP=1 -c "CREATE TABLE kg.candidate_private_key (id integer primary key, secret_key bytea not null)"
+      - run: psql -v ON_ERROR_STOP=1 -f infra/studio/editorial-management.sql
+      - run: psql -v ON_ERROR_STOP=1 -f infra/studio/studio-media.sql
+      - run: psql -v ON_ERROR_STOP=1 -f infra/studio/studio-media-info.sql
+      - run: psql -v ON_ERROR_STOP=1 -f infra/studio/stage-reviewed-evidence.sql
+      - run: psql -v ON_ERROR_STOP=1 -f infra/studio/bind-exact-studio-revision.sql
+      - run: psql -v ON_ERROR_STOP=1 -c "CREATE ROLE kg_g1_reviewer_probe LOGIN"
+      - run: psql -v ON_ERROR_STOP=1 -c "CREATE TABLE kg.attestation_private_key (id integer primary key, secret_key bytea not null)"
+      - run: psql -v ON_ERROR_STOP=1 -f infra/studio/approve-reviewed-evidence.sql
+      - run: psql -v ON_ERROR_STOP=1 -f infra/studio/evidence-role-connect.sql
+
+      - run: psql -v ON_ERROR_STOP=1 -f infra/studio/operator-review-migration.sql
+      - run: psql -v ON_ERROR_STOP=1 -f infra/studio/source-title-conflict-migration.sql
+      - run: psql -v ON_ERROR_STOP=1 -f infra/studio/source-title-conflict-migration-test.sql
