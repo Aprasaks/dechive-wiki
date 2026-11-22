@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import PrivateArticlePreview, {type Snapshot} from './private-article-preview'
 import { MultiSourceEditor, MultiSourceReviewer } from './multi-source-review'
+import { publicationErrorMessage } from './publication-errors'
 
 type Role = 'editor' | 'reviewer' | 'publisher'
 type Draft = {
@@ -239,11 +240,19 @@ export default function StudioClient({ role, email }: { role: Role, email: strin
         method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({draftId:draft.id,summary,domain})
       })
-      if (!r.ok) throw new Error('Publication failed')
+      if (!r.ok) {
+        const details = await r.json().catch(() => null)
+        throw new Error(publicationErrorMessage(r.status, details))
+      }
       const result = await r.json()
       setPublicInfo(prev=>({...prev,[key]:{published:true,entity_id:result.entity_id,summary,primary_domain:domain}}))
       setPublicationState(prev=>({...prev,[key]:{message:'Published successfully.',url:'https://dechive.wiki/knowledge/'+result.entity_id}}))
-    } catch { setPublicationState(prev=>({...prev,[key]:{message:'Publication failed. Please try again.'}})) }
+    } catch (error) {
+      const message = error instanceof Error && !(error instanceof TypeError)
+        ? error.message
+        : 'Connection failed. Check the editor connection, then check whether the article was published before retrying.'
+      setPublicationState(prev=>({...prev,[key]:{message}}))
+    }
   }
 
   async function saveEdit(e:FormEvent<HTMLFormElement>,draft:Draft){
