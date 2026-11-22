@@ -12,6 +12,23 @@ for c in aws session-manager-plugin python3 curl lsof; do
 done
 check_studio() { [[ "$(curl -ksS --max-time 3 -o /dev/null -w '%{http_code}' https://localhost:43122/studio/login 2>/dev/null || true)" == 200 ]]; }
 if ! check_studio; then
+  # A listener can remain present while its SSM channel no longer responds.
+  # Only restart the exact known studio forwarder, never an unrelated process.
+  if lsof -nP -iTCP:43123 -sTCP:LISTEN >/dev/null 2>&1; then
+    upstream=$(curl -sS --max-time 4 -o /dev/null -w '%{http_code}' http://127.0.0.1:43123/studio/login 2>/dev/null || true)
+    if [[ "$upstream" != 200 ]]; then
+      listeners=$(lsof -nP -t -iTCP:43123 -sTCP:LISTEN | sort -u)
+      [[ $(printf '%s\n' "$listeners" | wc -l | tr -d ' ') == 1 ]] || { echo "연결 포트를 확인해 주세요." >&2; exit 1; }
+      command_line=$(ps -p "$listeners" -o command=)
+      case "$command_line" in
+        *session-manager-plugin*dechive-cleanup*i-092c854b4839b24dd*localPortNumber*43123*) ;;
+        *) echo "편집실 외의 프로그램이 연결 포트를 사용 중입니다." >&2; exit 1 ;;
+      esac
+      kill "$listeners"
+      for i in {1..10}; do lsof -nP -iTCP:43123 -sTCP:LISTEN >/dev/null 2>&1 || break; sleep 1; done
+      lsof -nP -iTCP:43123 -sTCP:LISTEN >/dev/null 2>&1 && { echo "기존 연결을 종료하지 못했습니다." >&2; exit 1; }
+    fi
+  fi
   if ! lsof -nP -iTCP:43123 -sTCP:LISTEN >/dev/null 2>&1; then
     nohup aws ssm start-session --profile dechive-cleanup --region ap-northeast-2 --target i-092c854b4839b24dd --document-name AWS-StartPortForwardingSessionToRemoteHost --parameters '{"host":["172.18.0.4"],"portNumber":["3121"],"localPortNumber":["43123"]}' >"$studio_dir/tunnel.log" 2>&1 </dev/null &
     for i in {1..20}; do lsof -nP -iTCP:43123 -sTCP:LISTEN >/dev/null 2>&1 && break; sleep 1; done
