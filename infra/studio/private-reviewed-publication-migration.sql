@@ -34,5 +34,6 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION kg.publish_reviewed_studio_draft(uuid,text,text,text,text,text,bigint) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION kg.publish_studio_draft(uuid,text,text,text,text) FROM kg_studio_publish;
+GRANT USAGE ON SCHEMA kg TO kg_studio_publish;
 GRANT EXECUTE ON FUNCTION kg.publish_reviewed_studio_draft(uuid,text,text,text,text,text,bigint) TO kg_studio_publish;
 COMMIT;
