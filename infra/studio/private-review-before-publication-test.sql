@@ -1,0 +1,15 @@
+-- Regression: a signed review must be stageable before a public head exists.
+\set ON_ERROR_STOP on
+SET SESSION AUTHORIZATION kg_g1_candidate_probe;
+DO $$
+DECLARE p text; nonce text:=repeat('b',32); sig text; r uuid;
+BEGIN
+ p:=jsonb_build_object('entityId','a4444444-4444-4444-8444-444444444444','revisionId','a5555555-5555-4555-8555-555555555555','reviewId',501,'reviewerId',2,'editorId','1','snapshotHash',repeat('a',64),'title','Private stage','body','A verified fact.','reviewSnapshot',jsonb_build_object('media','[]'::jsonb),'reviewEvidence','[]'::jsonb,'reviewMedia','[]'::jsonb,'rows',jsonb_build_array(jsonb_build_object('claimKey','c1','anchor','paragraph','statement','A verified fact.','locator','https://example.org/private-stage','description','Source','pinpoint','Section 1','stance','supports')))::text;
+ sig:=encode(public.hmac(convert_to('studio-reviewed-stage-v1|'||encode(public.digest(convert_to(p,'UTF8'),'sha256'),'hex')||'|'||nonce,'UTF8'),decode(repeat('a',64),'hex'),'sha256'),'hex');
+ r:=kg.stage_studio_reviewed_evidence(p,nonce,sig);
+ IF r<>'a5555555-5555-4555-8555-555555555555'::uuid THEN RAISE EXCEPTION 'incorrect private stage revision'; END IF;
+END $$;
+RESET SESSION AUTHORIZATION;
+DO $$ BEGIN
+ IF EXISTS(SELECT 1 FROM kg.public_entries WHERE entity_id='a4444444-4444-4444-8444-444444444444') THEN RAISE EXCEPTION 'private stage leaked into public entries'; END IF;
+END $$;
