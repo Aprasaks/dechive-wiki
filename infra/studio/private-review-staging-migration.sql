@@ -27,10 +27,7 @@ BEGIN
  -- Serialize against studio publication and against evidence edits.
  PERFORM pg_advisory_xact_lock(hashtextextended(e::text,5311));
  PERFORM pg_advisory_xact_lock(hashtextextended(r::text,7007));
- -- Only the exact current studio publication may receive this staged record.
- SELECT s.* INTO sr FROM kg.studio_public_heads h JOIN kg.studio_public_revisions s
- ON (h.entity_id,h.revision_id,h.version)=(s.entity_id,s.revision_id,s.version)
- WHERE h.entity_id=e AND s.title=v->>'title' AND s.body=v->>'body';
+ -- New reviews are prepared privately, independently of an existing public head.
  -- Bind reviewed image checksums to the actual immutable media bytes.
  IF jsonb_typeof(v->'reviewSnapshot'->'media') IS DISTINCT FROM 'array' THEN
   RAISE EXCEPTION 'INVALID_MEDIA_SNAPSHOT' USING ERRCODE='23514'; END IF;
