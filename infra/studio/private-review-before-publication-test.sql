@@ -13,6 +13,18 @@ RESET SESSION AUTHORIZATION;
 DO $$ BEGIN
  IF EXISTS(SELECT 1 FROM kg.public_entries WHERE entity_id='a4444444-4444-4444-8444-444444444444') THEN RAISE EXCEPTION 'private stage leaked into public entries'; END IF;
 END $$;
+SET SESSION AUTHORIZATION kg_studio_publish;
+DO $$ BEGIN
+ BEGIN
+  PERFORM kg.publish_reviewed_studio_draft('a4444444-4444-4444-8444-444444444444','Private stage','A verified fact.','Summary','science',repeat('a',64),1);
+  RAISE EXCEPTION 'unapproved review was published';
+ EXCEPTION WHEN check_violation THEN IF SQLERRM<>'CURRENT_REVIEW_REQUIRED' THEN RAISE; END IF; END;
+ BEGIN
+  PERFORM kg.publish_studio_draft('a4444444-4444-4444-8444-444444444444','Private stage','A verified fact.','Summary','science');
+  RAISE EXCEPTION 'legacy unreviewed publication allowed';
+ EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $$;
+RESET SESSION AUTHORIZATION;
 SET SESSION AUTHORIZATION kg_g1_reviewer_probe;
 DO $$ DECLARE dig text; nonce text:=repeat('c',32); sig text;
 BEGIN
