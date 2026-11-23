@@ -16,7 +16,7 @@ FILES = (
     "package.json", "package-lock.json",
     "app/layout.tsx",
     "app/studio/page.tsx", "app/studio/login/page.tsx",
-    "app/studio/studio-client.tsx", "app/studio/publication-errors.ts",
+    "app/studio/studio-client.tsx", "app/studio/publication-errors.ts", "app/studio/review-package-errors.ts",
     "app/studio/private-article-preview.tsx", "app/studio/multi-source-review.tsx",
     "app/api/[...slug]/route.ts", "app/api/graphql/route.ts",
     "proxy.ts",
