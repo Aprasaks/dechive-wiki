@@ -13,3 +13,15 @@ RESET SESSION AUTHORIZATION;
 DO $$ BEGIN
  IF EXISTS(SELECT 1 FROM kg.public_entries WHERE entity_id='a4444444-4444-4444-8444-444444444444') THEN RAISE EXCEPTION 'private stage leaked into public entries'; END IF;
 END $$;
+SET SESSION AUTHORIZATION kg_g1_reviewer_probe;
+DO $$ DECLARE dig text; nonce text:=repeat('c',32); sig text;
+BEGIN
+ SELECT payload_digest INTO STRICT dig FROM kg.studio_reviewed_approval_context('a5555555-5555-4555-8555-555555555555',2);
+ sig:=encode(public.hmac(convert_to('studio-reviewed-approval-v1|a5555555-5555-4555-8555-555555555555|2|'||dig||'|'||nonce,'UTF8'),decode(repeat('c',64),'hex'),'sha256'),'hex');
+ PERFORM kg.approve_studio_reviewed_evidence('a5555555-5555-4555-8555-555555555555',2,nonce,sig);
+ IF NOT (SELECT approved FROM kg.studio_reviewed_approval_context('a5555555-5555-4555-8555-555555555555',2)) THEN RAISE EXCEPTION 'private approval missing'; END IF;
+END $$;
+RESET SESSION AUTHORIZATION;
+DO $$ BEGIN
+ IF EXISTS(SELECT 1 FROM kg.public_entries WHERE entity_id='a4444444-4444-4444-8444-444444444444') THEN RAISE EXCEPTION 'private approval leaked into public entries'; END IF;
+END $$;
