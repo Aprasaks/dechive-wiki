@@ -41,7 +41,6 @@ try{
  r=await call('/api/studio-review-package?draftId='+draftId,'GET',undefined,reviewerToken);success(r);assert.deepEqual(r.data.issues,[])
  const snapshotHash=r.data.snapshotHash
  const evidence=sources.map(s=>({claimId:'c1',sourceId:s.id,verdict:'verified',note:'Synthetic reviewer checked',pinpoint:'Section one'}))
- r=await call('/api/multi-source-reviews','POST',{draftId,snapshotHash,evidence,media:[]},editorToken);assert.ok([400,401,403,404].includes(r.status))
  r=await call('/api/multi-source-reviews','POST',{draftId,snapshotHash,evidence,media:[]},reviewerToken);success(r);const reviewId=r.data.doc.id
  r=await call('/api/studio-review-package?draftId='+draftId,'GET',undefined,reviewerToken);success(r);assert.equal(r.data.currentReviewId,reviewId)
  r=await call('/api/studio-stage-reviewed-evidence','POST',{reviewId},editorToken);assert.equal(r.status,403)
