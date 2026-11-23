@@ -3,6 +3,9 @@ import { Pool } from 'pg'
 import { packageHash } from '../lib/multi-source-review'
 import { inspectEditorialPackage, type EditorialPackage } from '../lib/editorial-package'
 const pool = new Pool({connectionString: process.env.STUDIO_PUBLICATION_DATABASE_URL})
+// Hold shared table locks through the cross-database publish, preventing edits
+// from overtaking the snapshot loaded by Payload during this short operation.
+const draftLockPool = new Pool({connectionString: process.env.DATABASE_URL})
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const domains = new Set(['science','technology','humanities','philosophy','history','society','economics','health','life','space','earth','arts-culture'])
 export const directPublicationEndpoint: Endpoint = {
@@ -19,6 +22,12 @@ export const directPublicationEndpoint: Endpoint = {
     if (!Number.isSafeInteger(id) || id < 1 || !domains.has(domain) || !summary || summary.length > 1000) {
       throw new APIError('INVALID_PUBLICATION_DETAILS',400)
     }
+    const lock = await draftLockPool.connect()
+    try {
+      await lock.query('BEGIN')
+      await lock.query("SET LOCAL lock_timeout = '3s'")
+      await lock.query("SET LOCAL statement_timeout = '15s'")
+      await lock.query('LOCK TABLE public.editorial_drafts, public._editorial_drafts_v IN SHARE MODE')
     const draft = await req.payload.findByID({
       collection: 'editorial-drafts', id, draft: true, req, overrideAccess: false,
     })
@@ -41,6 +50,9 @@ export const directPublicationEndpoint: Endpoint = {
     } catch (e) {
       if (e instanceof Error && e.message.includes('CURRENT_REVIEW_REQUIRED')) throw new APIError('CURRENT_REVIEW_REQUIRED',409)
       throw new APIError('PUBLICATION_FAILED',500)
+    }
+    } finally {
+      try { await lock.query('ROLLBACK') } finally { lock.release() }
     }
   },
 }
