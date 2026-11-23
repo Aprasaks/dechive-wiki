@@ -144,3 +144,4 @@ jobs:
       - run: psql -v ON_ERROR_STOP=1 -f infra/studio/private-review-staging-migration.sql
       - run: psql -v ON_ERROR_STOP=1 -f infra/studio/private-reviewed-publication-migration.sql
       - run: cd experiments/payload-g1 && timeout --signal=SIGTERM --kill-after=10s 240s node --import tsx tests/studio-private-publication-http.ts
+      - run: cd experiments/payload-g1 && timeout --signal=SIGTERM --kill-after=10s 240s node --import tsx tests/studio-operator-publication-http.ts
