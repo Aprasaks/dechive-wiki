@@ -51,9 +51,20 @@ try{
  r=await call('/api/studio-approve-reviewed-evidence','POST',{reviewId,revisionId},reviewerToken);success(r);assert.equal(r.data.approved,true)
  r=await call('/api/studio-approve-reviewed-evidence','POST',{reviewId,revisionId},reviewerToken);success(r);assert.equal(r.data.approved,true)
  count=await admin.query('SELECT count(*)::int n FROM kg.public_claim_sources WHERE entity_id=$1',[entity]);assert.equal(count.rows[0].n,0)
- r=await call('/api/studio-publish','POST',{draftId,summary:'Synthetic summary',domain:'science'},editorToken);success(r)
+ // Pause the actual publication transaction while a concurrent draft edit attempts to run.
+ await admin.query(`CREATE OR REPLACE FUNCTION kg.test_pause_studio_publication() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.title='Synthetic review' THEN PERFORM pg_sleep(2); END IF; RETURN NEW; END $$`)
+ await admin.query('CREATE TRIGGER test_pause_studio_publication BEFORE INSERT ON kg.studio_public_revisions FOR EACH ROW EXECUTE FUNCTION kg.test_pause_studio_publication()')
+ const publishing=call('/api/studio-publish','POST',{draftId,summary:'Synthetic summary',domain:'science'},editorToken)
+ let paused=false
+ for(let i=0;i<40;i++){const q=await admin.query("SELECT 1 FROM pg_stat_activity WHERE wait_event='PgSleep' AND query LIKE '%publish_reviewed_studio_draft%'");if(q.rowCount){paused=true;break}await new Promise(done=>setTimeout(done,50))}
+ assert.ok(paused,'publication did not reach concurrency test barrier')
+ let edited=false
+ const editing=call('/api/editorial-drafts/'+draftId+'?draft=true','PATCH',{body:'Updated article.'},editorToken).then(x=>{edited=true;return x})
+ await new Promise(done=>setTimeout(done,200));assert.equal(edited,false,'draft edit overtook publication')
+ r=await publishing;success(r)
+ r=await editing;success(r)
+ await admin.query('DROP TRIGGER test_pause_studio_publication ON kg.studio_public_revisions')
  count=await admin.query('SELECT count(*)::int n FROM kg.public_claim_sources WHERE entity_id=$1',[entity]);assert.equal(count.rows[0].n,2)
- r=await call('/api/editorial-drafts/'+draftId+'?draft=true','PATCH',{body:'Updated article.'},editorToken);success(r)
  r=await call('/api/studio-publish','POST',{draftId,summary:'Updated summary',domain:'science'},editorToken);assert.equal(r.status,409)
  count=await admin.query('SELECT count(*)::int n FROM kg.public_claim_sources WHERE entity_id=$1',[entity]);assert.equal(count.rows[0].n,2)
  console.log('Authenticated multi-source publication flow passed');successStatus=true
