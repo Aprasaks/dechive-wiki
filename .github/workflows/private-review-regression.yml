@@ -1,6 +1,8 @@
 name: Private review regression
 on:
   workflow_dispatch:
+  push:
+    branches: [test/private-review-regression-20261123]
 permissions:
   contents: read
 jobs:
