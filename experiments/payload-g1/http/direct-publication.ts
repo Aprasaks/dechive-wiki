@@ -1,5 +1,7 @@
 import { APIError, type Endpoint } from 'payload'
 import { Pool } from 'pg'
+import { packageHash } from '../lib/multi-source-review'
+import { inspectEditorialPackage, type EditorialPackage } from '../lib/editorial-package'
 const pool = new Pool({connectionString: process.env.STUDIO_PUBLICATION_DATABASE_URL})
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const domains = new Set(['science','technology','humanities','philosophy','history','society','economics','health','life','space','earth','arts-culture'])
@@ -24,13 +26,20 @@ export const directPublicationEndpoint: Endpoint = {
       || typeof draft.title !== 'string' || typeof draft.body !== 'string') {
       throw new APIError('DRAFT_NOT_AVAILABLE',404)
     }
+    const extra = draft.supplementalEvidence as Record<string,unknown> | null
+    const editor = typeof draft.createdBy === 'object' ? draft.createdBy?.id : draft.createdBy
+    if (!extra || !Array.isArray(extra.sources) || !Array.isArray(extra.claims) || !Array.isArray(extra.media) || !editor) throw new APIError('CURRENT_REVIEW_REQUIRED',409)
+    const pack = {title:draft.title, body:draft.body, sources:extra.sources, claims:extra.claims, media:extra.media} as EditorialPackage
+    let hash:string
+    try { if (inspectEditorialPackage(pack).issues.length) throw Error(); hash=packageHash(pack) } catch { throw new APIError('CURRENT_REVIEW_REQUIRED',409) }
     try {
       const result = await pool.query(
-        'SELECT * FROM kg.publish_studio_draft($1::uuid,$2::text,$3::text,$4::text,$5::text)',
-        [draft.stableEntityId, draft.title, draft.body, summary, domain],
+        'SELECT * FROM kg.publish_reviewed_studio_draft($1::uuid,$2::text,$3::text,$4::text,$5::text,$6::text,$7::bigint)',
+        [draft.stableEntityId, draft.title, draft.body, summary, domain, hash, Number(editor)],
       )
       return Response.json({published:true, ...result.rows[0]},{headers:{'Cache-Control':'private, no-store'}})
-    } catch {
+    } catch (e) {
+      if (e instanceof Error && e.message.includes('CURRENT_REVIEW_REQUIRED')) throw new APIError('CURRENT_REVIEW_REQUIRED',409)
       throw new APIError('PUBLICATION_FAILED',500)
     }
   },

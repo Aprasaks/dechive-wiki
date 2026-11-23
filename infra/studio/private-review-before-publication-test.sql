@@ -25,3 +25,22 @@ RESET SESSION AUTHORIZATION;
 DO $$ BEGIN
  IF EXISTS(SELECT 1 FROM kg.public_entries WHERE entity_id='a4444444-4444-4444-8444-444444444444') THEN RAISE EXCEPTION 'private approval leaked into public entries'; END IF;
 END $$;
+SET SESSION AUTHORIZATION kg_studio_publish;
+DO $$ DECLARE result record;
+BEGIN
+ BEGIN
+  PERFORM kg.publish_reviewed_studio_draft('a4444444-4444-4444-8444-444444444444','Private stage','Changed fact.','Summary','science',repeat('a',64),1);
+  RAISE EXCEPTION 'changed content was accepted';
+ EXCEPTION WHEN check_violation THEN IF SQLERRM<>'CURRENT_REVIEW_REQUIRED' THEN RAISE; END IF; END;
+ BEGIN
+  PERFORM kg.publish_reviewed_studio_draft('a4444444-4444-4444-8444-444444444444','Private stage','A verified fact.','Summary','science',repeat('b',64),1);
+  RAISE EXCEPTION 'changed package was accepted';
+ EXCEPTION WHEN check_violation THEN IF SQLERRM<>'CURRENT_REVIEW_REQUIRED' THEN RAISE; END IF; END;
+ SELECT * INTO result FROM kg.publish_reviewed_studio_draft('a4444444-4444-4444-8444-444444444444','Private stage','A verified fact.','Summary','science',repeat('a',64),1);
+ IF result.version<>1 THEN RAISE EXCEPTION 'approved article not published'; END IF;
+END $$;
+RESET SESSION AUTHORIZATION;
+DO $$ BEGIN
+ IF NOT EXISTS(SELECT 1 FROM kg.public_entries WHERE entity_id='a4444444-4444-4444-8444-444444444444' AND body='A verified fact.') THEN RAISE EXCEPTION 'published article missing'; END IF;
+ IF (SELECT count(*) FROM kg.public_claim_sources WHERE entity_id='a4444444-4444-4444-8444-444444444444')<>1 THEN RAISE EXCEPTION 'approved sources missing'; END IF;
+END $$;
